@@ -134,6 +134,8 @@ P.qxyXqt =@(Gqt) reshape(RT*(Gqt(:)),[Ns Ns])/cnorm;
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));
+
+%Iradon to go from (q theta) to (qx qy) to (x y): ? - Venkat
 P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(P.qtXrt(GI)));
 
 % fast partial radon transform:

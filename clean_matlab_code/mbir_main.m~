@@ -1,4 +1,5 @@
 clear;
+close all;
 
 gpuDevice([]);
 gpuDevice(2);
@@ -11,10 +12,11 @@ addpath Common
 Ns=2560;
 nangles=180;
 
-signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
+signal = padmat(phantom(Ns/2),[Ns,Ns]);
+%padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
  Dt=round(180/nangles); %spacing in degrees
- angle_list= 0:Dt:180-Dt;
+ angle_list= %0:Dt:180-D;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
  [A,preprocessop]=forwarmodel(qq,tt);
@@ -24,14 +26,18 @@ signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 real_data=preprocessop.image2radon(signal);
 input_data=preprocessop.radon2q(real_data);
 
+
+%debugging 
+
+figure;imagesc(signal);axis image;colorbar;title('Ground truth');
+
 figure;imagesc(real(real_data).');title('Projection using NUFFT');
 colorbar;
 
-%debugging 
-forward_proj_inbuilt = radon(gpuArray(signal),angle_list);
+forward_proj_inbuilt = radon(gpuArray(rot90(signal)),angle_list);
 forward_proj_inbuilt = forward_proj_inbuilt((end+1)/2-Ns/2:(end+1)/2+Ns/2-1,:);
 figure;imagesc(real(forward_proj_inbuilt).');
-title('
+title('Projection using Matlab radon');
 colorbar;
 
 

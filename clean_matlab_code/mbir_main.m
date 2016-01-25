@@ -1,4 +1,5 @@
 clear;
+close all;
 
 gpuDevice([]);
 gpuDevice(2);
@@ -9,11 +10,12 @@ addpath gnufft
 addpath Common
 
 Ns=2560;
-nangles=180;
+nangles=512;
 
-signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
+signal = padmat(phantom(Ns/2),[Ns,Ns]);
+%padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
- Dt=round(180/nangles); %spacing in degrees
+ Dt=(180/nangles); %spacing in degrees
  angle_list= 0:Dt:180-Dt;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
