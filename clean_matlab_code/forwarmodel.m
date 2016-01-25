@@ -23,7 +23,7 @@ A = completeOps(A);
 preprocessop.image2radon=@(x) P.gnuradon(reshape(x,[Ns,Ns]));
 preprocessop.radon2q=@(x) P.opprefilter(x(:),2);
 preprocessop.shearlet2image=@(x) A.reconstruct(A.M(x,2));
-preprocessop.radon2image=@(x) P.gnuiradon();
+preprocessop.radon2image=@(x) P.gnuiradon(x);
 
 %real_data=P.gnuradon(reshape(data.signal,[Ns,Ns]));
 %data.b=P.opprefilter(real_data(:),2);

@@ -26,6 +26,8 @@ signal = padmat(phantom(Ns/2),[Ns,Ns]);
 real_data=preprocessop.image2radon(signal);
 input_data=preprocessop.radon2q(real_data);
 
+test_backproj = preprocessop.radon2image(real_data);
+
 
 %debugging 
 
@@ -40,6 +42,12 @@ figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
+figure;imagesc(real(test_backproj));axis image;colorbar;
+title('Back projection using NUFFT');
+
+back_proj_inbuilt=iradon(forward_proj_inbuilt,angle_list,Ns);
+figure;imagesc(rot90(back_proj_inbuilt,-1));axis image;colorbar;
+title('Back projection using iradon');
 
 %P.gnuradon(reshape(data.signal,[Ns,Ns]));
 %data.b=P.opprefilter(real_data(:),2);

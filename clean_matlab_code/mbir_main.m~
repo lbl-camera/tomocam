@@ -10,13 +10,13 @@ addpath gnufft
 addpath Common
 
 Ns=2560;
-nangles=180;
+nangles=512;
 
 signal = padmat(phantom(Ns/2),[Ns,Ns]);
 %padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
- Dt=round(180/nangles); %spacing in degrees
- angle_list= %0:Dt:180-D;
+ Dt=(180/nangles); %spacing in degrees
+ angle_list= 0:Dt:180-Dt;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
  [A,preprocessop]=forwarmodel(qq,tt);
@@ -25,6 +25,8 @@ signal = padmat(phantom(Ns/2),[Ns,Ns]);
 % note that real data is 
 real_data=preprocessop.image2radon(signal);
 input_data=preprocessop.radon2q(real_data);
+
+test_backproj = preprocessop.radon2image(real_data);
 
 
 %debugging 
@@ -40,6 +42,12 @@ figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
+figure;imagesc(real(test_backproj));axis image;colorbar;
+title('Back projection using NUFFT');
+
+back_proj_inbuilt=iradon(forward_proj_inbuilt,angle_list,Ns);
+figure;imagesc((back_proj_inbuilt));axis image;colorbar;
+title('Back projection using iradon');
 
 %P.gnuradon(reshape(data.signal,[Ns,Ns]));
 %data.b=P.opprefilter(real_data(:),2);

@@ -60,7 +60,7 @@ gkblut=gpuArray(single(kblut));
 P.gDq=gpuArray(single(Dq));
 P.gdpz=gpuArray(single(dpz));
 grid = int64([Ns,Ns]);
-scale = single((256-1)/k_r);
+scale = single((256-1)/k_r); %What is 256 ? - Venkat 1/25/2016
 
 % normalize by KB factor
 %cnorm=gpuArray(single(sum(sum(KB2D((1:Ns)'-Ns/2,(1:Ns)-Ns/2)))));
@@ -135,7 +135,8 @@ P.qxyXqt =@(Gqt) reshape(RT*(Gqt(:)),[Ns Ns])/cnorm;
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));
 
-%Iradon to go from (q theta) to (qx qy) to (x y): ? - Venkat
+%Iradon to go from (r theta) to (q theta) to (qx qy) to (x y): ? - Venkat:
+%1/25/2016
 P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(P.qtXrt(GI)));
 
 % fast partial radon transform:
