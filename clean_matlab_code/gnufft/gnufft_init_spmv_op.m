@@ -34,6 +34,7 @@ fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
 
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
 kblut=kblut/KBnorm*1.7; %scaling fudge factor
+%TODO : Remove fudge factors - Venkat 
 
 
 % % Normalization (density compensation factor)
