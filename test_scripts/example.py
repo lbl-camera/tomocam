@@ -19,11 +19,11 @@ temp = afnp.array(afnp.random.random((1,length)))
 temp2 = afnp.array(afnp.random.random((1,length)))
 temp3 = temp+temp2
 elapsed1 = time.time() - t
-print(elapsed1)
+print("Elapsed time using afnumpy ",elapsed1)
 
 t = time.time()
 temp = np.array(np.random.random((1,length)))
 temp2 = np.array(np.random.random((1,length)))
 temp3 = temp+temp2
 elapsed2 = time.time() - t
-print(elapsed2)
+print("Elapsed time using numpy ",elapsed2)

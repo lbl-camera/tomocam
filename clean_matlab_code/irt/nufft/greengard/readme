@@ -1,0 +1,8 @@
+code by will grissom that implements the clever nufft method
+from the following paper
+
+@a greengard:04:atn siam-rev 46 3 443-54 . 2004
+Leslie Greengard  June-Yub Lee
+Accelerating the nonuniform fast Fourier transform
+@u doi 10.1137/S003614450343200X
+

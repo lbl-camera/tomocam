@@ -1,0 +1,10 @@
+#!/bin/csh -e
+
+alias cp /bin/cp
+
+cp -p ~/l/src/defs/*.h .
+cp -p ~/l/src/util/misc/defs-misc.h .
+cp -p ~/l/src/util/misc/penalty,diff.c .
+#cp -p ~/l/src/util/misc/{defs-misc.h,penalty,diff.c} .
+cp -p ~/l/src/util/mex/def,mexarg.h .
+cp -p ~/l/src/util/mex/{Makefile,mexarg.c,penalty_mex.c} .

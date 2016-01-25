@@ -1,0 +1,8 @@
+This directory has all the source code needed to compile penalty_mex
+for users of unsupported systems.
+Self compiling and self compiled versions are unsupported...
+
+One PC user (thank you!) reported that he was able to get this to compile
+from withing matlab using this command:
+
+	mex penalty_mex.c mexarg.c 'penalty,diff.c' -DIs_pc -DMmex -outdir ../v7
