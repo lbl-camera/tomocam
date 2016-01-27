@@ -15,7 +15,7 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r)
 %
 %
 % Stefano Marchesini,  LBNL 2013
-%
+% Modifications by S.V. Venaktakrishnan, LBNL 2016
 % if nargin<6
 %     uniqueness=false;
 % end
@@ -30,7 +30,7 @@ fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
 
 % Preload the Bessel kernel (real components!)
 %[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
-[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,256);
+[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,256); %TODO : What is 256 ? Venkat
 
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
 kblut=kblut/KBnorm*1.7; %scaling fudge factor
@@ -40,8 +40,9 @@ kblut=kblut/KBnorm*1.7; %scaling fudge factor
 % % Normalization (density compensation factor)
 Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
 % <------mask
-P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);
+%P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);%TODO : What are these numbers ? Venkat 
 %P.grmask=gpuArray(abs(qq)<size(qq,1)*3/2);
+P.grmask =gpuArray(ones(size(qq)));
 
 % deapodization factor, (the FT of the kernel):
 dpz=deapodization(Ns,KB);
@@ -61,13 +62,13 @@ gkblut=gpuArray(single(kblut));
 P.gDq=gpuArray(single(Dq));
 P.gdpz=gpuArray(single(dpz));
 grid = int64([Ns,Ns]);
-scale = single((256-1)/k_r); %What is 256 ? - Venkat 1/25/2016
+scale = single((256-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
 
 % normalize by KB factor
 %cnorm=gpuArray(single(sum(sum(KB2D((1:Ns)'-Ns/2,(1:Ns)-Ns/2)))));
-cnorm=gpuArray(single(1));
+cnorm=gpuArray(single(1)); %TO DO : ?? Venkat
 
-
+% SPMV stuff
 xint=int32(xi);
 yint=int32(yi);
 
@@ -113,7 +114,9 @@ gval1=complex(gval)./P.gDq(gcol);
 RT=gcsparse(gcol,grow,gval1,nrow,ncol,1);
 % we'll do the transpose with polarsample, which is faster...
 % PT=gcsparse(grow,gcol,complex(gval),ncol,nrow,1);
-%%
+%
+% end of SPMV
+
 % real (r) to fourier (q) -- cartesian (xy)
 gdpz1=(P.gdpz).*fftshift2D;
 P.qxyXrxy=@(Grxy) (fftshift2D.*fft2(Grxy.*gdpz1))/Ns;%deapodized
@@ -131,6 +134,7 @@ P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
 %%
 % q-radon to q cartesian
 % (qx,qy) <-> (q, theta) : cartesian <-> non-uniform samples
+% gridding using SPMV:
 P.qxyXqt =@(Gqt) reshape(RT*(Gqt(:)),[Ns Ns])/cnorm;
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):

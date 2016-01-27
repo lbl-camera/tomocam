@@ -12,41 +12,56 @@ addpath Common
 Ns=2560;
 nangles=512;
 
-signal = padmat(phantom(Ns/2),[Ns,Ns]);
+signal = gpuArray(padmat(phantom(Ns),[Ns,Ns]));
+%phantom(Ns);
 %padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
- Dt=(180/nangles); %spacing in degrees
- angle_list= 0:Dt:180-Dt;
+Dt=(180/nangles); %spacing in degrees
+angle_list= 0:Dt:180-Dt;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
- [A,preprocessop]=forwarmodel(qq,tt);
+[A,preprocessop]=forwarmodel(qq,tt);
 
-%%
-% note that real data is 
+%% Debugging
+%%%%%%%%%% Forward-projection %%%%%% 
+
+
+display('Projecting using NUFFT');
+tic;
 real_data=preprocessop.image2radon(signal);
-input_data=preprocessop.radon2q(real_data);
+toc;
 
-test_backproj = preprocessop.radon2image(real_data);
+%input_data=preprocessop.radon2q(real_data);
+display('Projecting using Matlab gpu radon');
+tic;
+forward_proj_inbuilt = radon((rot90(signal)),angle_list);
+forward_proj_inbuilt = forward_proj_inbuilt((end+1)/2-Ns/2:(end+1)/2+Ns/2-1,:);
+toc;
 
-
-%debugging 
 
 figure;imagesc(signal);axis image;colorbar;title('Ground truth');
-
 figure;imagesc(real(real_data).');title('Projection using NUFFT');
 colorbar;
 
-forward_proj_inbuilt = radon(gpuArray(rot90(signal)),angle_list);
-forward_proj_inbuilt = forward_proj_inbuilt((end+1)/2-Ns/2:(end+1)/2+Ns/2-1,:);
 figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
+%%%%%%%% Back-projection %%%%%%%%%
+display('Back-Projecting using NUFFT');
+tic;
+test_backproj = preprocessop.radon2image(real_data);
+toc;
+
+display('Projecting using Matlab iradon');
+tic;
+back_proj_inbuilt=iradon(forward_proj_inbuilt,angle_list,Ns);
+toc;
+
 figure;imagesc(real(test_backproj));axis image;colorbar;
 title('Back projection using NUFFT');
 
-back_proj_inbuilt=iradon(forward_proj_inbuilt,angle_list,Ns);
-figure;imagesc((back_proj_inbuilt));axis image;colorbar;
+figure;imagesc(rot90(back_proj_inbuilt,-1));axis image;colorbar;
 title('Back projection using iradon');
 
 %P.gnuradon(reshape(data.signal,[Ns,Ns]));

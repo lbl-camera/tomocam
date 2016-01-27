@@ -9,11 +9,11 @@ addpath gnufft
 addpath Common
 
 Ns=2560;
-nangles=180;
+nangles=512;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
- Dt=round(180/nangles); %spacing in degrees
+ Dt=(180/nangles); %spacing in degrees
 [tt,qq]=meshgrid(0:Dt:180-Dt,(1:(Ns))-floor((Ns+1)/2)-1);
 
 % Kernel radius
@@ -23,6 +23,7 @@ opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
 
 Fmsk=ones(Ns,nangles);
 Fmsk(Ns/2+randi(round(Ns/4),5)-round(Ns/8),:)=0;
+
 
 data.signal = signal;
 
@@ -64,12 +65,12 @@ tic;
 for i=1:1
     x = solveTV(data.M, data.B, TV, data.b, x, opts);
     y = data.reconstruct(x);
-    tm=toc/i;
+    tm=toc/opts.maxIts;
     subplot(1,2,2);
     imagesc((abs(cropimg(y))+.1).^.5);axis image
     title(sprintf('Iteration %d, timeperiter=%g',i*opts.maxIts,tm));
     drawnow;
-    pause
+%    pause
 end
 %%
  ttime=toc;

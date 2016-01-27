@@ -20,7 +20,8 @@ ind_in=find(tt1==90 &qq1>=0);
 ind_out=find(abs(xi)<nj+1 & qq1>-nj-1);
 
 %divide in blocks
-nb=100;
+nb=100; %TODO : Why 100 ? Venkat 
+
 % mult factor: # block/#pixels:
 mmx=(nb-1)/(max(yi(ind_in))+2*nj+2);
 

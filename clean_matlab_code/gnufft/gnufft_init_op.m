@@ -127,7 +127,8 @@ gnuqradon=@(G) P.qtXqxy(P.qxyXrxy(G))./P.gDq;
 gnuqiradon=@(GI) P.rxyXqxy(P.qxyXqt(GI));
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
-P.gnuradon=@(G) P.rtXqt(gnuqradon(G).*P.gDq);
+P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));
+P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(P.qtXrt(GI)));
 
 
 % data from radon (r theta) to (q theta) with density compensation
