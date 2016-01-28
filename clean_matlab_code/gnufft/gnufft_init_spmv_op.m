@@ -20,6 +20,11 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r)
 %     uniqueness=false;
 % end
 
+%Set constants for the file 
+KBLUT_LENGTH = 256;
+fSCALING_FACTOR = 1.7;%What is this ? 
+OVERSAMPLING = 2; %New addition - venkat
+
 nangles=size(tt,2);
 
 %fftshift factor
@@ -30,12 +35,12 @@ fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
 
 % Preload the Bessel kernel (real components!)
 %[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
-[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,256); %TODO : What is 256 ? Venkat
+[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); %TODO : What is 256 ? Venkat
 
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
-kblut=kblut/KBnorm*1.7; %scaling fudge factor
+kblut=kblut/KBnorm*SCALING_FACTOR; %scaling fudge factor
 %TODO : Remove fudge factors - Venkat 
-
+figure;plot(kblut);title('KB window');
 
 % % Normalization (density compensation factor)
 Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
@@ -45,7 +50,7 @@ Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
 P.grmask =gpuArray(ones(size(qq)));
 
 % deapodization factor, (the FT of the kernel):
-dpz=deapodization(Ns,KB);
+dpz=deapodization(Ns,KB); %TODO : Buggy for large window sizes 
 % gdpz=gpuArray(single(dpz));
 
 % polar to cartesian, centered
@@ -62,7 +67,7 @@ gkblut=gpuArray(single(kblut));
 P.gDq=gpuArray(single(Dq));
 P.gdpz=gpuArray(single(dpz));
 grid = int64([Ns,Ns]);
-scale = single((256-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
+scale = single((KBLUT_LENGTH-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
 
 % normalize by KB factor
 %cnorm=gpuArray(single(sum(sum(KB2D((1:Ns)'-Ns/2,(1:Ns)-Ns/2)))));

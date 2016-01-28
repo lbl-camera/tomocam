@@ -12,6 +12,10 @@ addpath Common
 Ns=2560;
 nangles=512;
 
+center = 1280;%sub pixels 
+pix_size = 1;%um 
+det_size = 1;%um 
+
 signal = gpuArray(padmat(phantom(Ns),[Ns,Ns]));
 %phantom(Ns);
 %padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
@@ -24,8 +28,6 @@ angle_list= 0:Dt:180-Dt;
 
 %% Debugging
 %%%%%%%%%% Forward-projection %%%%%% 
-
-
 display('Projecting using NUFFT');
 tic;
 real_data=preprocessop.image2radon(signal);
@@ -37,7 +39,6 @@ tic;
 forward_proj_inbuilt = radon((rot90(signal)),angle_list);
 forward_proj_inbuilt = forward_proj_inbuilt((end+1)/2-Ns/2:(end+1)/2+Ns/2-1,:);
 toc;
-
 
 figure;imagesc(signal);axis image;colorbar;title('Ground truth');
 figure;imagesc(real(real_data).');title('Projection using NUFFT');

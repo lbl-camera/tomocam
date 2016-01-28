@@ -1,21 +1,19 @@
 function [A,preprocessop]=forwarmodel(qq,tt)
 % function [A,preprocessop]=forwarmodel(qq,tt)
 
-
 % Kernel radius
-k_r=4;beta =2*pi*1.0;  %kernel size 2*kr+1
+k_r=2;beta =2*pi*5.0;  %kernel size 2*kr+1
 
 [Ns,nangles]=size(qq);
 
 [gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r);
 
- opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
+opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
 % 
-
 %data.signal = signal;
 
 A.M=opFoG(opGNUFFT);
- A.M=opFoG(opFPolyfilter,opGNUFFT);
+A.M=opFoG(opFPolyfilter,opGNUFFT);
 
 A.signalSize=[Ns Ns];
 A = completeOps(A);
