@@ -36,6 +36,7 @@ fftshift2D=bsxfun(@times,(-1).^xx,(-1).^xx');
 %fftshift1D=(-1).^xx';
 fftshift1Dop_old=@(a) bsxfun(@times,(-1).^xx',a);
 fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
+fftshift1Dop_inv=@(a) bsxfun(@times,exp(1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
 %[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
@@ -136,7 +137,7 @@ P.rxyXqxy=@(Gqxy) ifft2((Gqxy.*fftshift2D)).*(gdpz1)*Ns; %deapodized
 
 % real (r) to fourier (q) -- radon space (r/q-theta)
 P.rtXqt=@(Gqt) fftshift1Dop_old(ifft(fftshift1Dop(Gqt))).*P.grmask;
-P.qtXrt=@(Grt) fftshift1Dop(fft(fftshift1Dop(Grt)));
+P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 
 % q-cartesian to q-radon
 P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
