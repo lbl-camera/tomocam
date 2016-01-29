@@ -12,7 +12,7 @@ addpath Common
 Ns = 2560;
 nangles = 512;
 
-center = 1280;%sub pixels 
+center = 1250;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
@@ -24,7 +24,7 @@ Dt=(180/nangles); %spacing in degrees
 angle_list= 0:Dt:180-Dt;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
-[A,preprocessop]=forwarmodel(qq,tt);
+[A,preprocessop]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
 
 
 %% Debugging

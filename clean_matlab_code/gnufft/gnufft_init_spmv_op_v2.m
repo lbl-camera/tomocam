@@ -1,4 +1,4 @@
-function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center)
+function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,delta_r,delta_xy)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
@@ -8,6 +8,8 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,ce
 %        beta, kaiser-bessel parameter,
 %        k_r, kernel width
 %        center - center of rotation in units of pixel index 
+%        delta_r - lenght of detector pixel in units of micron - TODO 
+%        delta_xy - length of object voxel size - assuming square/cubic voxels 
 %Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
@@ -32,7 +34,8 @@ nangles=size(tt,2);
 xx=gpuArray(single(0:Ns-1));
 fftshift2D=bsxfun(@times,(-1).^xx,(-1).^xx');
 %fftshift1D=(-1).^xx';
-fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
+%fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
+fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
 %[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
