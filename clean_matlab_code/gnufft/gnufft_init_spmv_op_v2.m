@@ -34,7 +34,7 @@ nangles=size(tt,2);
 xx=gpuArray(single(0:Ns-1));
 fftshift2D=bsxfun(@times,(-1).^xx,(-1).^xx');
 %fftshift1D=(-1).^xx';
-%fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
+fftshift1Dop_old=@(a) bsxfun(@times,(-1).^xx',a);
 fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
@@ -135,7 +135,7 @@ P.rxyXqxy=@(Gqxy) ifft2((Gqxy.*fftshift2D)).*(gdpz1)*Ns; %deapodized
 %P.rxyXqxy=@(Gqxy) fftshift2D.*ifft2((Gqxy.*fftshift2D)).*(P.gdpz)*Ns; %deapodized
 
 % real (r) to fourier (q) -- radon space (r/q-theta)
-P.rtXqt=@(Gqt) fftshift1Dop(ifft(fftshift1Dop(Gqt))).*P.grmask;
+P.rtXqt=@(Gqt) fftshift1Dop_old(ifft(fftshift1Dop(Gqt))).*P.grmask;
 P.qtXrt=@(Grt) fftshift1Dop(fft(fftshift1Dop(Grt)));
 
 % q-cartesian to q-radon

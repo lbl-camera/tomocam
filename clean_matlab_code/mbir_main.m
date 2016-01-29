@@ -49,6 +49,10 @@ figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
+figure;plot(real(real_data(:,1))*4000);
+hold on;plot(real(forward_proj_inbuilt(:,1)),'r')
+title('Projection at 0 angle');
+
 %%%%%%%% Back-projection %%%%%%%%%
 display('Back-Projecting using NUFFT');
 tic;
