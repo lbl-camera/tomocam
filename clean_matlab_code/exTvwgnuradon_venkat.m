@@ -10,6 +10,9 @@ addpath Common
 
 Ns=2560;
 nangles=512;
+center = 1272.5;
+pix_size =1;
+det_size =1;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
@@ -18,7 +21,7 @@ Dt=(180/nangles); %spacing in degrees
 
 % Kernel radius
 k_r=2;beta =3*pi*1.0;
-[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r);
+[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,pix_size,det_size);
 opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
 
 Fmsk=ones(Ns,nangles);

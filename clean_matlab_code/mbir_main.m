@@ -9,14 +9,19 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns = 2560;
+Ns_actual = 2560;
+
 nangles = 512;
 %Ns_pad = 4096;
-center = 1272.5;%sub pixels 
+center_actual = 1272;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
-signal = gpuArray(padmat(phantom(Ns/2),[Ns,Ns]));
+%padding
+Ns=3000;
+center = center_actual + (Ns/2 - Ns_actual/2);
+
+signal = gpuArray(padmat(phantom(Ns_actual),[Ns,Ns]));
 %phantom(Ns);
 %padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
