@@ -11,8 +11,8 @@ addpath Common
 
 Ns = 2560;
 nangles = 512;
-
-center = 1300;%sub pixels 
+%Ns_pad = 4096;
+center = 1272.5;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
