@@ -1,4 +1,4 @@
-function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r)
+function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
@@ -7,7 +7,8 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r)
 %        q,t (polar coordinates q, theta)
 %        beta, kaiser-bessel parameter,
 %        k_r, kernel width
-% Output:
+%        center - center of rotation in units of pixel index 
+%Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
 %        radon and inverse radon wrap around some FFTs

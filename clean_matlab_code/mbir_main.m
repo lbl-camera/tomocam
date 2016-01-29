@@ -2,21 +2,21 @@ clear;
 close all;
 
 gpuDevice([]);
-gpuDevice(3);
+gpuDevice(2);
 
 addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
 
-Ns=2560;
-nangles=512;
+Ns = 2560;
+nangles = 512;
 
 center = 1280;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
-signal = gpuArray(padmat(phantom(Ns),[Ns,Ns]));
+signal = gpuArray(padmat(phantom(Ns/2),[Ns,Ns]));
 %phantom(Ns);
 %padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
@@ -25,6 +25,7 @@ angle_list= 0:Dt:180-Dt;
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 
 [A,preprocessop]=forwarmodel(qq,tt);
+
 
 %% Debugging
 %%%%%%%%%% Forward-projection %%%%%% 

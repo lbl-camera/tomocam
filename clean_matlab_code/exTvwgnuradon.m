@@ -8,12 +8,12 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns=2560;
+Ns=2560*2;
 nangles=512;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
- Dt=(180/nangles); %spacing in degrees
+Dt=(180/nangles); %spacing in degrees
 [tt,qq]=meshgrid(0:Dt:180-Dt,(1:(Ns))-floor((Ns+1)/2)-1);
 
 % Kernel radius
