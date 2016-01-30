@@ -8,9 +8,9 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns=2560;
-nangles=512;
-center = 1272.5;
+Ns=2560*2;
+nangles=512*2;
+center = 1280*2;
 pix_size =1;
 det_size =1;
 

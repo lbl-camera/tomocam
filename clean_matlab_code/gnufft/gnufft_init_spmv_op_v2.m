@@ -39,7 +39,6 @@ fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
 fftshift1Dop_inv=@(a) bsxfun(@times,exp(1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
-%[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
 [kblut,KB,KB1,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); %TODO : What is 256 ? Venkat
 
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
