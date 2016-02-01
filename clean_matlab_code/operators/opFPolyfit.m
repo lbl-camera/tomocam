@@ -37,7 +37,7 @@ col=@(x) x(:);
 
 % build vandermonde matrix, assume only quadratic offset
 %vander2=@(x)[ x.^2  ]';
-%vander2=@(x)[ x.^1 x.^0]';
+%vander2=@(x)[x.^2 x.^1 x.^0]';
 %V=vander2(single(gpuArray.linspace(0,1,nangles)'/nangles));
 vander2=@(x)[ x.^0  ]';
 

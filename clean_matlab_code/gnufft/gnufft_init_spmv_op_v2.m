@@ -1,15 +1,17 @@
-function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,delta_r,delta_xy)
+function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,delta_r,delta_xy,Nr_orig)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
 %
 % input: Ns, x-y grid size
-%        q,t (polar coordinates q, theta)
+%        qq,tt (polar coordinates q, theta)
 %        beta, kaiser-bessel parameter,
 %        k_r, kernel width
 %        center - center of rotation in units of pixel index 
 %        delta_r - lenght of detector pixel in units of micron - TODO 
 %        delta_xy - length of object voxel size - assuming square/cubic voxels 
+%        Nr_orig : The length of the original detector in pixels. Used to
+%        mask out values during FFT. 
 %Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
@@ -39,7 +41,7 @@ fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
 fftshift1Dop_inv=@(a) bsxfun(@times,exp(1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
-[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); %TODO : What is 256 ? Venkat
+[kblut,KB,KB1,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); 
 
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
 kblut=kblut/KBnorm*SCALING_FACTOR; %scaling fudge factor
@@ -51,10 +53,10 @@ Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
 % <------mask
 %P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);%TODO : What are these numbers ? Venkat 
 %P.grmask=gpuArray(abs(qq)<size(qq,1)*3/2);
-P.grmask =gpuArray(ones(size(qq)));
+P.grmask =gpuArray(padmat(ones(Nr_orig,size(qq,2)),[Ns size(qq,2)]));
 
 % deapodization factor, (the FT of the kernel):
-dpz=deapodization(Ns,KB); %TODO : Buggy for large window sizes 
+dpz=deapodization_v2(Ns,KB,Nr_orig); %TODO : Buggy for large window sizes 
 % gdpz=gpuArray(single(dpz));
 
 % polar to cartesian, centered

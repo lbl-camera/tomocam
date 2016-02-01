@@ -9,18 +9,16 @@ file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_1.mat';
 %projection = projection(1:4:2048,1:end-1);
 %Padding data --TODO : Should happen automatically inside the main code 
-Npad = 4096;
-
 
 load(file_name);
-[Ntheta,Nr]=size(projection);
-projection_pad = padmat(projection,[Ntheta Npad]);
+Nr=size(projection,2);
+
 
 %Forward model params 
-true_center = 1294.4;
-formodel.center = true_center + (Npad/2-Nr/2);
+formodel.center = 1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
+formodel.Npad = 3000;
 
 %KB window params 
 formodel.k_r=2;
@@ -30,7 +28,7 @@ formodel.beta =3*pi*1.0;
 prior.reg_param = 0.25;
 
 %Solver params
-opts.maxIts           = 25;
+opts.maxIts           = 50;
 opts.maxLSIts         = 150;
 opts.gradTol          = 1e-30;
 opts.weightTV         = prior.reg_param;
@@ -43,9 +41,9 @@ opts.mu               = 1e-12;%?
 
 %
 tic;
-[recon]=MBIRTV(projection_pad.',ones(size(projection_pad.')),zeros(Npad,Npad),formodel,prior,opts);
+[recon]=MBIRTV(projection,ones(size(projection)),zeros(Nr,Nr),formodel,prior,opts);
 toc;
 
-recon_original_size = real(recon(Npad/2 - Nr/2:Npad/2 + Nr/2 -1 ,Npad/2 - Nr/2:Npad/2 + Nr/2 -1 ));
+recon_original_size = real(recon(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ));
 
 imagesc(recon_original_size.');axis image;colormap(gray);colorbar;
