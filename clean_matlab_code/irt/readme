@@ -1,0 +1,153 @@
+readme
+
+This directory contains various matlab algorithms for image reconstruction
+and other inverse problems such as image restoration.  It also contains
+code for related imaging applications including MRI pulse design.
+
+Subdirectories:
+
+contrib/ppcd:
+	test routines comparing WLS-CD, WLS-GCD, WLS-PPCD
+	(these are mostly for internal UM use)
+
+ct:
+	polyenergetic CT routines (beam hardening etc.)
+
+data:
+	data for examples
+
+doc:
+	see the pdf file within for some introductory documentation.
+
+emission:
+	algorithms for Poisson emission tomography PET/SPECT/ Poisson regression
+
+	eml_	emission maximum likelihood
+	eql_	emission quadratically penalized likelihood
+	epl_	emission penalized likelihood
+
+example:
+	example(s) of usage.  there are more examples in other directories too.
+
+fbp:
+	filter-backproject reconstruction, including feldkamp (FDK) cone beam
+
+freemat:
+	work in progress
+
+general:
+	some algorithms that work for generic image reconstruction problems
+
+graph:
+	graphics routines
+
+mex:
+	MEX (matlab executables)
+
+mri:
+	MR image reconstruction
+
+mri-rf:
+	MR pulse design tools, including Spectral-spatial pulse design
+	for phase precompensatory slice selection.  (more to come)
+
+nufft:
+	non-uniform FFT toolbox
+
+penalty:
+	functions associated with regularization
+
+systems:
+	system matrices and system matrix object classes
+	If you are interested in edge-preserving image restoration
+	for a shift-invariant blur model with additive gaussian noise,
+	then start with systems/Gblur_test.m and example/restore_example.m
+	For tomography, consider starting with systems/Gomo2_strip.m, which
+	is used in many of the examples.
+
+transmission:
+	algorithms for Poisson transmission tomography
+
+	tml_	transmission ML
+	tql_	transmission quadratically penalized likelihood
+	tpl_	transmission penalized likelihood
+
+utilities:
+	useful matlab utilities for image reconstruction algorithms.
+
+wls:
+	algorithms associated with the weighted least squares (WLS)
+	cost function and penalized versions thereof
+
+	pwls_	penalized weighted least squares
+	qpwls_	quadraticaly penalized weighted least squares
+
+Most algorithms also include a test routine...
+
+
+GETTING STARTED
+
+You will need to either pile everything in the current directory (not
+recommended) or to use matlab's "path" command to put all the subdirectories
+in the matlab path so that matlab can find all the functions.  The file
+'setup.m' should help. 
+
+I recommend running and examining the essentially self-contained m-files
+	emission/eml_osem_example.m and example/radon_example.m
+There are other ..._example.m files around that you can try too.
+
+Some example files need to be executed multiple times to run to completion,
+because I like to look at the output of each stage before proceeding.
+Just use the up arrow (and return) in Matlab to run repeatedly.
+If you don't like this behaviour, execute 'prompt run'
+(See utilities/prompt.m for help.)
+
+Some of examples may require the binary program "wt" or "op" that are part
+of Aspire.  You can also get Aspire for free by following the instructions
+on my web pages.  There are also a couple of mex files that you may need -
+wtfmex and f3dmex for example.  I distribute these only in linux/mac formats;
+see mex directory.
+
+Part of my motivation for creating these files is to accompany a book on
+image reconstruction that I am currently writing.  If you have any problems
+with these m-files, or any suggestions whatsover, I welcome your input!
+
+---------------------------------------------------------------------------
+Jeff Fessler,		http://www.eecs.umich.edu/~fessler/
+---------------------------------------------------------------------------
+
+Additional notes:
+
+Raymod Muzic has matlab routines for reading ECAT files available on his
+web site:	www.nuclear.uhrad.com/comkat
+(I have not yet tried them myself.)
+
+I believe that I have finally gotten the routines to evolve from
+Matlab6 to Matlab7.  I am using Matlab7 regularly now and it seems to
+be working.  But you may need to install the "service packs" to get
+everything to work in Matlab7.  Let me know if you have problems...
+
+There is one known issue with Matlab7.  It can store sparse matrices
+only as doubles with is fine, but if you do "S * x", where S is a
+sparse matrix and x is a vector of class single, Matlab7 gives an
+error message rather than politely upgrading x to a double.
+To avoid this, enter the command
+	'double6 double'
+before running anything and then my code will make everything into
+to doubles so that S * x will work.  Complain to Matlab loudly that
+they should fix this annoyance...
+
+Windows users:
+
+Several of the subdirectories of the "systems" directory contain "links"
+to m-files in other directories.  (These are created using "ln -s" in
+unix.)  These links are also in the .tar file as soft links.  But these
+links may not be recognized by Windoze, resulting in various error messages.
+They work fine on Mac OSX since that fantastic operating system is unix
+"under the hood."  I recommend that you avoid using Windows.
+But if you insist, then you will have to figure out how to fix those links
+or copy the appropriate m-files into the appropriate directories.
+
+Another problem is that apparently windoze is case insensitive.
+I believe I have purged most of the m-files that had capitalized names now.
+Nevertheless, at this point it would be better to just go buy a Mac...

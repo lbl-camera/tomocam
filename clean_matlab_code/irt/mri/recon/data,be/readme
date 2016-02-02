@@ -1,0 +1,4 @@
+this was the original data sent to me by brad sutton.
+some PC's could not read it, so i read it into matlab6.x on linux
+and rewrote it.  this converts it from little endian to big endian,
+which seems to work for PC users.

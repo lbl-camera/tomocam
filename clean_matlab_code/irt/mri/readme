@@ -1,0 +1,17 @@
+This directory contains Matlab files
+related to reconstruction of magnetic resonance (MR) images,
+including fast iterative correction for field inhomogeneity.
+
+The contents were created by Jeff Fessler, Doug Noll, and Brad Sutton.
+Look for papers/preprints authored by Sutton at the web site:
+	http://www.eecs.umich.edu/~fessler/papers
+
+The recon subdirectory has an example of iterative MR recon
+with field correction.  It came originally from:
+	/net/ir5/u/bpsutton/Reconitmr/
+This recon code is now obsolete.  The "Gmri" object is now recommended.
+See ../example/mri_*.m for usage.
+
+Look at mri_phase_denoise.m for a somewhat incomplete example
+of how we clean up our field maps before doing iterative recon.
+

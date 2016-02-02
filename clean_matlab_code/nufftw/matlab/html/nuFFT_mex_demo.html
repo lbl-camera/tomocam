@@ -1,0 +1,288 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>nuFFT mex interface demo</title><meta name="generator" content="MATLAB 8.1"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2013-08-14"><meta name="DC.source" content="nuFFT_mex_demo.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>nuFFT mex interface demo</h1><!--introduction--><p>This example demonstrates how to use the mex interface of the nuFFT.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#5">Create a nuFFT implementation</a></li><li><a href="#9">Adjoint nuFFT</a></li><li><a href="#14">Forward nuFFT</a></li><li><a href="#15">Check if the forward and adjoint transforms are compatible</a></li><li><a href="#17">Clearing an implementation</a></li><li><a href="#18">Multithreading</a></li><li><a href="#20">Save implementation to file</a></li><li><a href="#21">Reading an implementation from a file</a></li><li><a href="#22">Create another nuFFT implementation with different parameters</a></li></ul></div><p>After compilation, the nuFFT mex library is located in the /bin subdirectory of the nuFFT.</p><pre class="codeinput">addpath <span class="string">../bin</span>
+</pre><pre class="codeinput">load <span class="string">../data/noncartesian_phantom.mat</span>
+</pre><p>We now have the coordinates and density compensation factors of a 9216-sample 2D spiral trajectory, and k-space data of a phantom on that trajectory:</p><div><ul><li><tt>kcoord</tt> - k-space coordinates of non-uniform 2D samples</li><li><tt>dcf</tt>    - density compensation factors</li><li><tt>kdata</tt>  - k-space data samples</li><li><tt>imagedirect</tt> - exact non-uniform FT of the k-space samples, onto a   128x128 grid, computed in the direct, slow way (computation takes about   a minute using one-threaded C++ code)</li></ul></div><h2>Create a nuFFT implementation<a name="5"></a></h2><p>In order to create a nuFFT implementation, we will need to stack the trajectory coordinates in one vector:</p><pre class="codeinput">trajectory = kcoord';
+trajectory = trajectory(:);
+</pre><p>Note that the coordinates should all be in the range [-0.5 0.5] in each axis.</p><p>We also need the square root of the density compensation factors.</p><pre class="codeinput">sqrtdcf = sqrt(dcf);
+</pre><p>We will create a nuFFT implementaton with the following parameters:</p><pre class="codeinput">Nthreads = 1;
+imagesize = [128 128];
+maxaliasingerror = 1e-3;
+alpha = 2; <span class="comment">% oversampling ratio</span>
+resampling_method = <span class="string">'spm'</span>;
+
+nuFFT_imp = nufft_implementation(<span class="string">'double'</span>,Nthreads, imagesize, maxaliasingerror, alpha, resampling_method, trajectory, sqrtdcf);
+</pre><pre class="codeoutput">** create nuFFT implementation **
+computing implementation data: 0.0834372s
+initializing external libraries: 1.81198e-05s
+tuning: 0.011183s
+deleting nuFFT implementation
+</pre><h2>Adjoint nuFFT<a name="9"></a></h2><p>Now we will perform an adjoint nuFFT on the non-uniform k-space data.</p><p>Note that in order to receive an image after the adjoint nuFFT, the input non-uniform k-space data should be density compensated with just the square root of the dcfs.</p><pre class="codeinput">kdata_dc = kdata.*sqrtdcf;
+</pre><pre class="codeinput">image_data = nuFFT_imp.adjoint(1,kdata_dc);
+</pre><pre class="codeoutput">** adjoint nuFFT **
+adjoint transformation: 0.00487614s
+</pre><p>We will compare the adjoint nuFFT result to the result of a direct non-uniform Fourier transform (non-fast)</p><pre class="codeinput">e = get_image_errors(imagedirect,image_data);
+</pre><pre class="codeoutput">max error: 0.0014982
+</pre><p>The error between the direct nuFT and the nuFFT matches the input maximum aliasing error with which we created the nuFFT implementation.</p><pre class="codeinput">figure
+subplot(131)
+imshowz(image_data)
+title(<span class="string">'adjoint nuFFT'</span>)
+subplot(132)
+imshowz(imagedirect)
+title(<span class="string">'direct adjoint non-uniform FT'</span>)
+subplot(133)
+imshowz(e)
+colorbar
+title(<span class="string">'normalized error'</span>)
+</pre><img vspace="5" hspace="5" src="nuFFT_mex_demo_01.png" alt=""> <h2>Forward nuFFT<a name="14"></a></h2><pre class="codeinput">kdata_dc2 = nuFFT_imp.forward(1, image_data);
+</pre><pre class="codeoutput">** forward nuFFT **
+forward transformation: 0.0114589s
+</pre><h2>Check if the forward and adjoint transforms are compatible<a name="15"></a></h2><pre class="codeinput">kdata_dc2'*kdata_dc-image_data(:)'*image_data(:)
+</pre><pre class="codeoutput">ans =
+      -3.63797880709171e-12 +  2.48689957516035e-14i
+</pre><p>That's close enough to zero. If you really want to make sure this works, try it with random data (don't use a random trajectory unless you compute the dcfs for it!).</p><h2>Clearing an implementation<a name="17"></a></h2><p>When an implementation is cleared from memory, it's destructor is invoked to free the memory associated with it.</p><pre class="codeinput">clear <span class="string">nuFFT_imp</span>
+</pre><pre class="codeoutput">deleting nuFFT implementation
+</pre><h2>Multithreading<a name="18"></a></h2><p>We will now create the nuFFT implementation and perform the transformations using six threads.</p><pre class="codeinput">nuFFT_imp = nufft_implementation(<span class="string">'double'</span>,6, [128 128], 1e-3, 2, <span class="string">'spm'</span>, trajectory, sqrtdcf);
+image_data = nuFFT_imp' * kdata_dc;
+kdata_dc2 = nuFFT_imp * image_data;
+</pre><pre class="codeoutput">** create nuFFT implementation **
+computing implementation data: 0.0741758s
+initializing external libraries: 1.50204e-05s
+tuning: 0.00805593s
+** adjoint nuFFT **
+adjoint transformation: 0.00297189s
+** forward nuFFT **
+forward transformation: 0.00497508s
+</pre><p>Note the above usage of operator notation for applying an adjoint and forward nuFFT on data.</p><h2>Save implementation to file<a name="20"></a></h2><pre class="codeinput">impfilename = <span class="string">'../out/demo_nufft_imp.imp'</span>;
+<span class="keyword">if</span> ~isdir(<span class="string">'../out'</span>), mkdir(<span class="string">'../out'</span>), <span class="keyword">end</span>
+nuFFT_imp.create_impfile(impfilename);
+</pre><pre class="codeoutput">** create nuFFT implementation file**
+writing implementation to file: 0.0040381s
+</pre><h2>Reading an implementation from a file<a name="21"></a></h2><pre class="codeinput">nuFFT_imp = nufft_implementation(<span class="string">'double'</span>,1,impfilename);
+image_data = nuFFT_imp.adjoint(1,kdata_dc);
+figure
+imshowz(image_data)
+</pre><pre class="codeoutput">** create nuFFT implementation **
+loading implementation from file: 0.00858212s
+initializing external libraries: 2.00272e-05s
+tuning: 0.013103s
+deleting nuFFT implementation
+** adjoint nuFFT **
+adjoint transformation: 0.00819182s
+</pre><img vspace="5" hspace="5" src="nuFFT_mex_demo_02.png" alt=""> <h2>Create another nuFFT implementation with different parameters<a name="22"></a></h2><pre class="codeinput">nuFFT_imp2 = nufft_implementation(<span class="string">'double'</span>,1, [128 128], 1e-2, 1.5, <span class="string">'spm'</span>, trajectory, sqrtdcf);
+</pre><pre class="codeoutput">** create nuFFT implementation **
+computing implementation data: 0.047246s
+initializing external libraries: 1.50204e-05s
+tuning: 0.00490403s
+deleting nuFFT implementation
+</pre><pre class="codeinput">image_data2 = nuFFT_imp2.adjoint(1,kdata_dc);
+</pre><pre class="codeoutput">** adjoint nuFFT **
+adjoint transformation: 0.00319195s
+</pre><pre class="codeinput">e = get_image_errors(imagedirect,image_data2);
+</pre><pre class="codeoutput">max error: 0.015481
+</pre><p>The error again matches the input maximum aliasing error.</p><pre class="codeinput">figure
+subplot(131)
+imshowz(image_data2)
+title(<span class="string">'adjoint nuFFT'</span>)
+subplot(132)
+imshowz(imagedirect)
+title(<span class="string">'direct adjoint non-uniform FT'</span>)
+subplot(133)
+imshowz(e)
+colorbar
+title(<span class="string">'normalized error'</span>)
+</pre><img vspace="5" hspace="5" src="nuFFT_mex_demo_03.png" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% nuFFT mex interface demo
+% This example demonstrates how to use the mex interface of the nuFFT.
+
+%%
+% After compilation, the nuFFT mex library is located in the /bin
+% subdirectory of the nuFFT.
+addpath ../bin
+%%
+load ../data/noncartesian_phantom.mat
+%%
+% We now have the coordinates and density compensation factors of a
+% 9216-sample 2D spiral trajectory, and k-space data of a phantom on
+% that trajectory:
+%%
+% * |kcoord| - k-space coordinates of non-uniform 2D samples
+% * |dcf|    - density compensation factors
+% * |kdata|  - k-space data samples
+% * |imagedirect| - exact non-uniform FT of the k-space samples, onto a
+%   128x128 grid, computed in the direct, slow way (computation takes about
+%   a minute using one-threaded C++ code)
+
+%% Create a nuFFT implementation
+% In order to create a nuFFT implementation, we will need to stack the
+% trajectory coordinates in one vector:
+trajectory = kcoord';
+trajectory = trajectory(:);
+%%
+% Note that the coordinates should all be in the range [-0.5 0.5] in each
+% axis.
+%%
+% We also need the square root of the density compensation factors.
+sqrtdcf = sqrt(dcf);
+%%
+% We will create a nuFFT implementaton with the following parameters:
+Nthreads = 1;
+imagesize = [128 128];
+maxaliasingerror = 1e-3;
+alpha = 2; % oversampling ratio
+resampling_method = 'spm';
+
+nuFFT_imp = nufft_implementation('double',Nthreads, imagesize, maxaliasingerror, alpha, resampling_method, trajectory, sqrtdcf);
+
+%% Adjoint nuFFT
+% Now we will perform an adjoint nuFFT on the non-uniform k-space data.
+%%
+% Note that in order to receive an image after the adjoint nuFFT, the input
+% non-uniform k-space data should be density compensated with just the
+% square root of the dcfs.
+kdata_dc = kdata.*sqrtdcf;
+%%
+image_data = nuFFT_imp.adjoint(1,kdata_dc);
+%%
+% We will compare the adjoint nuFFT result to the result of a direct
+% non-uniform Fourier transform (non-fast)
+e = get_image_errors(imagedirect,image_data);
+%%
+% The error between the direct nuFT and the nuFFT matches the input maximum
+% aliasing error with which we created the nuFFT implementation.
+figure
+subplot(131)
+imshowz(image_data)
+title('adjoint nuFFT')
+subplot(132)
+imshowz(imagedirect)
+title('direct adjoint non-uniform FT')
+subplot(133)
+imshowz(e)
+colorbar
+title('normalized error')
+
+%% Forward nuFFT
+kdata_dc2 = nuFFT_imp.forward(1, image_data);
+
+%% Check if the forward and adjoint transforms are compatible
+kdata_dc2'*kdata_dc-image_data(:)'*image_data(:)
+%%
+% That's close enough to zero. If you really want to make sure this works,
+% try it with random data (don't use a random trajectory unless you compute
+% the dcfs for it!).
+
+%% Clearing an implementation
+% When an implementation is cleared from memory, it's destructor is invoked
+% to free the memory associated with it.
+clear nuFFT_imp
+
+%% Multithreading
+% We will now create the nuFFT implementation and perform the
+% transformations using six threads.
+nuFFT_imp = nufft_implementation('double',6, [128 128], 1e-3, 2, 'spm', trajectory, sqrtdcf);
+image_data = nuFFT_imp' * kdata_dc;
+kdata_dc2 = nuFFT_imp * image_data;
+%%
+% Note the above usage of operator notation for applying an adjoint and
+% forward nuFFT on data.
+
+%% Save implementation to file
+impfilename = '../out/demo_nufft_imp.imp';
+if ~isdir('../out'), mkdir('../out'), end
+nuFFT_imp.create_impfile(impfilename);
+
+%% Reading an implementation from a file
+nuFFT_imp = nufft_implementation('double',1,impfilename);
+image_data = nuFFT_imp.adjoint(1,kdata_dc);
+figure
+imshowz(image_data)
+
+%% Create another nuFFT implementation with different parameters
+nuFFT_imp2 = nufft_implementation('double',1, [128 128], 1e-2, 1.5, 'spm', trajectory, sqrtdcf);
+%%
+image_data2 = nuFFT_imp2.adjoint(1,kdata_dc);
+%%
+e = get_image_errors(imagedirect,image_data2);
+%%
+% The error again matches the input maximum aliasing error.
+figure
+subplot(131)
+imshowz(image_data2)
+title('adjoint nuFFT')
+subplot(132)
+imshowz(imagedirect)
+title('direct adjoint non-uniform FT')
+subplot(133)
+imshowz(e)
+colorbar
+title('normalized error')
+
+##### SOURCE END #####
+--></body></html>

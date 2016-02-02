@@ -1,0 +1,179 @@
+% s,fatrix
+
+\newcommand{\A} {\blmath{A}}
+\newcommand{\x} {\blmath{x}}
+\newcommand{\y} {\blmath{y}}
+\newcommand{\z} {\blmath{z}}
+
+\subsection{The \fatrix class}
+
+Most iterative algorithms
+for image reconstruction
+are described conveniently using matrix notation,
+but matrices are not necessarily
+the most suitable data structure
+for actually implementing an iterative algorithm
+for large sized problems.
+The \fatrix class
+provides a convenient bridge
+between matrix notation
+and practical system models
+used for iterative image reconstruction.
+
+Consider the simple iterative algorithm
+for reconstructing \x from data \y
+expressed mathematically:
+\be
+\x^{n+1} = \x^n + \alpha \A' (\y - \A\x^n)
+,\ee{e,fatrix,iter}
+where \A is the \emph{system matrix}
+associated with
+the image reconstruction problem at hand.
+%
+If \A is small enough
+to be stored as a matrix in \matlab
+(sparse or full),
+then this algorithm translates
+very nicely into \matlab as follows.
+%\begin{verbatim}
+\be
+\ty{x = x + alpha * A' * (y - A * x);}
+\ee{e,mat}
+%\end{verbatim}
+You really cannot get any closer connection
+between the math and the program than this!
+But these days we often work
+with system models
+that are too big to store
+as matrices in \matlab.
+Instead,
+the models
+are represented by subroutines
+that compute the ``forward projection'' operation
+$\A \x$
+and the ``backprojection operation
+$\A' \z$
+for input vectors \x and \z respectively.
+%
+The conventional way
+to use one of these systems
+in \matlab (or C) would be to rewrite
+the above program as follows.
+\begin{verbatim}
+Ax = forward_project(x, system_arguments)
+residual = y - Ax;
+correction = back_project(residual, system_arguments)
+x = x + alpha * correction
+\end{verbatim}
+Yuch!
+This is displeasing for two reasons.
+First,
+the code looks a \emph{lot} less like the mathematics.
+Second,
+you need a different version of the code
+for every different system model
+(forward/back-projector pair)
+that you develop.
+Having multiple versions
+of a simple algorithm
+creates a software maintenance headache.
+
+The elegant solution
+is to develop \matlab objects
+that know how to perform
+the following operations:
+\blist
+\item
+\ty{A * x}
+(matrix vector multiplication,
+operation \ty{mtimes})
+\item
+\ty{A'}
+(\ty{transpose}), and
+\item
+\ty{A' * z}
+(\ty{mtimes} again,
+with a transposed object).
+\elist
+Once such an object is
+defined,
+one can use \emph{exactly}
+the same iterative algorithm
+that one would have used
+with an ordinary matrix,
+\eg,
+\eref{e,mat}.
+%
+The \fatrix class
+provides a convenient mechanism
+for implementing
+such linear operators.
+%
+Specifically,
+suppose \x is of length 1000
+and \y is of length 2000.
+Then use the following call:
+\[
+\ty{
+A = Fatrix([2000 1000], system_arguments,
+ 'forw', @forward_project, 'back', @back_project);
+}
+\]
+The restulting \fatrix object \ty{A}
+acts just like a matrix
+in most important respects.
+In particular,
+we can use exactly the same iterative algorithm
+\eref{e,fatrix,iter} as before,
+because
+\ty{A * x}
+is handled internally
+by calling
+\[
+\ty{
+Ax = forward_project(x, system_arguments)
+}
+\]
+and similarly for
+\ty{A' * z}.
+
+Basic operations
+like \ty{A(:,7)}
+are also implemented,
+but nonlinear operations
+like \ty{A .^ 1/3}
+are not
+because those cannot be computed readily
+using \ty{forward_project}. 
+
+For examples, see
+the \ty{systems} subdirectory of \irt.
+
+On 2007-1-28,
+I noticed that there is another package called \ty{bbtools}
+at \ty{http://nru.dk/bbtools}
+that has a similar functionality called a ``black box.''
+It is nicely documented.
+
+On 2007-1-30,
+inspired by \ty{bbtools},
+I added the following functionality:
+\blist
+\item
+Fatrix object multiplication
+(using \ty{Gcascade}): \ty{C = A * B}
+\item
+Scalar multiplication of Fatrix object
+(using \ty{Gcascade}): \ty{B = 7 * A}
+\item
+Vertical concatenation (using \ty{block_fatrix}):
+\ty{A = [A1; A2; A3]}
+\item
+Horizontal concatenation (using \ty{block_fatrix}):
+\ty{A = [A1, A2, A3]}
+\elist
+One could use \ty{Gcascade} or \ty{block_fatrix}
+directly for these operations,
+but it looks nicer
+and is more ``\matlab like''
+to use the new syntax.
