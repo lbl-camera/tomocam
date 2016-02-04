@@ -1,4 +1,4 @@
-#include <iostream>
+#include "pyGnufft.h"
 
 /* setup methdods table */
 static PyMethodDef cGnufftMehods [] = {

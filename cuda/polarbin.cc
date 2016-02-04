@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <vector>
 #include <algorithm>
-#include <cusp/complex.h>
-#include "polargrid.h"
+#include <cuda.h>
+#include <vector_types.h>
 
-#include "mex.h"
+#include "pyGnufft.h"
+#include <numpy/arrayobject.h>
+
 
 void generate_points(float2 *point_pos, float *point_value, int npoints,
                      uint2 grid_size) {
@@ -66,17 +68,12 @@ void divide_bin(float2 *points, int npoints, uint2 grid_size,
   /* one of the bins might be slightly larger than the others if the division is
    * not even */
   int idx = 0;
-  //  mexPrintf("Diving bin at location %d\n",bin_location[bin_to_divide]);
-  //  mexPrintf("Bin dimensions
-  // %dx%d\n",bin_dimensions[bin_to_divide].x,bin_dimensions[bin_to_divide].y);
   for (int y = 0; y < 2; y++) {
     for (int x = 0; x < 2; x++) {
       new_bin_dimensions[idx].x =
           (bin_dimensions[bin_to_divide].x + (1 - x)) / 2;
       new_bin_dimensions[idx].y =
           (bin_dimensions[bin_to_divide].y + (1 - y)) / 2;
-      //      mexPrintf("New dimensions
-      // %dx%d\n",new_bin_dimensions[idx].x,new_bin_dimensions[idx].y);
       new_bin_location[idx] = bin_location[bin_to_divide] +
                               x * new_bin_dimensions[0].x +
                               y * new_bin_dimensions[0].y * grid_size.x;
@@ -176,8 +173,6 @@ std::vector<Bin> adaptative_bin_points(float2 *points, int npoints,
   bin_location.push_back(0);
 
   while (points_per_bin.size() < total_bins) {
-    //    mexPrintf("%d bins\n",points_per_bin.size());
-    //    int bin_to_divide = find_most_populated_bin(points_per_bin);
     int bin_to_divide =
         find_most_computationaly_intensive_bin(points_per_bin, bin_dimensions);
     if (bin_dimensions[bin_to_divide].x > 1 ||
@@ -253,22 +248,21 @@ std::vector<Bin> adaptative_bin_points(float2 *points, int npoints,
 }
 
 static PyObject * polarbin (PyObject *self, PyObject *args){
-    PyObject *in1, *in2, *in3;
-    PyObject * out1, * out2, * out3, * out4;
+    PyObject *in0, *in1, *in2;
     int approx_n_bins;
     float kernel_radius;
 
     /* Parse arguments */
-    if(!PyArg_ParseTuple(args, "OOOII", &in1, &in2, &in3, &approx_n_bins, &kernel_radius))
+    if(!PyArg_ParseTuple(args, "OOOII", &in0, &in1, &in2, &approx_n_bins, &kernel_radius))
         return NULL;
 
     if ((in0 == NULL) || (in1 == NULL) || (in2 == NULL))
         return NULL;
 
-    import_array();
-    PyObject * pySx   = PyArray_FROM_OTF(in1, NPY_FLOAT, NPY_IN_ARRAY);
-    PyObject * pySy   = PyArray_FROM_OTF(in2, NPY_FLOAT, NPY_IN_ARRAY);
-    PyObject * pyDims = PyArray_FROM_OTF(in3, NPY_INT,   NPY_IN_ARRAY);
+    //import_array();
+    PyObject * pySx   = PyArray_FROM_OT(in0, NPY_FLOAT);
+    PyObject * pySy   = PyArray_FROM_OT(in1, NPY_FLOAT);
+    PyObject * pyDims = PyArray_FROM_OT(in2, NPY_INT);
 
     float * samples_x = (float *) PyArray_DATA(pySx);
     float * samples_y = (float *) PyArray_DATA(pySy);
@@ -292,15 +286,17 @@ static PyObject * polarbin (PyObject *self, PyObject *args){
     }
     
     /* construct output containers */
-    npy_intp dims = 1;
-    PyObject * out0 = PyArray_New(bins.size(), &dims, NPY_INT);
-    PyObject * out1 = PyArray_New(bins.size(), &dims, NPY_INT);
-    PyObject * out2 = PyArray_New(bins.size(), &dims, NPY_INT);
-    PyObject * out3 = PyArray_New(bin_points_size, &dims, NPY_INT);
-    PyObject * out4 = PyArray_New(bins.size(), &dims, NPY_INT);
-    PyObject * out5 = PyArray_New(bins.size(), &dims, NPY_INT);
-    PyObject * out6 = PyArray_New(bin_points_size, &dims, NPY_FLOAT);
-    PyObject * out7 = PyArray_New(bin_points_size, &dims, NPY_FLOAT);
+    npy_intp dims[2];
+    dims[0] = (npy_intp) bins.size(); dims[0] = 0;
+    PyObject * out0 = PyArray_SimpleNew(1, dims, NPY_INT);
+    PyObject * out1 = PyArray_SimpleNew(1, dims, NPY_INT);
+    PyObject * out2 = PyArray_SimpleNew(1, dims, NPY_INT);
+    PyObject * out4 = PyArray_SimpleNew(1, dims, NPY_INT);
+    PyObject * out5 = PyArray_SimpleNew(1, dims, NPY_INT);
+    dims[0] = bin_points_size;
+    PyObject * out3 = PyArray_SimpleNew(1, dims, NPY_INT);
+    PyObject * out6 = PyArray_SimpleNew(1, dims, NPY_FLOAT);
+    PyObject * out7 = PyArray_SimpleNew(1, dims, NPY_FLOAT);
 
    
     /* map data to containers */
