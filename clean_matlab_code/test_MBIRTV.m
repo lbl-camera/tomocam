@@ -25,7 +25,7 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param = 0.25;
+prior.reg_param = 5;
 
 %Solver params
 opts.maxIts           = 50;
