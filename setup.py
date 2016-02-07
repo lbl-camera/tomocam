@@ -2,8 +2,10 @@ import  os
 from os.path import join
 import subprocess
 import numpy
-from distutils.command.build_ext import build_ext
+#from distutils.command.build_ext import build_ext
+#from numpy.distutils.core import Extension, setup
 from numpy.distutils.core import Extension, setup
+from numpy.distutils.command.build_ext import build_ext
 
 def find_in_path(name, path):
     "Find a file in a search path"
@@ -59,16 +61,16 @@ ext = Extension('gnufft',
                     'cuda/pyutil.cc',
                     'cuda/cuda_sample.cu',
                     'cuda/polarbin.cc',
-                    'cuda/polarsample.cc' 
+                    'cuda/polarsample.cc',
+                    'cuda/polargrid.cc'
                 ],
                 library_dirs=[CUDA['lib64']],
-                libraries=['cudart'],
+                libraries=['afcuda', 'cudart'],
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64']],
                 # we're only going to use certain compiler args with nvcc and not with gcc
                 # the implementation of this trick is in customize_compiler() below
-                extra_compile_args={'gcc': [],
-                                    'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+                #extra_compile_args={'g++': [], 'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
@@ -99,9 +101,10 @@ def customize_compiler_for_nvcc(self):
             self.set_executable('compiler_so', CUDA['nvcc'])
             # use only a subset of the extra_postargs, which are 1-1 translated
             # from the extra_compile_args in the Extension class
-            postargs = extra_postargs['nvcc']
-        else:
-            postargs = extra_postargs['gcc']
+            #postargs = extra_postargs['nvcc']
+            postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
+        #else:
+        #    postargs = extra_postargs['g++']
 
         super(obj, src, ext, cc_args, postargs, pp_opts)
         # reset the default compiler_so, which we might have changed for cuda
@@ -125,5 +128,5 @@ setup(name='gnufft',
       ext_modules = [ext],
 
       # inject our custom trigger
-      cmdclass={'build_ext': custom_build_ext},
+      cmdclass={'build_ext': custom_build_ext}
       )
