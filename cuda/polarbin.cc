@@ -247,7 +247,7 @@ std::vector<Bin> adaptative_bin_points(float2 *points, int npoints,
   return bins;
 }
 
-static PyObject * polarbin (PyObject *self, PyObject *args){
+PyObject * cPolarBin(PyObject *self, PyObject *args){
     PyObject *in0, *in1, *in2;
     int approx_n_bins;
     float kernel_radius;

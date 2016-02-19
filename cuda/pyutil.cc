@@ -3,12 +3,12 @@
 #include <arrayfire.h>
 #include "pyGnufft.h"
 
-af::array PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
+af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
     if (PyObject_HasAttrString(in, "d_array")){
         // get shape, dims and device_ptr
         PyObject * af_array = PyObject_GetAttrString(in, "d_array");
-        PyObject * device_ptr = PyObject_CallMethod(af_array, (char *) "device_ptr", NULL);
-        PyObject * af_type = PyObject_CallMethod(af_array, (char *) "type", NULL);
+        PyObject * device_ptr = PyObject_CallMethod(af_array,(char*)"device_ptr", NULL);
+        PyObject * af_type = PyObject_CallMethod(af_array,(char*)"type", NULL);
         if(type != PyInt_AsLong(af_type)){
             fprintf(stderr,"Error: data mismatch in unpack_af_array.");
             return NULL;
@@ -16,23 +16,37 @@ af::array PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
 
         // get number of elements
         PyObject * shape = PyObject_GetAttrString(in, "shape");
-        PyObject * shape_len = PyObject_CallMethod(shape,(char *)"__len__",NULL);
-        int ndims = PyInt_AsLong(shape_len);
-        Py_DECREF(shape_len);
-        size_t length = 1;
-        int * dims = new int[ndims];
+        if (!PyTuple_Check(shape)){
+            fprintf(stderr, "Error: non-tuple shape returned\n");
+            return NULL;
+        }
+        //PyObject * shape_len = PyObject_CallMethod(shape,(char *)"__len__",NULL);
+        Py_ssize_t shape_len = PyTuple_Size(shape);
+        if ((shape_len <= 0) || (shape_len > 4)){
+            fprintf(stderr,"Error: illegal dimensions");
+            return NULL;
+        }
+        int * dims = new int[shape_len];
+        for (Py_ssize_t i = 0; i < shape_len; i++){
+            PyObject * num = PyTuple_GetItem(shape, i);
+            dims[i] = PyInt_AsLong(num);
+            Py_DECREF(num);
+        }
+        
+       /* 
         for(int i = 0; i < ndims; i++){
             PyObject * dim_len = PyObject_CallMethod(shape,(char *)"__getitem__", (char *)"i", i);
             dims[i] = PyInt_AsLong(dim_len);
             length *= dims[i];
             Py_DECREF(dim_len);
         }
-        void * dev_ptr = PyLong_AsVoidPtr(device_ptr);
+        */
+        void * buf = PyLong_AsVoidPtr(device_ptr);
         int nd[2];
         nd[0] = dims[0]; 
-        if (ndims == 1){
+        if (shape_len == 1){
             nd[1] = 0;
-        } else if (ndims == 2) {
+        } else if (shape_len == 2) {
             nd[1] = dims[1];
         } else {
             fprintf(stderr, "Only 1-D and 2-D arrays are supported. For higher dims, submit a feature request\n");
@@ -44,7 +58,21 @@ af::array PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
             Py_DECREF(shape_len);
             return NULL;
         }
-        af::array out(nd[0], nd[1], dev_ptr, afDevice);
+        af::array * out = NULL;
+        if (type == FLOAT32) {
+            out = new  af::array(nd[0], nd[1], (float *) buf, afDevice);
+        } else if (type == CMPLX32) {
+            out = new  af::array(nd[0], nd[1], (af::cfloat *) buf, afDevice);
+        } else if (type == FLOAT64) {
+            out = new  af::array(nd[0], nd[1], (double *) buf, afDevice);
+        } else if (type == CMPLX64) {
+            out = new  af::array(nd[0], nd[1], (af::cdouble *) buf, afDevice);
+        } else if (type == INT32) {
+            out = new  af::array(nd[0], nd[1], (int *) buf, afDevice);
+        } else {
+            PYAF_NOTIMPLEMENTED;
+            return NULL;
+        }
         delete [] dims;
         Py_DECREF(af_array);
         Py_DECREF(device_ptr);
@@ -53,8 +81,8 @@ af::array PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
         Py_DECREF(shape_len);
         return out;
     }
+    return NULL;
 }
-
 
 PyObject * PyArrafire_Array(int dims_size, int * dims,
             DataType type, void * buffer, bool is_device){
@@ -140,10 +168,9 @@ PyObject * PyAfnumpy_Array(int dims_size, int * dims, DataType type,
         PyTuple_SetItem(shape, i, PyLong_FromLong(dims[i]));
 
     /* afnumpy.ndarray( ) */
-    PyObject * af_type;
+    PyObject * af_type = Py_BuildValue("s", "float32");
     switch (type){
         case FLOAT32:
-            af_type = Py_BuildValue("s", "float32");
             break;
         case CMPLX32:
             af_type = Py_BuildValue("s", "complex64");
