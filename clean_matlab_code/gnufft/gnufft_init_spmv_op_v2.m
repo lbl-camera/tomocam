@@ -1,4 +1,4 @@
-function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,delta_r,delta_xy,Nr_orig)
+function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,weight,delta_r,delta_xy,Nr_orig)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
@@ -72,6 +72,7 @@ gkblut=gpuArray(single(kblut));
 
 P.gDq=gpuArray(single(Dq));
 P.gdpz=gpuArray(single(dpz));
+P.weight = gpuArray(single(weight));
 grid = int64([Ns,Ns]);
 scale = single((KBLUT_LENGTH-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
 
@@ -180,10 +181,10 @@ P.opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
             y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
         elseif mode == 1
             %y=gnuqradon(reshape(x,grid));
-            y=P.gnuradon(reshape(x,grid));
+            y=P.gnuradon(reshape(x,grid)).*P.weight.';
             y=y(:);
         else
-            y=P.gnuiradon(reshape(x,[Ns nangles]));
+            y=P.gnuiradon(reshape(x,[Ns nangles]).*P.weight.');
 %                        y=gnuqiradon(reshape(x,[Ns nangles]));
             y=y(:);
         end
