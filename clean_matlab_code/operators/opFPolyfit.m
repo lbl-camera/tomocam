@@ -64,6 +64,7 @@ if mode == 0
 else
     if isempty(Transform)
     y = reshape(x,length(x)/nangles,nangles)*Pfilt2;
+    y=y(:);
     else
 %        jk=reshape(Transform(x,1),length(x)/nangles,nangles);
         

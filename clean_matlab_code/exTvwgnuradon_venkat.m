@@ -9,7 +9,7 @@ addpath gnufft
 addpath Common
 
 Ns=2560*2;
-nangles=512*2;
+nangles=512/2;
 center = 1280*2;
 pix_size =1;
 det_size =1;
@@ -31,7 +31,7 @@ Fmsk(Ns/2+randi(round(Ns/4),5)-round(Ns/8),:)=0;
 data.signal = signal;
 
 data.M=opFoG(opGNUFFT);
-data.M=opFoG(opFPolyfilter,opGNUFFT);
+%data.M=opFoG(opFPolyfilter,opGNUFFT);
 
 % note that real data is 
 real_data=P.gnuradon(reshape(data.signal,[Ns,Ns]));

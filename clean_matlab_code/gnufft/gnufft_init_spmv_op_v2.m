@@ -179,10 +179,12 @@ P.opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
         if mode == 0
             y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
         elseif mode == 1
-            y=gnuqradon(reshape(x,grid));
+            %y=gnuqradon(reshape(x,grid));
+            y=P.gnuradon(reshape(x,grid));
             y=y(:);
         else
-            y=gnuqiradon(reshape(x,[Ns nangles]));
+            y=P.gnuiradon(reshape(x,[Ns nangles]));
+%                        y=gnuqiradon(reshape(x,[Ns nangles]));
             y=y(:);
         end
         

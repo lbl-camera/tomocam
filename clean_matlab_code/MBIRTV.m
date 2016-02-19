@@ -1,4 +1,4 @@
-function [recon]=MBIRTV(projection,weight,init,forward_model,prior_model,opts)
+function [recon,x0]=MBIRTV(projection,weight,init,forward_model,prior_model,opts)
 %Function to call the TV MBIR code 
 %Input : projection : A 2-D array with num_angles X n_det entries
 %containing the projection data
@@ -17,13 +17,14 @@ function [recon]=MBIRTV(projection,weight,init,forward_model,prior_model,opts)
 %                        reg_value  :  Value of the regularization constant
 %       angles : a list of angles used (1 X num_angles array)
 %
-g=gpuDevice(3);
+g=gpuDevice(2);
 reset(g);
 %gpuDevice(2);
 
 
 [Ntheta,Nr]=size(projection);
 projection = (padmat(projection,[Ntheta forward_model.Npad]));
+weight = (padmat(weight,[Ntheta forward_model.Npad]));
 init = (padmat(init,[forward_model.Npad, forward_model.Npad]));
 
 forward_model.center = forward_model.center + (forward_model.Npad/2-Nr/2);
@@ -35,16 +36,18 @@ Dt=180/nangle;
 
 [tt,qq]=meshgrid(0:Dt:180-Dt,(1:(Ns))-floor((Ns+1)/2)-1);
 [~,~,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,forward_model.beta,forward_model.k_r,forward_model.center,forward_model.pix_size,forward_model.det_size,Nr);
-opFPolyfilter = opFPolyfit(nangle,Ns,P.opprefilter);
+opFPolyfilter = opFPolyfit(nangle,Ns);
 
 data.signal = gpuArray(init);
 data.M=opFoG(opGNUFFT);
-data.M=opFoG(opFPolyfilter,opGNUFFT);
+%data.M=opFoG(opFPolyfilter,opGNUFFT);
 real_data = gpuArray(projection.');
-data.b=P.opprefilter(real_data(:),2);
+%data.b=P.opprefilter(real_data(:),2);
+data.b=real_data(:);
 data=completeOps(data);
 TV = opDifference(data.signalSize);
-x0=init;%data.reconstruct(data.M(data.b,2));
+%x0=init;
+x0=data.reconstruct(data.M(data.b,2));
 x=x0(:);
 %msk1=padmat(ones(Ns/2),[1 1]*Ns);
 %x=x.*msk1(:);

@@ -25,10 +25,10 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param = 5;
+prior.reg_param = 1;
 
 %Solver params
-opts.maxIts           = 50;
+opts.maxIts           = 20;
 opts.maxLSIts         = 150;
 opts.gradTol          = 1e-30;
 opts.weightTV         = prior.reg_param;
@@ -41,7 +41,7 @@ opts.mu               = 1e-12;%?
 
 %
 tic;
-[recon]=MBIRTV(projection,ones(size(projection)),zeros(Nr,Nr),formodel,prior,opts);
+[recon,x0]=MBIRTV(projection,ones(size(projection)),zeros(Nr,Nr),formodel,prior,opts);
 toc;
 
 recon_original_size = real(recon(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ));
