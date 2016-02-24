@@ -13,6 +13,8 @@ function [recon,x0]=MBIRTV(projection,weight,init,forward_model,prior_model,opts
 %                      k_r : The radius of the Kaiser-Bessel interpolator
 %                      beta : the drop off value of the K.-B kernel
 %                      Npad : The size of the up-sampled image
+%                      ring_corr : A binary flag for ring correction , 0=>
+%                      no correction and 1 => correction
 %         prior_model : A structure having the following entries :
 %                        reg_value  :  Value of the regularization constant
 %       angles : a list of angles used (1 X num_angles array)
@@ -40,7 +42,9 @@ opFPolyfilter = opFPolyfit(nangle,Ns);
 
 data.signal = gpuArray(init);
 data.M=opFoG(opGNUFFT);
-data.M=opFoG(opFPolyfilter,opGNUFFT);
+if(forward_model.ring_corr)
+    data.M=opFoG(opFPolyfilter,opGNUFFT);
+end
 real_data = gpuArray(projection.');
 %data.b=P.opprefilter(real_data(:),2);
 data.b=real_data(:);
@@ -53,3 +57,4 @@ x=x0(:);
 %x=x.*msk1(:);
 x = solveTV(data.M, data.B, TV, data.b, x, opts);
 recon = data.reconstruct(x);
+recon=recon./forward_model.Npad;%Scaling the reconstruction assuming unit sized pixels
