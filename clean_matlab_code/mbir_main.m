@@ -9,16 +9,16 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns_actual = 2560/4;
+Ns_actual = 512;%2560
 
 nangles = 512;
 %Ns_pad = 4096;
-center_actual = 1280/4;%sub pixels 
+center_actual = 256;%1280;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=3000/4;
+Ns=1024;%3000;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 signal = gpuArray(padmat(phantom(Ns_actual),[Ns,Ns]));
@@ -36,7 +36,7 @@ angle_list= 0:Dt:180-Dt;
 %%%%%%%%%% Forward-projection %%%%%% 
 display('Projecting using NUFFT');
 tic;
-real_data=preprocessop.image2radon(signal);
+real_data=Ns.*pi/2.*preprocessop.image2radon(signal);
 toc;
 %input_data=preprocessop.radon2q(real_data);
 
@@ -54,9 +54,10 @@ figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
-figure;plot(real(real_data(:,1))*4000);
-hold on;plot(real(forward_proj_inbuilt(:,1)),'r')
-title('Projection at 0 angle');
+figure;plot(real(real_data(:,256)));
+hold on;plot(real(forward_proj_inbuilt(:,256)),'r')
+title('Projection at  angle');
+legend('NUFFT proj.','Matlab radon');
 
 %%%%%%%% Back-projection %%%%%%%%%
 display('Back-Projecting using NUFFT');
@@ -85,25 +86,25 @@ title('Back projection using iradon');
 
   
 %%  
-x0=data.reconstruct(A.M(input_data,2));
-
-x=x0(:);
-msk1=padmat(ones(Ns*3/4),[1 1]*Ns);
-x=x.*msk1(:);
-subplot(1,2,1);
-cropimg=@(img) img(Ns/4+(1:Ns/2),Ns/4+(1:Ns/2));
-imagesc(cropimg((abs(x0)+.1).^.5)); axis image
-tic;
-for i=1:1
-    x = solveTV(data.M, data.B, TV, data.b, x, opts);
-    y = data.reconstruct(x);
-    tm=toc/i;
-    subplot(1,2,2);
-    imagesc((abs(cropimg(y))+.1).^.5);axis image
-    title(sprintf('Iteration %d, timeperiter=%g',i*opts.maxIts,tm));
-    drawnow;
-    pause
-end
-%%
- ttime=toc;
- fprintf('total time=%g\n',ttime);
+% x0=data.reconstruct(A.M(input_data,2));
+% 
+% x=x0(:);
+% msk1=padmat(ones(Ns*3/4),[1 1]*Ns);
+% x=x.*msk1(:);
+% subplot(1,2,1);
+% cropimg=@(img) img(Ns/4+(1:Ns/2),Ns/4+(1:Ns/2));
+% imagesc(cropimg((abs(x0)+.1).^.5)); axis image
+% tic;
+% for i=1:1
+%     x = solveTV(data.M, data.B, TV, data.b, x, opts);
+%     y = data.reconstruct(x);
+%     tm=toc/i;
+%     subplot(1,2,2);
+%     imagesc((abs(cropimg(y))+.1).^.5);axis image
+%     title(sprintf('Iteration %d, timeperiter=%g',i*opts.maxIts,tm));
+%     drawnow;
+%     pause
+% end
+% %%
+%  ttime=toc;
+%  fprintf('total time=%g\n',ttime);

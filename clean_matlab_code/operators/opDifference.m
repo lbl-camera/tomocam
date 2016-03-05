@@ -32,12 +32,37 @@ else
    y(m)    =  x(m-1);
 end
 
+% function y = opDifference_intrnl2(m,n,x,mode)
+% if (mode == 1)
+%    z       = reshape(x,m,n);
+%    zx      = z([2:m,m],:) - z;
+%    zy      = z(:,[2:n,n]) - z;
+%    y       = [zx(:), zy(:)];
+% else
+%    xr      = reshape(x(:,1),m,n);
+%    zx      =  xr([1,1:m-1],:) - xr;
+%    zx(1,:) = -xr(1,:);
+%    zx(m,:) =  xr(m-1,:);
+%    
+%    xr      = reshape(x(:,2),m,n);
+%    zy      =  xr(:,[1,1:n-1]) - xr;
+%    zy(:,1) = -xr(:,1);
+%    zy(:,n) =  xr(:,n-1);
+%    
+%    y       = reshape(zx + zy, m*n, 1);
+% end
+
+%% Code by venkat - March 2016. Modifying to have a 8 point neighborhood
+
 function y = opDifference_intrnl2(m,n,x,mode)
 if (mode == 1)
    z       = reshape(x,m,n);
    zx      = z([2:m,m],:) - z;
    zy      = z(:,[2:n,n]) - z;
+   zxy1    = z([2:m,m],[2:n,n]) - z;
+   zxy2    = [z(1:end-1,1) z(2:m,1:n-1);z(end,:)] - z;
    y       = [zx(:), zy(:)];
+%   y       = [zx(:), zy(:), zxy1(:), zxy2(:)];
 else
    xr      = reshape(x(:,1),m,n);
    zx      =  xr([1,1:m-1],:) - xr;
@@ -48,6 +73,17 @@ else
    zy      =  xr(:,[1,1:n-1]) - xr;
    zy(:,1) = -xr(:,1);
    zy(:,n) =  xr(:,n-1);
+   
+%    xr      = reshape(x(:,3),m,n);
+%    zy      =  xr(:,[1,1:n-1]) - xr;
+%    zy(:,1) = -xr(:,1);
+%    zy(:,n) =  xr(:,n-1);
+%    
+%    xr      = reshape(x(:,4),m,n);
+%    zy      =  xr(:,[1,1:n-1]) - xr;
+%    zy(:,1) = -xr(:,1);
+%    zy(:,n) =  xr(:,n-1);
+   
    
    y       = reshape(zx + zy, m*n, 1);
 end

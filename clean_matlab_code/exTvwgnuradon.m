@@ -52,6 +52,8 @@ opts.qNorm            = 1;
 opts.alpha            = 0.01;
 opts.beta             = 0.6;
 opts.mu               = 1e-12;
+opts.gammaLp          = 0;
+opts.gammaTV          = 1;
 
 x0=data.reconstruct(data.M(data.b,2));
 
@@ -75,3 +77,4 @@ end
 %%
  ttime=toc;
  fprintf('total time=%g\n',ttime);
+ figure;plot(abs(x0(end/2,:)));hold on;plot(abs(y(end/2,:)),'r');

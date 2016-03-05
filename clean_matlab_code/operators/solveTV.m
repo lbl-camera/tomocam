@@ -42,8 +42,8 @@ q        = options.qNorm;
 alpha    = options.alpha;
 beta     = options.beta;
 mu       = gpuArray(single(options.mu));
-gammaLp  = gpuArray(single(1));
-gammaTV  = gpuArray(single(1));
+gammaLp  = gpuArray(single(options.gammaLp));
+gammaTV  = gpuArray(single(options.gammaTV));
 weightLp = gpuArray(options.weightLp(:)');
 weightTV = gpuArray(options.weightTV(:)' );
 
@@ -74,7 +74,6 @@ EXIT_ITERATIONS    = 2;
 logB = ' %5i  %13.7e  %13.7e';
 logH = ' %5s  %13s  %13s\n';
 disp(sprintf(logH,'Iter','Objective','gNorm'));
-
 
 % Compute gradient and objective information
 [f,g] = computeInfo(x);
@@ -149,7 +148,8 @@ function [f,g] = computeInfo(x)
    Tz   = TV(z,1);
    Tzw  = Tz.*weightTV;
    xw   = x.*weightLp;
-   Tz2w = Tzw.*conj(Tzw);
+   Tz2w  = Tz.*conj(Tz).*weightTV;
+%   Tz2w = Tzw.*conj(Tzw);
    x2w  = xw.*conj(xw);
 
    % Compute the objective
@@ -171,10 +171,11 @@ function [f,g] = computeInfo(x)
    gRes = 2 * B(M(Mzb,2),2);
    
    if flagLp,
-     gLp = p *     (weightLp.*(xw.*power(x2w   + mu,p/2-1)));
+     gLp = p*(weightLp.*(xw.*power(x2w   + mu,p/2-1)));
    end
    if flagTV,
-     gTV = q * B(TV(weightTV.*(Tzw.*power(Tz2w + mu,q/2-1)),2),2);
+    %gTV = q * B(TV(weightTV.*(Tzw.*power(Tz2w + mu,q/2-1)),2),2);
+    gTV  = q*B(TV((Tzw.*power(Tz2w + mu,q/2-1)),2),2);
    end;
    g = gRes + gammaLp * gLp + gammaTV * gTV;
 end

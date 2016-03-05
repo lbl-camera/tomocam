@@ -1,7 +1,7 @@
 function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,weight,delta_r,delta_xy,Nr_orig)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
-% returns radon  and inverse radon trasnform operators (GPU accelerated)
+% returns radon  and inverse radon transform operators (GPU accelerated)
 %
 % input: Ns, x-y grid size
 %        qq,tt (polar coordinates q, theta)

@@ -57,4 +57,7 @@ x=x0(:);
 %x=x.*msk1(:);
 x = solveTV(data.M, data.B, TV, data.b, x, opts);
 recon = data.reconstruct(x);
+
+
 recon=recon./forward_model.Npad;%Scaling the reconstruction assuming unit sized pixels
+x0 = x0./forward_model.Npad;

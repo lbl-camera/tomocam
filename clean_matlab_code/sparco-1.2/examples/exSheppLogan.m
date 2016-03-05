@@ -6,7 +6,7 @@ function exSheppLogan(n)
 %   Copyright 2008, Ewout van den Berg and Michael P. Friedlander
 %   http://www.cs.ubc.ca/labs/scl/sparco
 %   $Id: exSheppLogan.m 1040 2008-06-26 20:29:02Z ewout78 $
-
+5
 if nargin < 1, n  = 128; end
 
 figure(1); clf;
