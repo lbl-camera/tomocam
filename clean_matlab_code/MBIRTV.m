@@ -15,6 +15,8 @@ function [recon,x0]=MBIRTV(projection,weight,init,forward_model,prior_model,opts
 %                      Npad : The size of the up-sampled image
 %                      ring_corr : A binary flag for ring correction , 0=>
 %                      no correction and 1 => correction
+%                      angle_list : An array of angles at whic hprojection
+%                      is obtained
 %         prior_model : A structure having the following entries :
 %                        reg_value  :  Value of the regularization constant
 %       angles : a list of angles used (1 X num_angles array)
@@ -34,9 +36,9 @@ forward_model.center = forward_model.center + (forward_model.Npad/2-Nr/2);
 
 %Code starts here
 [nangle,Ns]=size(projection);
-Dt=180/nangle;
+%Dt=180/nangle;
 
-[tt,qq]=meshgrid(0:Dt:180-Dt,(1:(Ns))-floor((Ns+1)/2)-1);
+[tt,qq]=meshgrid(forward_model.angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 [~,~,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,forward_model.beta,forward_model.k_r,forward_model.center,weight,forward_model.pix_size,forward_model.det_size,Nr);
 opFPolyfilter = opFPolyfit(nangle,Ns);
 

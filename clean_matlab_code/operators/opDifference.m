@@ -53,15 +53,22 @@ end
 % end
 
 %% Code by venkat - March 2016. Modifying to have a 8 point neighborhood
+%% TODO : Boundary conditions for diagonal neighbors
 
 function y = opDifference_intrnl2(m,n,x,mode)
+
+%weights associated with each voxel pair
+wnorm = 4+2*sqrt(2);
+w1 = 1/wnorm;
+w2 = sqrt(2)/wnorm;
+
 if (mode == 1)
    z       = reshape(x,m,n);
    zx      = z([2:m,m],:) - z;
    zy      = z(:,[2:n,n]) - z;
    zxy1    = [z(2:m,2:n) z(1:m-1,n);z(m,:)] - z;
    zxy2    = [z(1:end-1,1) z(2:m,1:n-1);z(end,:)] - z;
-   y       = [zx(:), zy(:), zxy1(:), zxy2(:)];
+   y       = [w1*zx(:), w1*zy(:), w2*zxy1(:), w2*zxy2(:)];
 else
    xr      = reshape(x(:,1),m,n);
    zx      =  xr([1,1:m-1],:) - xr;
@@ -87,6 +94,6 @@ else
    zxy2(1,:) = -xr(1,:);
    zxy2(m,:) =  xr(m-1,:);
       
-   y       = reshape(zx + zy + zxy1 + zxy2, m*n, 1);
+   y       = reshape((w1)*zx + (w1)*zy + (w2)*zxy1 + (w2)*zxy2, m*n, 1);
 
 end

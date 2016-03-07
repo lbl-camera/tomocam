@@ -174,8 +174,8 @@ function [f,g] = computeInfo(x)
      gLp = p*(weightLp.*(xw.*power(x2w   + mu,p/2-1)));
    end
    if flagTV,
-    %gTV = q * B(TV(weightTV.*(Tzw.*power(Tz2w + mu,q/2-1)),2),2);
-    gTV  = q*B(TV((Tzw.*power(Tz2w + mu,q/2-1)),2),2);
+    gTV = q * B(TV(weightTV.*(Tzw.*power(Tz2w + mu,q/2-1)),2),2);
+  %  gTV  = q*B(TV((Tzw.*power(Tz2w + mu,q/2-1)),2),2);
    end;
    g = gRes + gammaLp * gLp + gammaTV * gTV;
 end
