@@ -9,16 +9,16 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns_actual = 512;%2560
+Ns_actual = 2560/2;
 
 nangles = 512;
 %Ns_pad = 4096;
-center_actual = 256;%1280;%sub pixels 
+center_actual = 1280/2;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=1024;%3000;
+Ns=3000/2;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 signal = gpuArray(padmat(phantom(Ns_actual),[Ns,Ns]));

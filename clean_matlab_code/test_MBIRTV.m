@@ -18,17 +18,17 @@ load(file_name);
 
 projection = projection(1:8:2048,1:end-1);
 
-imsize = 512;
-P=phantom(imsize);
-nangles = 512;
-projection = radon(P, 0:180/nangles:180-180/nangles);
-projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
+% imsize = 512/2;
+% P=phantom(imsize);
+% nangles = 512/4;
+% projection = radon(P, 0:180/nangles:180-180/nangles);
+% projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
 
 
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center =imsize/2;%1280;%1294;
+formodel.center =1280;%imsize/2;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
 formodel.Npad = 1000;%3200;%3200;
@@ -71,7 +71,7 @@ x0 = real(x0(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 -
 recon_original_size = flipud(recon_original_size.');
 x0 = flipud(x0.');
 
-figure;imagesc(x0);axis image;colormap(gray);colorbar;
-figure;imagesc(recon_original_size);axis image;colormap(gray);colorbar;
+figure;imagesc(x0);axis image;colormap(gray);colorbar;title('NUFFT Back Proj');
+figure;imagesc(recon_original_size);axis image;colormap(gray);colorbar;title('MBIR TV');
 line_idx = int16(0.8*Nr);
-figure;plot(x0(line_idx,:));hold on;plot(recon_original_size(line_idx,:),'r');legend('FBP','MBIR TV');title(strcat('Reg=',num2str(prior.reg_param)));
+figure;plot(x0(line_idx,:));hold on;plot(recon_original_size(line_idx,:),'r');legend('NUFFT Back Proj','MBIR TV');title(strcat('Reg=',num2str(prior.reg_param)));

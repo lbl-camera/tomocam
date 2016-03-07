@@ -59,10 +59,9 @@ if (mode == 1)
    z       = reshape(x,m,n);
    zx      = z([2:m,m],:) - z;
    zy      = z(:,[2:n,n]) - z;
-   zxy1    = z([2:m,m],[2:n,n]) - z;
+   zxy1    = [z(2:m,2:n) z(1:m-1,n);z(m,:)] - z;
    zxy2    = [z(1:end-1,1) z(2:m,1:n-1);z(end,:)] - z;
-   y       = [zx(:), zy(:)];
-%   y       = [zx(:), zy(:), zxy1(:), zxy2(:)];
+   y       = [zx(:), zy(:), zxy1(:), zxy2(:)];
 else
    xr      = reshape(x(:,1),m,n);
    zx      =  xr([1,1:m-1],:) - xr;
@@ -74,16 +73,20 @@ else
    zy(:,1) = -xr(:,1);
    zy(:,n) =  xr(:,n-1);
    
-%    xr      = reshape(x(:,3),m,n);
-%    zy      =  xr(:,[1,1:n-1]) - xr;
-%    zy(:,1) = -xr(:,1);
-%    zy(:,n) =  xr(:,n-1);
-%    
-%    xr      = reshape(x(:,4),m,n);
-%    zy      =  xr(:,[1,1:n-1]) - xr;
-%    zy(:,1) = -xr(:,1);
-%    zy(:,n) =  xr(:,n-1);
+   xr        = reshape(x(:,3),m,n);
+   zxy1      =  [xr(1,:); xr(2:m,1) xr(1:m-1,1:n-1)] - xr; %xr([1,1:m-1],[1,1:n-1]) - xr;
+   zxy1(1,:) = -xr(1,:);
+   zxy1(m,:) =  xr(m-1,:);
+   zxy1(:,1) = -xr(:,1);
+   zxy1(:,n) = xr(:,n-1);
    
-   
-   y       = reshape(zx + zy, m*n, 1);
+   xr      = reshape(x(:,4),m,n);
+   zxy2      = [xr(1,:);xr(1:m-1,2:n) xr(2:m,n)] - xr;
+   zxy2(:,1) = -xr(:,1);
+   zxy2(:,n) =  xr(:,n-1);
+   zxy2(1,:) = -xr(1,:);
+   zxy2(m,:) =  xr(m-1,:);
+      
+   y       = reshape(zx + zy + zxy1 + zxy2, m*n, 1);
+
 end
