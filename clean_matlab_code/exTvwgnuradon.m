@@ -8,7 +8,7 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns=2560;
+Ns=3000;
 nangles=512;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
