@@ -2,8 +2,9 @@ addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
-addpath(genpath('ShearLab3Dv11'));
-
+%addpath(genpath('ShearLab3Dv11'));
+addpath(genpath('~/matlab/toolboxes/ShearLab3Dv11/'))
+addpath('~/matlab/toolboxes/spgl1-1.8/')
 
 %data=generateProblem(502);
  Ns=1024; nangles=90;

@@ -28,6 +28,32 @@ __inline__ __device__ float fetch_x(const int& i,const float * x)
 return tex1Dfetch(tex_x_float1, i);
 }
 
+__inline__ __device__ cusp::complex<float> fetch_xc(const int& i, const cusp::complex<float> * x)
+{
+return cusp::complex<float>(tex1Dfetch(tex_x_float, i*2),tex1Dfetch(tex_x_float, i*2+1));
+}
+
+__inline__ __device__ cusp::complex<float> shflb( const cusp::complex<float>  x, int& i)
+{
+  //  return cusp::complex<float>(__shfl(float2(x),i));
+  //  return cusp::complex<float>(__shfl(float(x),i*2),(__shfl(float(x),i*2+1)));
+  return cusp::complex<float>(__shfl(x.x,i),(__shfl(x.y,i)));
+}
+
+__inline__ __device__ float shflb( const float  x, int& i)
+{
+  return float(__shfl(x,i));
+}
+
+__inline__ __device__ void atomicAdd( cusp::complex<float> * x,  cusp::complex<float>  m)
+{
+  //  cusp::complex<float> m;
+     atomicAdd(&(x[0]).x,m.x);
+     atomicAdd(&(x[0]).y,m.y);
+      //      return m;
+}
+
+
 
 void error_handle(cudaError_t status = cudaErrorLaunchFailure);
 
@@ -145,63 +171,61 @@ __global__ void sum_points(        const cusp::complex<float> * point_value,
         const float kb_table_scale,                const float * kb_table, cudaTextureObject_t texRef,
 			   cusp::complex<float> * grid_value,int pbid){
   __shared__ cusp::complex<float> value;
+  
+  __shared__ cusp::complex<float> sum_t[BLOCKSIZE];
     
-   __shared__ cusp::complex<float> sum_t[BLOCKSIZE];
-    
-    // Specialize BlockReduce for a 1D block of 128 threads on type cusp::complex<float>
-    
+  // Specialize BlockReduce for a 1D block of 128 threads on type cusp::complex<float>
+  
   //    int i = blockIdx.x;
 
-        int i = pbid;
-    int tid = threadIdx.x;
-
-     int jj = blockIdx.x;
-    
-    uint2 corner;
-    corner.x = bin_location[i]%grid_size.x;
-    corner.y = bin_location[i]/grid_size.x;
-    const int idx = binned_points_idx[i];
-    const int ppb = points_per_bin[i];
-    //    cusp::complex<float> * value;
-       const int  bd=BLOCKSIZE;
-    //	const int  bd=blockDim.x;
-    //const uint2 dims = {bin_dimension_x[i],bin_dimension_y[i]};
+  int i = pbid;
+  int tid = threadIdx.x;
+  
+  int jj = blockIdx.x;
+  
+  uint2 corner;
+  corner.x = bin_location[i]%grid_size.x;
+  corner.y = bin_location[i]/grid_size.x;
+  const int idx = binned_points_idx[i];
+  const int ppb = points_per_bin[i];
+  //    cusp::complex<float> * value;
+  const int  bd=BLOCKSIZE;
+  //	const int  bd=blockDim.x;
+  //const uint2 dims = {bin_dimension_x[i],bin_dimension_y[i]};
             
-
-    int bdx=bin_dimension_x[i];
-//    loop through grid
-        for(int yi = corner.y;yi<corner.y+bin_dimension_x[i];yi+=1){
-	  int y=(yi-corner.y+jj)%bdx+corner.y; //shift so that there is no overlap
-					       
-	  //	  int y=yi;
-            for(int x = corner.x;x<corner.x+bin_dimension_y[i];x+=1){
-
- 	              sum_t[tid] = 0;
-
-        for(int j = tid+jj*bd ;j<ppb;j+=bd*gridDim.x){
-            sum_t[tid] += point_value[binned_points[idx+j]]*
-	            kb_weight(make_float2(x,y),
-                    make_float2(binned_points_x[idx+j],binned_points_y[idx+j]),
-			       kb_table_size,kb_table_scale, kb_table,texRef);
-	}
+  
+  int bdx=bin_dimension_x[i];
+  //    loop through grid
+  for(int yi = corner.y;yi<corner.y+bin_dimension_x[i];yi+=1){
+    int y=(yi-corner.y+jj)%bdx+corner.y; //shift so that there is no overlap
+    
+    //	  int y=yi;
+    for(int x = corner.x;x<corner.x+bin_dimension_y[i];x+=1){
+      
+      sum_t[tid] = 0;
+      
+      for(int j = tid+jj*bd ;j<ppb;j+=bd*gridDim.x){
+	sum_t[tid] += point_value[binned_points[idx+j]]*
+	  kb_weight(make_float2(x,y),
+		    make_float2(binned_points_x[idx+j],binned_points_y[idx+j]),
+		    kb_table_size,kb_table_scale, kb_table,texRef);
+      }
+      __syncthreads();
+      
+      for(unsigned int j=1; j < bd; j *= 2) {
+	// modulo arithmetic is slow!
+	if ((tid & (2*j-1)) == 0) { sum_t[tid] += sum_t[tid + j];  }
 	__syncthreads();
-
-        for(unsigned int j=1; j < bd; j *= 2) {
-            // modulo arithmetic is slow!
-            if ((tid & (2*j-1)) == 0) { sum_t[tid] += sum_t[tid + j];  }
-            __syncthreads();
-        }
-
-		     cudaDeviceSynchronize();
-
-        if(tid == 0){
-	  //	  grid_value[y*grid_size.x+x]+=(cusp::complex<float>) sum_t[0]; 
-	atomicAdd(&(grid_value[y*grid_size.x+x]).x,(sum_t[0]).x);
-	atomicAdd(&(grid_value[y*grid_size.x+x]).y,(sum_t[0]).y);
-
-}
-	}
-	}
+      }
+      
+      cudaDeviceSynchronize();
+      
+      if(tid == 0){
+	//	  grid_value[y*grid_size.x+x]+=(cusp::complex<float>) sum_t[0]; 
+	atomicAdd(&(grid_value[y*grid_size.x+x]),(sum_t[0]));
+      }
+    }
+  }
 }
 
 
@@ -300,8 +324,8 @@ __global__ void grid_points_cuda_mex_interleaved_kernel(
       bblock=1;
     else {bblock=4; };
 
-//    __shared__ float point_pos_cache_x[SHARED_SIZE];
-//    __shared__ float point_pos_cache_y[SHARED_SIZE];
+    __shared__ float point_pos_cache_x[SHARED_SIZE];
+    __shared__ float point_pos_cache_y[SHARED_SIZE];
     __shared__ cusp::complex<float> point_value_cache[SHARED_SIZE];  
     __shared__ cusp::complex<float> sum_t[BLOCKSIZE];
     //  
@@ -313,8 +337,8 @@ __global__ void grid_points_cuda_mex_interleaved_kernel(
 	  // const int point = binned_points[idx+j];
 	      point_value_cache[j] =fetch_x(binned_points[idx+j],point_value); 
 	      //              point_value_cache[j] = point_value[point];
-//            point_pos_cache_x[j] = binned_points_x[idx+j];
-//            point_pos_cache_y[j] = binned_points_y[idx+j];
+            point_pos_cache_x[j] = binned_points_x[idx+j];
+            point_pos_cache_y[j] = binned_points_y[idx+j];
         }
         __syncthreads();
         int b = bblock;// each thread takes care of 
@@ -325,7 +349,7 @@ __global__ void grid_points_cuda_mex_interleaved_kernel(
             sum_t[tid] = 0;
             //sum_i[tid] = 0;
             for(int j = (tid&(b-1));j<ppb;j+=b){
-      //                float w= kb_weight(x,y,point_pos_cache_x[j],point_pos_cache_y[j],kb_table_size,kb_table_scale, kb_table,texRef);
+	      //                float w= kb_weight(x,y,point_pos_cache_x[j],point_pos_cache_y[j],kb_table_size,kb_table_scale, kb_table,texRef);
 
                 float w=kb_weight(make_float2(x,y),make_float2(point_pos_cache_x[j],point_pos_cache_y[j]),
 			       kb_table_size,kb_table_scale, kb_table);
