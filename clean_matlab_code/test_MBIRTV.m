@@ -7,9 +7,9 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_0_1.mat';
-%20130807_234356_OIM121R_SAXS_5x.mat';
+file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
 
+%ShepLogan_2560_2049_dose5000_noise_0_1.mat';
 grnd_truth = phantom(2560);
 grnd_truth(grnd_truth < 0)=0;
 grnd_truth=grnd_truth*10e-4;
@@ -17,7 +17,7 @@ grnd_truth=grnd_truth*10e-4;
  
 load(file_name);
 
-projection = projection(1:8:2048,1:end-1);
+%projection = projection(1:8:2048,1:end-1);
 
 %% Ring addition
 % img = zeros(size(projection));
@@ -39,7 +39,7 @@ angle_list = 0:180/num_angles:180-180/num_angles;
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center =1280;%1294;
+formodel.center =1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
 formodel.Npad = 3000;%3200;%3200;
@@ -51,21 +51,21 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param = 10;
+prior.reg_param = 1;
 
 %Solver params
-opts.maxIts           = 200;%Max iterations of cost-function 
-opts.maxLSIts         = 50;%max line-search iterations
+opts.maxIts           = 50;%Max iterations of cost-function 
+opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;
 opts.gammaTV          = prior.reg_param;
 opts.gammaLp          = 0;
 opts.weightLp         = 0;
 opts.pNorm            = 1;
-opts.qNorm            = 1;
+opts.qNorm            = 1;%q-value 
 opts.alpha            = 0.01;
 opts.beta             = 0.6;%?
-opts.mu               = 1e-10;%the rounding value used to make a differentiable TV regularizer
+opts.mu               = 1e-10;%the rounding value used to make a differentiable regularizer
 
 %
 temp_weight = rand(size(projection));

@@ -24,21 +24,3 @@ preprocessop.image2radon=@(x) P.gnuradon(x);%reshape(x,[Ns,Ns]));
 preprocessop.radon2q=@(x) P.opprefilter(x(:),2);
 preprocessop.shearlet2image=@(x) A.reconstruct(A.M(x,2));
 preprocessop.radon2image=@(x) P.gnuiradon(x);
-
-%real_data=P.gnuradon(reshape(data.signal,[Ns,Ns]));
-%data.b=P.opprefilter(real_data(:),2);
-
-  
-%%  
-%x0=data.reconstruct(data.M(data.b,2));
-
-%x=x0(:);
-% Fmsk=ones(Ns,nangles);
-% Fmsk(Ns/2+randi(round(Ns/4),5)-round(Ns/8),:)=0;
-% msk1=padmat(ones(Ns*3/4),[1 1]*Ns);
-
-%x=x.*msk1(:);
-%subplot(1,2,1);
-%cropimg=@(img) img(Ns/4+(1:Ns/2),Ns/4+(1:Ns/2));
-%imagesc(cropimg((abs(x0)+.1).^.5)); axis image
-%tic;

@@ -9,10 +9,10 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 64;
+num_slice = 1;
 Ns_actual = 2560;
 
-nangles = 512;
+nangles = 512/2;
 %Ns_pad = 4096;
 center_actual = 1280;%sub pixels 
 pix_size = 1;%um 

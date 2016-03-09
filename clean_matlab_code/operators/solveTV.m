@@ -148,20 +148,19 @@ function [f,g] = computeInfo(x)
    Tz   = TV(z,1);
    Tzw  = Tz.*weightTV;
    xw   = x.*weightLp;
-   Tz2w  = Tz.*conj(Tz).*weightTV;
-%   Tz2w = Tzw.*conj(Tzw);
+   Tz2w = Tzw.*conj(Tzw);
    x2w  = xw.*conj(xw);
 
    % Compute the objective
    Mzb = Mz - b;
    fRes = Mzb' * Mzb;
    if flagLp,
-%       fLp = sum(power(x2w + mu, p/2));  
-       fLp = sum(sqrt(x2w + mu));  
+       fLp = sum(power(x2w + mu, p/2));  
+%       fLp = sum(sqrt(x2w + mu));  
    end
    if  flagTV
-%       fTV = sum(power(Tz2w(:) + mu, q/2));  
-       fTV = sum(sqrt(Tz2w(:) + mu));  
+       fTV = sum(power(Tz2w(:) + mu, q/2));  
+%       fTV = sum(sqrt(Tz2w(:) + mu));  
    end
    
    
@@ -175,7 +174,6 @@ function [f,g] = computeInfo(x)
    end
    if flagTV,
     gTV = q * B(TV(weightTV.*(Tzw.*power(Tz2w + mu,q/2-1)),2),2);
-  %  gTV  = q*B(TV((Tzw.*power(Tz2w + mu,q/2-1)),2),2);
    end;
    g = gRes + gammaLp * gLp + gammaTV * gTV;
 end
@@ -186,7 +184,6 @@ function [xNew,fNew,gNew,err] = linesearch(x,f,g,dx,alpha,beta,maxIts)
    while (maxIts > 0)
      xNew = x + step * dx;
      [fNew,gNew] = computeInfo(xNew);
-
      % Check Armijo condition
 %     if (fNew <= f + alpha*step*real(g'*dx));
     if (fNew <= f + alpha*step*sum(sum(real(conj(g).*x))));

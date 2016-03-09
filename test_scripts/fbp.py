@@ -1,4 +1,4 @@
-#script to test filtered back projection 
+#script to test fbp 
 
 from __future__ import print_function, division
 
@@ -11,6 +11,7 @@ from skimage.transform import radon, rescale, iradon
 
 image = imread(data_dir + "/phantom.png", as_grey=True)
 image = rescale(image, scale=0.4)
+plt.imshow(image,cmap=plt.cm.Greys_r)
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(8, 4.5))
 
