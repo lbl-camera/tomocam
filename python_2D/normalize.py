@@ -16,8 +16,8 @@ def _simple_normalize(tomo, flats, darks):
     weight = np.zeros_like(tomo)
 
     for m in range(tomo.shape[0]):
-        proj[m, :, :] = np.true_divide(tomo[m, :, :] - darks, denom)
         weight[m,:,:] = tomo[m, :, :] - darks
+        proj[m, :, :] = np.true_divide(weight[m,:,:], denom)
 
     return proj,weight
 
