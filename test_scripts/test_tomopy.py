@@ -6,6 +6,7 @@ from skimage.io import imread
 from skimage import data_dir
 from skimage.transform import radon, rescale, iradon
 import tomopy
+from normalize import normalize_bo
 
 dataset='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.h5'
 algorithm='sirt'
@@ -19,13 +20,13 @@ print('Generating angles')
 theta = tomopy.angles(tomo.shape[0])
 
 print('Normalization')
-tomo = tomopy.normalize(tomo, flats, darks)
+tomo = normalize_bo(tomo, flats, darks,20)
 
 print('Ring removal')
 tomo = tomopy.remove_stripe_fw(tomo)
 
 print('Recon')
-rec = tomopy.recon(tomo, theta, center=1284,algorithm='osem',emission=False)
+rec = tomopy.recon(tomo, theta, center=1294,algorithm='osem',emission=False)
 
 print('Masking')
 rec = tomopy.circ_mask(rec, 0)

@@ -16,6 +16,7 @@ flags2='-L/usr/local/cuda/lib64 -lcudart -L/usr/local/MATLAB/R2015b/bin/glnxa64/
 /usr/local/cuda/bin/nvcc ${flags1} gptr2row.cu
 /usr/local/cuda/bin/nvcc ${flags1} gcoo2csr.cu
 /usr/local/cuda/bin/nvcc ${flags1} gcsr2coo.cu
+/usr/local/cuda/bin/nvcc ${flags1} polargrid_cusp.cu
 
 /usr/local/MATLAB/R2015b/bin/mex  -cxx polarsample.o  cuda_sample.o ${flags2}
 /usr/local/MATLAB/R2015b/bin/mex -cxx polarbin1.o ${flags2}
@@ -25,7 +26,7 @@ flags2='-L/usr/local/cuda/lib64 -lcudart -L/usr/local/MATLAB/R2015b/bin/glnxa64/
 /usr/local/MATLAB/R2015b/bin/mex -cxx gptr2row.o ${flags2}
 /usr/local/MATLAB/R2015b/bin/mex -cxx gcoo2csr.o ${flags2}
 /usr/local/MATLAB/R2015b/bin/mex -cxx gcsr2coo.o ${flags2}
-
+/usr/local/MATLAB/R2015b/bin/mex -cxx polargrid_cusp.o ${flags2}
 
 
 #/usr/local/cuda/bin/nvcc -Xcompiler -fPIC -I/usr/local/matlab/extern/include -I/usr/local/matlab/toolbox/distcomp/gpu/extern/include   -DNDEBUG  -m64 -arch sm_35 -c polarsample.cu

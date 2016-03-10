@@ -19,7 +19,8 @@ Dt=(180/nangles); %spacing in degrees
 % Kernel radius
 k_r=2;beta =3*pi*1.0;
 [gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r);
-opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
+%[gnuqradon,gnuqiradon,P,op,opprefilter]=gnufft_init_op(Ns,qq,tt,beta,k_r,0);
+opFPolyfilter = opFPolyfit(nangles,Ns);%,P.opprefilter);
 
 Fmsk=ones(Ns,nangles);
 Fmsk(Ns/2+randi(round(Ns/4),5)-round(Ns/8),:)=0;

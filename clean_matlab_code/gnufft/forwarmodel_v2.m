@@ -6,8 +6,8 @@ k_r=3;beta =2*pi*2;  %kernel size 2*kr+1
 
 [Ns,nangles]=size(qq);
 
-%[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,delta_xy,delta_r);
-[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(projective2d)),delta_r,delta_xy,Ns)
+[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+%[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_op(Ns,qq,tt,beta,k_r,0);
 
 opFPolyfilter = opFPolyfit(nangles,Ns,P.opprefilter);
 % 
