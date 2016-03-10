@@ -6,6 +6,7 @@ from XT_argsParser import bl832inputs_parser
 import time
 import os
 import math
+import numpy as np
 
 
 def main():
@@ -14,7 +15,7 @@ def main():
         inputs = bl832inputs_parser(parser)
 
         algorithm='fbp'
-        tomo, flats, darks, floc = tomopy.read_als_832h5(inputs['input_hdf5'],sino=(inputs['z_start'], inputs['z_start']+inputs['z_numElts'], 1))
+        tomo, flats, darks, floc = tomopy.read_als_832h5(inputs['input_hdf5'],ind_tomo=range(1,inputs['num_views'],inputs['view_subsmpl_fact']),sino=(inputs['z_start'], inputs['z_start']+inputs['z_numElts'], 1))
         print('Data read complete')
         print tomo.shape
 
