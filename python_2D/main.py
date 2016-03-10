@@ -37,7 +37,7 @@ def main():
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
 
-#        fig = plt.figure()
+        fig = plt.figure()
 #        plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
 #        fig.suptitle('Sinogram')
         pg.image(tomo)
@@ -52,7 +52,7 @@ def main():
 
         tomopy.write_tiff_stack(rec, 'test.tiff')
 
-#        fig = plt.figure()
+        fig = plt.figure()
 #        plt.imshow(rec[1,:,:],cmap=plt.cm.Greys_r)
 #        fig.suptitle('Reconstruction')
 
