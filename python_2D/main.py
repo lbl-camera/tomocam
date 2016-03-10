@@ -12,10 +12,9 @@ def main():
 
         parser = argparse.ArgumentParser()
         inputs = bl832inputs_parser(parser)
-        print "Input file :",inputs['input_hdf5']
 
         algorithm='fbp'
-        tomo, flats, darks, floc = tomopy.read_als_832h5(inputs['input_hdf5'],sino=(1000, 1003, 1))
+        tomo, flats, darks, floc = tomopy.read_als_832h5(inputs['input_hdf5'],sino=(inputs['z_start'], inputs['z_start']+inputs['z_numElts'], 1))
         print('Data read complete')
         print tomo.shape
 
@@ -26,13 +25,13 @@ def main():
         theta = tomopy.angles(tomo.shape[0])
 
         print('Normalization')
-        tomo = normalize_bo(tomo, flats, darks,20)
+        tomo = normalize_bo(tomo, flats, darks,inputs['num_dark'])
 
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
 
         print('Recon')
-        rec = tomopy.recon(tomo, theta, center=1294,algorithm='osem',emission=False)
+        rec = tomopy.recon(tomo, theta, center=1294,algorithm=algorithm,emission=False)
 
         print('Masking')
         rec = tomopy.circ_mask(rec, 0)
