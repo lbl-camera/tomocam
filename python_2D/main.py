@@ -7,7 +7,8 @@ import time
 import os
 import math
 import numpy as np
-
+import afnumpy as afnp
+import afnumpy.fft as fft
 
 def main():
 
@@ -20,17 +21,19 @@ def main():
         print tomo.shape
 
         print('Displaying  sinogram')
-#        imgplot = plt.imshow(tomo[:,0,:])
+        #imgplot = plt.imshow(tomo[:,0,:])
 
         print('Generating angles')
         theta = tomopy.angles(tomo.shape[0])
 
+        #Need to modify to return the raw counts for noise estimation 
         print('Normalization')
-        tomo = normalize_bo(tomo, flats, darks,inputs['num_dark'])
+        tomo,weight = normalize_bo(tomo, flats, darks,inputs['num_dark'])
 
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
 
+        #Change this to a mbir.recon 
         print('Recon')
         rec = tomopy.recon(tomo, theta, center=1294,algorithm=algorithm,emission=False)
 
@@ -39,6 +42,11 @@ def main():
 
         tomopy.write_tiff_stack(rec, 'test.tiff')
         print 'main: Done!'
+        
+        temp1 = afnp.array(tomo)
+        temp2 = afnp.array(rec)
+        temp3 = afnp.array(weight)
+        print tomo
 
 main()
 

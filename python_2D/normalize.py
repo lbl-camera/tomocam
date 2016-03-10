@@ -13,11 +13,13 @@ def _simple_normalize(tomo, flats, darks):
     denom = flats - darks
     denom[denom == 0] = 1e-6
     proj = np.zeros_like(tomo)
+    weight = np.zeros_like(tomo)
 
     for m in range(tomo.shape[0]):
         proj[m, :, :] = np.true_divide(tomo[m, :, :] - darks, denom)
+        weight[m,:,:] = tomo[m, :, :] - darks
 
-    return proj
+    return proj,weight
 
 
 def normalize_bo(tomo, flats, darks, num_flat):
@@ -48,9 +50,9 @@ def normalize_bo(tomo, flats, darks, num_flat):
     dark = np.mean(darks, axis=0)
     flats = np.mean(flats, axis=0)
 
-    arr = _simple_normalize(tomo, flats, dark)
+    arr,weight = _simple_normalize(tomo, flats, dark)
 
-    return arr
+    return arr,weight
 
 
 def normalize_fo(tomo, flats, darks, num_flat):
@@ -81,9 +83,9 @@ def normalize_fo(tomo, flats, darks, num_flat):
     dark = np.mean(darks, axis=0)
     flats = np.mean(flats, axis=0)
 
-    arr = _simple_normalize(tomo, flats, dark)
+    arr,weight = _simple_normalize(tomo, flats, dark)
 
-    return arr
+    return arr,weight
 
 
 def normalize_fb(tomo, flats, darks):
@@ -111,9 +113,9 @@ def normalize_fb(tomo, flats, darks):
     dark = np.mean(darks, axis=0)
     flats = np.mean(flats, axis=0)
 
-    arr = _simple_normalize(tomo, flats, dark)
+    arr,weight = _simple_normalize(tomo, flats, dark)
 
-    return arr
+    return arr,weight
 
 
 def normalize_832(tomo, flats, darks, flat_loc,

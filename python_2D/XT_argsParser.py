@@ -33,13 +33,12 @@ def bl832inputs_parser(parser):
         inputs = {}
         inputs['input_hdf5'] = args.input_hdf5
         inputs['group_hdf5'] = args.group_hdf5
-        #The group name has to start with a "/"                                                                                                                              
+        #The group name has to start with a "/"                                       
         if (inputs['group_hdf5'][0] != '/'):
             print 'Group name has to start with a /'
             return -1
 
         inputs['output_hdf5']= args.output_hdf5
-
 
         inputs['pix_size'] = args.pix_size
         inputs['num_bright'] = args.num_bright
