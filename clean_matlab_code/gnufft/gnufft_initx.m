@@ -1,16 +1,16 @@
 function [gnuradon,gnuiradon,qtXqxy,qxyXqt,op,P,PT,gDq]=gnufft_initx(Ns,qq,tt,beta,k_r,uniqueness)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
-% 
+%
 % returns radon  and inverse radon trasnform operators (GPU acceler ated)
-% 
-% input: Ns, x-y grid size 
+%
+% input: Ns, x-y grid size
 %        q,t (polar coordinates q, theta)
-%        beta, kaiser-bessel parameter, 
+%        beta, kaiser-bessel parameter,
 %        k_r, kernel width
 % Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
-%        radon and inverse radon wrap around some FFTs 
+%        radon and inverse radon wrap around some FFTs
 %
 %
 %
@@ -38,14 +38,14 @@ gdpz=gpuArray(single(dpz));
 % normalize by KB factor
 cnorm=gpuArray(single(sum(sum(KB2D((1:Ns)'-Ns/2,(1:Ns)-Ns/2)))));
 
- 
-% polar to cartesian to matrix 
+
+% polar to cartesian to matrix
 [yi,xi]=pol2cart(tt*pi/180,scaling.*qq);
 xi = xi+floor((Ns+1)/2)+1;
 yi = yi+floor((Ns+1)/2)+1;
 
 
-%  q-radon <-- q-cartesian 
+%  q-radon <-- q-cartesian
 gkblut=gpuArray(single(kblut));
 gxi=gpuArray(single(xi));
 gyi=gpuArray(single(yi));
@@ -88,15 +88,15 @@ gcol=repmat(int32(reshape(1:numel(qq),size(qq))),[ 1 1 nkr nkr]);
 % remove stencils if they land outside the frame
 iin=find(bsxfun(@and,(xii>0) & ( xii<Ns+1) , (yii>0) & (yii<Ns+1)));
 if numel(iin)<numel(gval);
- grow=grow(iin);
- gcol=gcol(iin);
- gval=gval(iin);
+    grow=grow(iin);
+    gcol=gcol(iin);
+    gval=gval(iin);
 end
 % %%
 
 %get the array and transpose
 P=gcsparse(gcol,grow,complex(gval),nrow,ncol,1);
-PT=gcsparse(grow,gcol,complex(gval),ncol,nrow,1); 
+PT=gcsparse(grow,gcol,complex(gval),ncol,nrow,1);
 %%
 
 %grmask=gpuArray(abs(qq)<Ns/6);
@@ -110,10 +110,10 @@ xx=gpuArray(single(0:Ns-1));
 f2shift=bsxfun(@times,(-1).^xx,(-1).^xx'); %fftshift factor
 
 
-%  q-cartesian <-- q-radon  
+%  q-cartesian <-- q-radon
 %qxyXqt =@(Gqt) reshape(P*(Gqt(:)./gDq(:)),[Ns Ns]);
-   
-    
+
+
 % fftshift factors
 xx=gpuArray(single(0:Ns-1));
 %f2shift=(-1).^(xx+yy); %fftshift factor
@@ -129,7 +129,7 @@ rxyXqxy=@(Gqxy) f2shift.*ifft2((Gqxy.*f2shift)).*(gdpz); %deapodized
 
 % real (r) to fourier (q) -- radon space (r/q-theta)
 rtXqt=@(Gqt) ifftshift(bsxfun(@times,fftshift1D,ifft(Gqt)),1).*grmask;
-  qtXrt=@(Grt) ifftshift( bsxfun(@times,fft(Grt),fftshift1D),1);
+qtXrt=@(Grt) ifftshift( bsxfun(@times,fft(Grt),fftshift1D),1);
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 gnuradon=@(G) rtXqt(qtXqxy(qxyXrxy(G)));
@@ -139,19 +139,19 @@ gnuiradon=@(GI) rxyXqxy(qxyXqt(qtXrt(GI)));
 
 op = @(x,mode) opRadon_intrnl(x,mode);
 
-function y =opRadon_intrnl(x,mode)
-checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
-if mode == 0
-   y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
-   elseif mode == 1
-       y=gnuradon(reshape(x,grid));
-       y=y(:);
-else
-      y=gnuiradon(reshape(x,[Ns nangles]));
-      y=y(:);
-end
-
-end
+    function y =opRadon_intrnl(x,mode)
+        checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
+        if mode == 0
+            y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
+        elseif mode == 1
+            y=gnuradon(reshape(x,grid));
+            y=y(:);
+        else
+            y=gnuiradon(reshape(x,[Ns nangles]));
+            y=y(:);
+        end
+        
+    end
 
 end
 

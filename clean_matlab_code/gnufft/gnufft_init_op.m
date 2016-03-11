@@ -1,16 +1,16 @@
 function [gnuqradon,gnuqiradon,P,op,opprefilter]=gnufft_init_op(Ns,qq,tt,beta,k_r,uniqueness)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
-% 
+%
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
-% 
-% input: Ns, x-y grid size 
+%
+% input: Ns, x-y grid size
 %        q,t (polar coordinates q, theta)
-%        beta, kaiser-bessel parameter, 
+%        beta, kaiser-bessel parameter,
 %        k_r, kernel width
 % Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
-%        radon and inverse radon wrap around some FFTs 
+%        radon and inverse radon wrap around some FFTs
 %
 %
 %
@@ -48,19 +48,19 @@ grid = [Ns,Ns];
 
 % sum points before stencils
 if uniqueness
-[~,s2u,u2s]=unique([xi(:),yi(:)],'rows');
-grow=u2s;
-gcol=1:numel(u2s);
-  
-PPT=gcsparse(grow,gcol,complex(single(gcol*0+1)),numel(u2s),numel(s2u),1); 
-PP=gcsparse(gcol,grow,complex(single(gcol*0+1)),numel(s2u),numel(u2s),1); 
-
-%
-xi=xi(s2u); 
-yi=yi(s2u);
-Dq=accumarray(u2s,Dq(:));
-%gDq=real(P*single(complex(gDq)));
-tred=numel(u2s)-numel(s2u)
+    [~,s2u,u2s]=unique([xi(:),yi(:)],'rows');
+    grow=u2s;
+    gcol=1:numel(u2s);
+    
+    PPT=gcsparse(grow,gcol,complex(single(gcol*0+1)),numel(u2s),numel(s2u),1);
+    PP=gcsparse(gcol,grow,complex(single(gcol*0+1)),numel(s2u),numel(u2s),1);
+    
+    %
+    xi=xi(s2u);
+    yi=yi(s2u);
+    Dq=accumarray(u2s,Dq(:));
+    %gDq=real(P*single(complex(gDq)));
+    tred=numel(u2s)-numel(s2u)
 end
 
 
@@ -101,24 +101,24 @@ P.qtXrt=@(Grt) fftshift1Dop(fft(fftshift1Dop(Grt)));
 
 
 if uniqueness
-% q-radon to q cartesian with density compensation (1/Dq)
-
-P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,(PP*Gqt)./gDq,grid,gs_per_b,...
-    gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
-    gb_points_x,gb_points_y,gkblut,scale);
-
-% q-cartesian to q-radon
-P.qtXqxy=@(Gqxy) reshape(PPT*polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r),[Ns,nangles]);
+    % q-radon to q cartesian with density compensation (1/Dq)
+    
+    P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,(PP*Gqt)./gDq,grid,gs_per_b,...
+        gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
+        gb_points_x,gb_points_y,gkblut,scale);
+    
+    % q-cartesian to q-radon
+    P.qtXqxy=@(Gqxy) reshape(PPT*polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r),[Ns,nangles]);
 else
     
-% q-cartesian to q-radon
-P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
-%GDq;
-
-% q-radon to q cartesian 
-P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt,grid,gs_per_b,...
-    gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
-    gb_points_x,gb_points_y,gkblut,scale);
+    % q-cartesian to q-radon
+    P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
+    %GDq;
+    
+    % q-radon to q cartesian
+    P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt,grid,gs_per_b,...
+        gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
+        gb_points_x,gb_points_y,gkblut,scale);
 end
 
 % qradon transform: (x y) to (qx qy) to (q theta) with density compensation:
@@ -145,38 +145,38 @@ nangles=size(tt,2);
 op = @(x,mode) opRadon_intrnl(x,mode);
 opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
 
-function y =opRadon_intrnl(x,mode)
-checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
-if mode == 0
-   y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
-   elseif mode == 1
-       y=gnuqradon(reshape(x,grid));
-       y=y(:);
-else
-      y=gnuqiradon(reshape(x,[Ns nangles]));
-      y=y(:);
-end
+    function y =opRadon_intrnl(x,mode)
+        checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
+        if mode == 0
+            y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
+        elseif mode == 1
+            y=gnuqradon(reshape(x,grid));
+            y=y(:);
+        else
+            y=gnuqiradon(reshape(x,[Ns nangles]));
+            y=y(:);
+        end
+        
+    end
 
-end
-
-function y =opPrefilter_intrnl(x,mode)
-  checkDimensions(nangles*Ns,nangles*Ns,x,mode);
-if mode == 0
-    y = {nangles*Ns,nangles*Ns,[1,1,1,1],{'PREFILTER'}};
-elseif mode == 1
-%        y = (reshape(x,length(x)/nangles,nangles));   
-%        P.datafilt=@(GR) P.qtXrt(GR)./P.gDq;
-%P.datafiltt=@(GR) P.rtXqt(GR.*P.gDq); % and back
-        y= P.datafiltt((reshape(x,length(x)/nangles,nangles)));   
-%       y=gnuqradon(reshape(x,grid));
-       y=y(:);
-else
-        y= P.datafilt((reshape(x,length(x)/nangles,nangles)));   
-%       y=gnuqradon(reshape(x,grid));
-       y=y(:);   
-end
-
-end
+    function y =opPrefilter_intrnl(x,mode)
+        checkDimensions(nangles*Ns,nangles*Ns,x,mode);
+        if mode == 0
+            y = {nangles*Ns,nangles*Ns,[1,1,1,1],{'PREFILTER'}};
+        elseif mode == 1
+            %        y = (reshape(x,length(x)/nangles,nangles));
+            %        P.datafilt=@(GR) P.qtXrt(GR)./P.gDq;
+            %P.datafiltt=@(GR) P.rtXqt(GR.*P.gDq); % and back
+            y= P.datafiltt((reshape(x,length(x)/nangles,nangles)));
+            %       y=gnuqradon(reshape(x,grid));
+            y=y(:);
+        else
+            y= P.datafilt((reshape(x,length(x)/nangles,nangles)));
+            %       y=gnuqradon(reshape(x,grid));
+            y=y(:);
+        end
+        
+    end
 
 end
 
