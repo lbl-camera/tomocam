@@ -45,6 +45,7 @@ def main():
         #Change this to a mbir.recon 
         print('Recon')
         rec = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm,emission=False)
+        # gnufft.polarsample()
 
         print('Masking')
         rec = tomopy.circ_mask(rec, 0)
