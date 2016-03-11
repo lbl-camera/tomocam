@@ -1,11 +1,10 @@
 import tomopy
-from normalize import normalize_bo
 import argparse
-from XT_argsParser import bl832inputs_parser
 import time
 import os
 import math
 import numpy as np
+import afnumpy as afnp
 import matplotlib.pyplot as plt
 import pyqtgraph as pg
 import afnumpy as afnp
@@ -13,8 +12,12 @@ from skimage.io import imread
 from skimage import data_dir
 from skimage.transform import radon, rescale, iradon
 
-def main():
+from XT_argsParser import bl832inputs_parser
+from XT_ForwardModel import forward_project
+from normalize import normalize_bo
 
+def main():
+        
         parser = argparse.ArgumentParser()
         inputs = bl832inputs_parser(parser)
 
