@@ -1,7 +1,8 @@
 import argparse
 
 def bl832inputs_parser(parser):
-        #Parameters associated with the acquired data                                                                                                                        
+        #Parameters associated with the acquired data          
+   
         parser.add_argument("--input_hdf5", help="Full path of the input hdf5 file")
         parser.add_argument("--group_hdf5", help="Full path of the input group to reconstruct")
         parser.add_argument("--output_hdf5", help="Full path of the output hdf5 file")

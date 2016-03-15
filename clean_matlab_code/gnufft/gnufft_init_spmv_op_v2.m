@@ -12,18 +12,17 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,ce
 %        delta_xy - length of object voxel size - assuming square/cubic voxels 
 %        Nr_orig : The length of the original detector in pixels. Used to
 %        mask out values during FFT. 
-%Output:
+% Output:
 %        radon and inverse radon operators, geometry is fixed and embedded
 %        also gridding and inverse gridding operators, with fixed geometry
 %        radon and inverse radon wrap around some FFTs
 %
-%
-%
 % Stefano Marchesini,  LBNL 2013
 % Modifications by S.V. Venaktakrishnan, LBNL 2016
-% if nargin<6
-%     uniqueness=false;
-% end
+% 
+%  if nargin<6
+%      uniqueness=false;
+%  end
 
 %Set constants for the file 
 KBLUT_LENGTH = 256;
