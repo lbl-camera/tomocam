@@ -27,8 +27,8 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     af::array * d_sx = PyAfnumpy_AsArrayfireArray(in0, FLOAT32);
     af::array * d_sy = PyAfnumpy_AsArrayfireArray(in1, FLOAT32);
     af::array * d_gv = PyAfnumpy_AsArrayfireArray(in2, CMPLX32);
-    af::array * d_klut = PyAfnumpy_AsArrayfireArray(in3, FLOAT32);
-    af::array * grid_dims = PyAfnumpy_AsArrayfireArray(in4, INT32);
+    af::array * d_klut = PyAfnumpy_AsArrayfireArray(in4, FLOAT32);
+    af::array * grid_dims = PyAfnumpy_AsArrayfireArray(in3, INT32);
 
     float * d_samples_x = d_sx->device<float>();
     float * d_samples_y = d_sy->device<float>();
@@ -40,7 +40,9 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     int * gdims = grid_dims->host<int>();
 
     uint2 grid_size = { gdims[0], gdims[1] };
-    cusp::complex<float> *d_samples_values;
+    af::array * sv = new af::array(gdims[0], gdims[1], c32);
+    cusp::complex<float> *d_samples_values = reinterpret_cast<cusp::complex<float> *>(sv->device<af::cfloat>());
+ 
     cuda_sample(d_samples_x, d_samples_y, d_grid_values, npoints, grid_size,
                 d_kernel_lookup_table, kernel_lookup_table_size,
                 kernel_lookup_table_scale, kernel_radius, d_samples_values);
