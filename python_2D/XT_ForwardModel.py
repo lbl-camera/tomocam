@@ -1,18 +1,22 @@
 import gnufft 
+import math
 import numpy as np
 import afnumpy as afnp 
 import afnumpy.fft as af_fft
 import scipy.special as sc_spl #For bessel functions
 import tomopy
+import matplotlib.pyplot as plt
+from XT_Common import padmat
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
     #       : params - a list containing all parameters for the NUFFT 
 
     x1 = af_fft.fftshift(af_fft.fft2(x*params['deapod_filt']))
-   # x2 = gnufft.polarsample(x1,....)
-   x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']);
-    x3 = af_fft.fftshift(af_fft.ifft(x2))*params['sino_mask']
+#    plt.imshow(afnp.real(x1));plt.show();
+    x1 = x1.astype(np.complex64)
+    x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']);
+    x3 = af_fft.fftshift(af_fft.ifft(x2))*params['sino_mask'] #ensuer the fft is along the correct dimension
     return x3 
 
 def back_project(y,params):
@@ -29,67 +33,70 @@ def init_nufft_params(sino,geom):
     KBLUT_LENGTH = 256;
     SCALING_FACTOR = 1.7;#What is this ? 
     k_r=3 #kernel size 2*kr+1
-    beta =2*pi*2  
+    beta =2*math.pi*2  
+    Ns = sino['Ns']
+    Nr_orig = sino['Nr_orig']
+    qq = sino['qq']
+    tt = sino['tt']
 
     # Preload the Bessel kernel (real components!)
-    kblut,KB,KB1,KB2D=KBlut(k_r,beta,KBLUT_LENGTH); 
-    KBnorm=afnp.array(single(sum(sum(KB2D((-k_r:k_r),(-k_r:k_r))))));#transpose!
-    kblut=kblut/KBnorm*SCALING_FACTOR; %scaling fudge factor
+    kblut,KB,KB1D,KB2D=KBlut(k_r,beta,KBLUT_LENGTH) 
+    KBnorm=np.array(np.single(np.sum(np.sum(KB2D(np.reshape(np.array(range(-k_r,k_r+1)),(2*k_r+1,1)),(np.array(range(-k_r,k_r+1))))))))
+    print KBnorm
+    kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
 
-#################Forward projector params#######################
+################# Forward projector params #######################
 
     # polar to cartesian, centered
-    [xi,yi]=pol2cart(tt*pi/180,1*qq)
-    xi = xi+floor((Ns+1)/2)
-    yi = yi+floor((Ns+1)/2)
+    [xi,yi]=pol2cart(qq,tt*math.pi/180)
+    xi = xi+np.floor((Ns+1)/2)
+    yi = yi+np.floor((Ns+1)/2)
 
     params={}
-    params['kr'] = kr;
-    params['deapod_filt']=deapodization(Ns,KB,Nr_orig);
-    params['sino_mask'] = afnp.array(padmat(ones(Nr_orig,size(qq,2)),[Ns size(qq,2)]))
-    params['grid'] = [Ns,Ns]
-    params['scale']= np.single((KBLUT_LENGTH-1)/k_r); 
+    params['k_r'] = k_r;
+    params['deapod_filt']=afnp.array(deapodization(Ns,KB,Nr_orig))
+    params['sino_mask'] = afnp.array(padmat(np.ones((Nr_orig,qq.shape[1])),np.array((Ns,qq.shape[1])),0))
+    params['grid'] = afnp.array([Ns,Ns],dtype=np.int32)
+    params['scale']= ((KBLUT_LENGTH-1)/k_r)
 
     # push parameters to gpu
     params['gxi']=afnp.array(np.single(xi))
     params['gyi']=afnp.array(np.single(yi))
     params['gkblut']=afnp.array(np.single(kblut))
 
-#################Back projector params#######################
+################# Back projector params #######################
 
     return params
 
-def deapodization(Ns,KB,Nr_orig)
+def deapodization(Ns,KB,Nr_orig):
 
-    xx=afnp.array(range(1,Ns))-Ns/2-1
-    dpz=circshift(ifftshift(ifft2(fftshift(KB(xx,0)*KB(xx,0)))),[0 0])
+    xx=np.array(range(1,Ns+1))-Ns/2-1
+    dpz=np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(np.reshape(KB(xx,np.array(0)),(np.size(xx),1))*KB(xx,np.array(0)))))
     # assume oversampling, do not divide outside box in real space:
-    msk = logical(padmat(ones(Nr_orig),[Ns Ns]))
-    dpz = single(dpz)
-    dpz(~msk) = 1            #keep the value outside box
-    dpz=1./dpz               #deapodization factor truncated
-    dpz=dpz/dpz(Ns/2+1,Ns/2+1) #scaling
+    msk = padmat(np.ones((Nr_orig,Nr_orig)),np.array((Ns,Ns)),0)
+    msk=msk.astype(bool)
+    dpz=dpz.astype(float)
+    dpz[~msk] = 1            #keep the value outside box
+    dpz=1/dpz               #deapodization factor truncated
+    dpz=dpz/dpz[Ns/2+1,Ns/2+1] #scaling
     return dpz
 
     
 def KBlut(k_r,beta,nlut):
-
-    kk=afnp.linspace(0,k_r,nlut)
+    kk=np.linspace(0,k_r,nlut)
     kblut = KB2( kk, 2*k_r, beta)
     scale = (nlut-1)/k_r
-    kbcrop=@(x) (abs(x)<=k_r)
-    KBI=@(x) abs(x)*scale-floor(abs(x)*scale);
-    KB1D=@(x) (reshape(kblut(floor(abs(x)*scale).*kbcrop(x)+1),size(x)).*KBI(x)+...
-          reshape(kblut(ceil(abs(x)*scale).*kbcrop(x)+1),size(x)).*(1-KBI(x)))...
-          .*kbcrop(x);
-    KB=@(x,y) KB1D(x).*KB1D(y);
-    KB2D=@(x,y) KB1D(x)*KB1D(y);
+    kbcrop = lambda x: (np.abs(x)<=k_r)
+    KBI = lambda x: np.int16(np.abs(x)*scale-np.floor(np.abs(x)*scale))
+    KB1D = lambda x: (np.reshape(kblut[np.int16(np.floor(np.abs(x)*scale)*kbcrop(x))],x.shape)*KBI(x)+np.reshape(kblut[np.int16(np.ceil(np.abs(x)*scale)*kbcrop(x))],x.shape)*(1-KBI(x)))*kbcrop(x)
+    KB=lambda x,y: KB1D(x)*KB1D(y)
+    KB2D=lambda x,y: KB1D(x)*KB1D(y)
     return kblut, KB, KB1D,KB2D
 
 def KB2(x, k_r, beta):
-    w = sc_spl.iv(0, beta*sqrt(1-(2*x/k_r)^2)) 
-    w=w/abs(sc_spl.iv(0, beta))
-    w=(w.*(x<=k_r))
+    w = sc_spl.iv(0, beta*np.sqrt(1-(2*x/k_r)**2)) 
+    w=w/np.abs(sc_spl.iv(0, beta))
+    w=(w*(x<=k_r))
     return w
 
 def cart2pol(x, y):

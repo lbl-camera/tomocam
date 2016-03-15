@@ -5,7 +5,8 @@ function dpz=deapodization_v2(Ns,KB,Nr_orig)
 
 xx=(1:(Ns))-Ns/2-1;%(-NsO/2:NsO/2-1);
 %dpz=circshift(ifftshift(ifft2(fftshift(KB(xx,0)'*KB(xx,0)))),[10 0]);
-dpz=circshift(ifftshift(ifft2(fftshift(KB(xx,0)'*KB(xx,0)))),[0 0]);
+%dpz=circshift(ifftshift(ifft2(fftshift(KB(xx,0)'*KB(xx,0)))),[0 0]);
+dpz=ifftshift(ifft2(fftshift(KB(xx,0)'*KB(xx,0))));
 % assume oversampling, do not divide outside box in real space:
 
 msk=logical(padmat(ones(Nr_orig),[Ns Ns])); %---mask

@@ -24,11 +24,14 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
 
     // data POINTERS
     int size;
-    af::array * d_sx = PyAfnumpy_AsArrayfireArray(in0, FLOAT32);
-    af::array * d_sy = PyAfnumpy_AsArrayfireArray(in1, FLOAT32);
-    af::array * d_gv = PyAfnumpy_AsArrayfireArray(in2, CMPLX32);
-    af::array * d_klut = PyAfnumpy_AsArrayfireArray(in3, FLOAT32);
-    af::array * grid_dims = PyAfnumpy_AsArrayfireArray(in4, INT32);
+    af::array * d_sx = PyAfnumpy_AsArrayfireArray(in0, FLOAT32);//gxi
+    af::array * d_sy = PyAfnumpy_AsArrayfireArray(in1, FLOAT32);//gyi
+    af::array * d_gv = PyAfnumpy_AsArrayfireArray(in2, CMPLX32);//x
+    af::array * grid_dims = PyAfnumpy_AsArrayfireArray(in3, INT32);//grid
+    af::array * d_klut = PyAfnumpy_AsArrayfireArray(in4, FLOAT32);//kblut
+    
+    printf("%f %f\n",kernel_lookup_table_scale,kernel_radius);
+    fflush(stdout);
 
     float * d_samples_x = d_sx->device<float>();
     float * d_samples_y = d_sy->device<float>();

@@ -55,7 +55,7 @@ af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
             Py_DECREF(device_ptr);
             Py_DECREF(af_type);
             Py_DECREF(shape);
-            Py_DECREF(shape_len);
+            //Py_DECREF(shape_len);
             return NULL;
         }
         af::array * out = NULL;
@@ -78,7 +78,7 @@ af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
         Py_DECREF(device_ptr);
         Py_DECREF(af_type);
         Py_DECREF(shape);
-        Py_DECREF(shape_len);
+        //Py_DECREF(shape_len);
         return out;
     }
     return NULL;

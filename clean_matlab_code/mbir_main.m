@@ -13,16 +13,16 @@ addpath Common
 
 %% Create a toy data set 
 
-Ns_actual = 2560;
+Ns_actual = 256;
 
-nangles = 512;
+nangles = 180;
 %Ns_pad = 4096;
-center_actual = 1280;%sub pixels 
+center_actual = 128;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=3000;
+Ns=512;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 signal = gpuArray(padmat(phantom(Ns_actual),[Ns,Ns]));
@@ -38,7 +38,7 @@ angle_list= 0:Dt:180-Dt;
 
 k_r=3;beta =2*pi*2;  %kernel size 2*kr+1
 [Ns,nangles]=size(qq);
-[~,~,A,~]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),pix_size,pix_size,Ns);
+[~,~,A,~]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),pix_size,pix_size,Ns_actual);
 %[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_op(Ns,qq,tt,beta,k_r,0);
 
 
@@ -65,8 +65,8 @@ figure;imagesc(real(forward_proj_inbuilt).');
 title('Projection using Matlab radon');
 colorbar;
 
-figure;plot(real(real_data(:,256)));
-hold on;plot(real(forward_proj_inbuilt(:,256)),'r')
+figure;plot(real(real_data(:,end/2)));
+hold on;plot(real(forward_proj_inbuilt(:,end/2)),'r')
 title('Projection at  angle');
 legend('NUFFT proj.','Matlab radon');
 

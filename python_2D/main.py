@@ -13,7 +13,7 @@ from skimage import data_dir
 from skimage.transform import radon, rescale, iradon
 
 from XT_argsParser import bl832inputs_parser
-from XT_ForwardModel import forward_project
+#from XT_ForwardModel import forward_project
 from normalize import normalize_bo
 
 def main():
