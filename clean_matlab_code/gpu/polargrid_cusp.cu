@@ -14,6 +14,13 @@
 
 
 
+__inline__ __device__ void atomicAdd( cusp::complex<float> * x,  cusp::complex<float>  m)
+{
+     atomicAdd(&(x[0]).x,m.x);
+     atomicAdd(&(x[0]).y,m.y);
+}
+
+
 float cpu_kb_weight(float2 grid_pos, float2 point_pos,
 		    float * kb_table,
 		    int kb_table_size,
@@ -288,11 +295,10 @@ __global__ void sum_points(        const cusp::complex<float> * point_value,
 
         if(tid == 0){
 	  //	  grid_value[y*grid_size.x+x]+=(cusp::complex<float>) sum_t[0]; 
-	atomicAdd(&(grid_value[y*grid_size.x+x]).x,(sum_t[0]).x);
-	atomicAdd(&(grid_value[y*grid_size.x+x]).y,(sum_t[0]).y);
+	  atomicAdd(&(grid_value[y*grid_size.x+x]),(sum_t[0]));
 
-}
 	}
+	    }
 	}
 }
 
