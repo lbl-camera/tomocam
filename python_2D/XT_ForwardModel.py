@@ -11,12 +11,11 @@ from XT_Common import padmat
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
     #       : params - a list containing all parameters for the NUFFT 
-
-    x1 = af_fft.fftshift(af_fft.fft2(x*params['deapod_filt']))
-#    plt.imshow(afnp.real(x1));plt.show();
+    x1 = params['fft2Dshift']*(af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
+    #plt.imshow(afnp.real(x1));plt.show();
     x1 = x1.astype(np.complex64)
-    x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']);
-    x3 = af_fft.fftshift(af_fft.ifft(x2))*params['sino_mask'] #ensuer the fft is along the correct dimension
+    x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
+    x3 = params['fftshift1D'](af_fft.ifft(params['fftshift1D_center'](x2)))*params['sino_mask'] #Polar cordinates to real space qt to rt 
     return x3 
 
 def back_project(y,params):
@@ -29,7 +28,9 @@ def back_project(y,params):
     return x1 
 
 def init_nufft_params(sino,geom):
-
+    #inputs : sino - 
+    #       : geom - 
+    
     KBLUT_LENGTH = 256;
     SCALING_FACTOR = 1.7;#What is this ? 
     k_r=3 #kernel size 2*kr+1
@@ -58,11 +59,18 @@ def init_nufft_params(sino,geom):
     params['sino_mask'] = afnp.array(padmat(np.ones((Nr_orig,qq.shape[1])),np.array((Ns,qq.shape[1])),0))
     params['grid'] = afnp.array([Ns,Ns],dtype=np.int32)
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
+    params['center'] = sino['center']
+    params['Ns'] = Ns
 
     # push parameters to gpu
-    params['gxi']=afnp.array(np.single(xi))
-    params['gyi']=afnp.array(np.single(yi))
-    params['gkblut']=afnp.array(np.single(kblut))
+    params['gxi'] = afnp.array(np.single(xi))
+    params['gyi'] = afnp.array(np.single(yi))
+    params['gkblut'] = afnp.array(np.single(kblut))
+    params['det_grid'] = np.reshape(np.array(range(0,sino['Ns'])),(Ns,1)) 
+    params['fft2Dshift'] = afnp.array(((-1)**params['det_grid'])*((-1)**params['det_grid'].T))
+    params['fftshift1D'] = lambda x : ((-1)**params['det_grid'])*x
+    params['fftshift1D_center'] = lambda x : afnp.exp(-1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid'])*x
+    params['fftshift1Dinv_center'] = lambda x : afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid'])*x
 
 ################# Back projector params #######################
 
