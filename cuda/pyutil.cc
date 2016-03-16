@@ -105,10 +105,6 @@ af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
         Py_DECREF(device_ptr);
         Py_DECREF(af_type);
         Py_DECREF(shape);
-<<<<<<< HEAD
-=======
-        //Py_DECREF(shape_len);
->>>>>>> 3b2b07e5aca446f3457359ab7c370bf2e5187ac0
         return out;
     }
     return NULL;
