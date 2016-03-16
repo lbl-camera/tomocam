@@ -13,7 +13,7 @@ enum DataType {
 };
 
 af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type);
-PyObject * PyArrafire_Array(int, int *, DataType, void * , bool);
+PyObject * PyArrayfire_Array(int, int *, DataType, void * , bool);
 PyObject * PyAfnumpy_Array(int, int *, DataType, void *, bool);
 
 PyObject * cPolarBin(PyObject *, PyObject *);

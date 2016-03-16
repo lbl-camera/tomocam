@@ -48,13 +48,14 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
                 kernel_lookup_table_scale, kernel_radius, d_samples_values);
 
     // GET OUTPUT
-    int nd = 1;
-    int dims[] = { npoints, 0 }; 
-    PyObject * Svals = PyAfnumpy_Array(nd, dims, CMPLX32, d_samples_values, true);
+    int nd = 2;
+    PyObject * Svals = PyAfnumpy_Array(nd, gdims, CMPLX32, d_samples_values, true);
     delete d_sx;
     delete d_sy;
     delete d_gv;
     delete d_klut;
     delete grid_dims;
+    delete [] gdims;
+    delete sv;
     return Svals;
 }

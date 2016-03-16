@@ -105,16 +105,12 @@ af::array * PyAfnumpy_AsArrayfireArray(PyObject * in, DataType type){
         Py_DECREF(device_ptr);
         Py_DECREF(af_type);
         Py_DECREF(shape);
-<<<<<<< HEAD
-=======
-        //Py_DECREF(shape_len);
->>>>>>> 3b2b07e5aca446f3457359ab7c370bf2e5187ac0
         return out;
     }
     return NULL;
 }
 
-PyObject * PyArrafire_Array(int dims_size, int * dims,
+PyObject * PyArrayfire_Array(int dims_size, int * dims,
             DataType type, void * buffer, bool is_device){
 
     /* Build arguments for arrayfire.Array() */
@@ -191,7 +187,7 @@ PyObject * PyAfnumpy_Array(int dims_size, int * dims, DataType type,
             void * buffer, bool is_device){
 
     /* Build an arryfire object-type before everything */
-    PyObject * d_array = PyArrafire_Array(dims_size, dims, type, buffer, is_device);
+    PyObject * d_array = PyArrayfire_Array(dims_size, dims, type, buffer, is_device);
 
     PyObject * shape = PyTuple_New(dims_size);
     for (int i = 0; i < dims_size; i++)
@@ -256,7 +252,11 @@ PyObject * PyAfnumpy_Array(int dims_size, int * dims, DataType type,
     Py_DECREF(afmod);
     Py_DECREF(afnumpy);
     Py_DECREF(af_array);
-    Py_DECREF(args);
+    //Py_DECREF(args);
+    if (!out) {
+        fprintf(stderr, "error: failed to create afnumpy array");
+        return NULL;
+    }
     return out;
 }
 
