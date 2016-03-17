@@ -12,9 +12,11 @@ def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
     #       : params - a list containing all parameters for the NUFFT 
 
-    x1 = params['fft2Dshift']*(af_fft.fft2(x*params['deapod_filt']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
-    print x1.shape
+    x1 = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
     x1 = x1.astype(np.complex64)
+    
+    plt.imshow(x1.real);plt.title('2D FFT');plt.show()
+    print x1.shape
     
     x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
     print x2.shape 
@@ -34,7 +36,9 @@ def back_project(y,params):
 
     return y3 
 
+
 def init_nufft_params(sino,geom):
+   # Function to initialize parameters associated with the forward model 
     #inputs : sino - A list contating parameters associated with the sinogram 
     #              Ns : Number of entries in the padded sinogram along the "detector" rows 
     #              Ns_orig :  Number of entries  detector elements per slice
@@ -42,7 +46,7 @@ def init_nufft_params(sino,geom):
     #              angles : An array containg the angles at which the data was acquired in radians
     #       : geom - TBD
     #
-    
+     
     KBLUT_LENGTH = 256;
     SCALING_FACTOR = 1.7;#What is this ? 
     k_r=3 #kernel size 2*kr+1
