@@ -58,7 +58,8 @@ except AttributeError:
 ext = Extension('gnufft',
                 sources=[
                     'cuda/pyGnufft.cc',
-                    'cuda/pyutil.cc',
+                    'cuda/afnumpyapi.cc',
+                    'cuda/debug.cu',
                     'cuda/cuda_sample.cu',
                     'cuda/polarbin.cc',
                     'cuda/polarsample.cc',
@@ -71,7 +72,7 @@ ext = Extension('gnufft',
                 # we're only going to use certain compiler args with nvcc and not with gcc
                 # the implementation of this trick is in customize_compiler() below
                 #extra_compile_args={'g++': [], 'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
-                extra_compile_args=[ '-g', '-O0' ],
+                extra_compile_args=[ '-g', '-O' ],
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
@@ -104,6 +105,7 @@ def customize_compiler_for_nvcc(self):
             # from the extra_compile_args in the Extension class
             #postargs = extra_postargs['nvcc']
             postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
+            #postargs += [ '-g', '-O0', '-DDEBUG' ]
         #else:
         #    postargs = extra_postargs['g++']
 

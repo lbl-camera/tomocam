@@ -9,12 +9,16 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 
+#include "afnumpyapi.h"
 #include "polargrid.h"
 #include "pyGnufft.h"
 
+typedef cusp::complex<float> complex_t;
+
 PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
 
-    PyObject *in0, *in1, *in2, *in3, *in4;
+    PyObject *in0, *in1, *in2, *in4;
+    PyArrayObject *in3;
     float kernel_radius, kernel_lookup_table_scale;
 
     if (!(PyArg_ParseTuple(prhs, "OOOOOff", &in0, &in1, &in2,
@@ -23,39 +27,30 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     }
 
     // data POINTERS
-    int size;
-    af::array * d_sx = PyAfnumpy_AsArrayfireArray(in0, FLOAT32);
-    af::array * d_sy = PyAfnumpy_AsArrayfireArray(in1, FLOAT32);
-    af::array * d_gv = PyAfnumpy_AsArrayfireArray(in2, CMPLX32);
-    af::array * d_klut = PyAfnumpy_AsArrayfireArray(in4, FLOAT32);
-    af::array * grid_dims = PyAfnumpy_AsArrayfireArray(in3, INT32);
+    float * d_samples_x = (float *) PyAfnumpy_DevicePtr(in0);
+    float * d_samples_y = (float *) PyAfnumpy_DevicePtr(in1);
+    int npoints = PyAfnumpy_Size(in0);
+    int dims[2];
+    dims[0] = PyAfnumpy_Dims(in0, 0);
+    dims[1] = PyAfnumpy_Dims(in0, 1);
 
-    float * d_samples_x = d_sx->device<float>();
-    float * d_samples_y = d_sy->device<float>();
-    int npoints = d_sx->elements();
-    af::cfloat * temp_grid_vals = d_gv->device<af::cfloat>();
-    cusp::complex<float> * d_grid_values = reinterpret_cast<cusp::complex<float> *>(temp_grid_vals);
-    float * d_kernel_lookup_table = d_klut->device<float>();
-    int kernel_lookup_table_size = d_klut->elements();
-    int * gdims = grid_dims->host<int>();
+    complex_t * d_grid_values = (complex_t *) PyAfnumpy_DevicePtr(in2);
+    float * d_kernel_lookup_table = (float *) PyAfnumpy_DevicePtr(in4);
+    int kernel_lookup_table_size = PyAfnumpy_Size(in4);
 
+    /* in3: Grid Dimension is numpy array */
+    int * gdims = (int *) PyArray_DATA(in3);
     uint2 grid_size = { gdims[0], gdims[1] };
-    af::array * sv = new af::array(gdims[0], gdims[1], c32);
-    cusp::complex<float> *d_samples_values = reinterpret_cast<cusp::complex<float> *>(sv->device<af::cfloat>());
- 
+
+    complex_t * d_samples_values;
+    cudaMalloc(&d_samples_values, sizeof(complex_t) * npoints);
     cuda_sample(d_samples_x, d_samples_y, d_grid_values, npoints, grid_size,
                 d_kernel_lookup_table, kernel_lookup_table_size,
                 kernel_lookup_table_scale, kernel_radius, d_samples_values);
 
     // GET OUTPUT
     int nd = 2;
-    PyObject * Svals = PyAfnumpy_Array(nd, gdims, CMPLX32, d_samples_values, true);
-    delete d_sx;
-    delete d_sy;
-    delete d_gv;
-    delete d_klut;
-    delete grid_dims;
-    delete [] gdims;
-    delete sv;
-    return Svals;
+    //af::cfloat * buf = reinterpret_cast<af::cfloat>(d_samples_values);
+    PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, d_samples_values, true);
+    return out;
 }
