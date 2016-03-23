@@ -86,9 +86,31 @@ gNorm0=gNorm;
 %----------------------------------------------------------------------
 while 1
    
+     if(isfield(options,'display') && 1 == options.display) 
+         
+       Ns = sqrt(length(x));
+       temp=rot90(real(reshape(x,Ns,Ns)));
+       subplot(1,2,1);
+       imagesc(temp(Ns/2-Ns/4:Ns/2+Ns/4,Ns/2-Ns/4:Ns/2+Ns/4),[-3 3]);
+       axis image;
+       colormap(gray);
+%       colorbar;
+       title(strcat('Iter :',num2str(iter)));
+       %drawnow;
+       subplot(1,2,2);
+       plot(temp(end/2,Ns/2-Ns/4:Ns/2+Ns/4),'r');axis([0,Ns/2,-3,3]);
+       title('Line Profile Through Row : 768')
+       drawnow;
+       %hold on;
+       if(1 == iter)
+           input('Press any key to continue');
+       end
+    end
+    
    %-------------------------------------------------------------------
    % Test exit conditions.
    %-------------------------------------------------------------------
+   
    if (iter  >= maxIts), stat = EXIT_ITERATIONS; end;
    if (gNorm < gradTol), stat = EXIT_OPTIMAL;    end;
 
@@ -122,6 +144,9 @@ while 1
    f     = fNew;
    g     = gNew;
    gNorm = gNormNew;
+   
+  
+   
 end
 
 % Print final output.
