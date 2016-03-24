@@ -17,7 +17,7 @@ def forward_project(x,params):
     
     x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
     print x2.shape 
-    print x2[0,0]
+    print x2[255,80]
 
     x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2)))))*params['sino_mask'] #Polar cordinates to real space qt to rt 
     return x3 

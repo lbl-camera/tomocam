@@ -7,8 +7,8 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
-%ShepLogan_2560_2049_dose5000_noise_0_1.mat';
+file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_0_5.mat';
+%20130807_234356_OIM121R_SAXS_5x.mat';
 
 
 grnd_truth = phantom(2560);
@@ -18,7 +18,7 @@ grnd_truth=grnd_truth*10e-4;
  
 load(file_name);
 
-%projection = projection(1:2:2048,1:end-1);
+projection = projection(1:4:2048,1:end-1);
 
 %% Ring addition
 % img = zeros(size(projection));
@@ -40,11 +40,11 @@ angle_list = 0:180/num_angles:180-180/num_angles;
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center = 1294;%1294;%1280;%1294;
+formodel.center = 1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
 formodel.Npad = 3000;%3200;%3200;
-formodel.ring_corr = 1;
+formodel.ring_corr = 0;
 formodel.angle_list = angle_list;
 
 %KB window params 
@@ -52,10 +52,10 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param =  1/2;
+prior.reg_param =  2;
 
 %Solver params
-opts.maxIts           = 50;%Max iterations of cost-function 
+opts.maxIts           = 300;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;

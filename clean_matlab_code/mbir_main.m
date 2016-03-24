@@ -15,7 +15,7 @@ addpath Common
 
 Ns_actual = 256;
 
-nangles = 512/2;%180;
+nangles = 180;%180;
 %Ns_pad = 4096;
 center_actual = 128;%128;%sub pixels 
 pix_size = 1;%um 
