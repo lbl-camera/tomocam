@@ -15,7 +15,7 @@ from XT_Common import padmat
 from normalize import normalize_bo
 
 im_size = 256 #A n X n X n volume
-sino_center = 128
+sino_center = 128 
 num_angles = 180
 slice_idx = 128
 
@@ -24,14 +24,16 @@ ang = tomopy.angles(num_angles) # Generate uniformly spaced tilt angles.
 
 ### Comparing to tomopy 
 sim = tomopy.project(obj,ang)
-plt.imshow(sim[slice_idx,:,:],cmap='gray');plt.title('Tomopy projection');plt.show();
+
+tomopy_sim_slice = np.fliplr(padmat(sim[:,slice_idx,:],np.array([num_angles, im_size*2]),0));
+plt.figure();plt.imshow(tomopy_sim_slice,cmap='gray');plt.title('Tomopy projection');plt.colorbar();plt.draw();
 #rec = tomopy.recon(sim, ang, algorithm='art') # Reconstruct object.
 
 sino={}
 geom={}
 sino['Ns'] = im_size*2 #Sinogram size after padding
 sino['Ns_orig'] = im_size #size of original sinogram
-sino['center'] = sino_center*2 #for padded sinogram
+sino['center'] = sino_center + (sino['Ns']/2 - sino['Ns_orig']/2);  #for padded sinogram
 sino['angles'] = ang
 
 params = init_nufft_params(sino,geom);
@@ -43,12 +45,15 @@ x = afnp.array(padmat(obj[slice_idx],np.array([sino['Ns'],sino['Ns']]),0),dtype=
 #x_imag = afnp.array(padmat(obj[150],np.array([sino['Ns'],sino['Ns']]),0))
 #x= x_real + 1j*x_imag
 
-Ax = forward_project(x,params)
-y = back_project(Ax,params)
+Ax = (math.pi/2)*sino['Ns']*forward_project(x,params)
+#y = back_project(Ax,params)
 
 #plt.imshow(x,cmap='gray')
 
-pg.image(np.real(np.array(Ax)))
+plt.figure();plt.imshow(Ax.real.T,cmap='gray');plt.title('NUFFT projection');plt.colorbar();plt.draw();
+
+plt.figure();plt.imshow(np.array(Ax.real.T) - tomopy_sim_slice,cmap='gray');plt.title('Difference in projection');plt.colorbar();plt.draw();
+
 plt.show()
 
-plt.imshow(y,cmap='gray');plt.show()
+#plt.imshow(y,cmap='gray');plt.show()

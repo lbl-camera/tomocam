@@ -13,13 +13,10 @@ def forward_project(x,params):
     #       : params - a list containing all parameters for the NUFFT 
 
     x1 = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
-#    plt.imshow(np.array(x1).real);plt.show();
     
     x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
-    print x2.shape 
-    print x2[255,80]
 
-    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2)))))*params['sino_mask'] #Polar cordinates to real space qt to rt 
+    x3 = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
     return x3 
 
 def back_project(y,params):
@@ -33,6 +30,7 @@ def back_project(y,params):
     y3 = params['fftshift2D'](af_fft.ifft2(y2*params['fftshift2D']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
 
     return y3 
+
 
 
 def init_nufft_params(sino,geom):
@@ -71,7 +69,7 @@ def init_nufft_params(sino,geom):
     params['k_r'] = k_r
     params['deapod_filt']=afnp.array(deapodization(Ns,KB,Ns_orig),dtype=afnp.float32)
     params['sino_mask'] = afnp.array(padmat(np.ones((Ns_orig,sino['qq'].shape[1])),np.array((Ns,sino['qq'].shape[1])),0),dtype=afnp.float32)
-    params['grid'] = afnp.array([Ns,Ns],dtype=np.int32)
+    params['grid'] = np.array([Ns,Ns],dtype=np.int32)
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
     params['center'] = sino['center']
     params['Ns'] = Ns
@@ -92,7 +90,7 @@ def init_nufft_params(sino,geom):
     params['fftshift1Dinv_center'] = lambda x : temp4*x
 
 ################# Back projector params #######################
-#    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
+    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
 #    params['gs_per_b']=afnp.array(s_per_b,dtype=afnp.int64) #int64
 #    params['gs_in_bin']=afnp.array(s_in_bin,dtype=afnp.int64)
 #    params['gb_dim_x']= afnp.array(b_dim_x,dtype=afnp.int64)

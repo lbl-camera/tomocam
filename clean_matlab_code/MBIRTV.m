@@ -57,7 +57,8 @@ x0=data.reconstruct(data.M(data.b,2));
 x=x0(:);
 %msk1=padmat(ones(Ns/2),[1 1]*Ns);
 %x=x.*msk1(:);
-x = solveTV(data.M, data.B, TV, data.b, x, opts);
+x = solveOGM(data.M, data.B, TV, data.b, x, opts);
+%solveTV(data.M, data.B, TV, data.b, x, opts);
 recon = data.reconstruct(x);
 
 
