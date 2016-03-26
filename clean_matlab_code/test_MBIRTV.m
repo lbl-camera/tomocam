@@ -18,7 +18,7 @@ grnd_truth=grnd_truth*10e-4;
  
 load(file_name);
 
-projection = projection(1:4:2048,1:end-1);
+projection = projection(1:2:2048,1:end-1);
 
 %% Ring addition
 % img = zeros(size(projection));

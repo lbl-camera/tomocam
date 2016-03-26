@@ -1,5 +1,5 @@
 function x = solveOGM(M,B,TV,b,x0,options)
-% SOLVETV   Demo optimized-Gradient Method solver
+% SOLVEOGM Nesterov's optimized-Gradient Method solver
 %
 %  Function [X] = solveOGM(M,B,TV,b,X0,OPTIONS), solves
 %
@@ -12,6 +12,7 @@ function x = solveOGM(M,B,TV,b,x0,options)
 %
 %  To solve the above problem a nonlinear conjugate gradient method
 %  as described in the references is used. 
+%  Kim et al. IEEE TRANSACTIONS ON MEDICAL IMAGING, VOL. 34, NO. 1, JANUARY 2015
 
 %----------------------------------------------------------------------
 % Grab input options and set defaults where needed. 
