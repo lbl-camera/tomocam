@@ -23,14 +23,13 @@ def back_project(y,params):
     #inputs : y - afnumpy array containing the complex valued array with size of the sinogram 
     #       : params - a list containing all parameters for the NUFFT 
 
-    y1 = params['fftshift1D_center'](afnp.fft.fft(params['fftshift1D'](y))) #Detector space rt to Fourier space qt
+    y1 = params['fftshift1D_center'](af_fft.fft(params['fftshift1D'](y))) #Detector space rt to Fourier space qt
 
     y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
 
     y3 = params['fftshift2D'](af_fft.ifft2(y2*params['fftshift2D']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
 
     return y3 
-
 
 
 def init_nufft_params(sino,geom):
@@ -90,7 +89,7 @@ def init_nufft_params(sino,geom):
     params['fftshift1Dinv_center'] = lambda x : temp4*x
 
 ################# Back projector params #######################
-    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
+#    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
 #    params['gs_per_b']=afnp.array(s_per_b,dtype=afnp.int64) #int64
 #    params['gs_in_bin']=afnp.array(s_in_bin,dtype=afnp.int64)
 #    params['gb_dim_x']= afnp.array(b_dim_x,dtype=afnp.int64)
@@ -99,7 +98,6 @@ def init_nufft_params(sino,geom):
 #    params['gb_loc']=afnp.array(b_loc,dtype=afnp.int64)
 #    params['gb_points_x']=afnp.array(b_points_x,dtype=afnp.float32)
 #    params['gb_points_y']=afnp.array(b_points_y,dtype=afnp.float32)
-
 
     return params
 

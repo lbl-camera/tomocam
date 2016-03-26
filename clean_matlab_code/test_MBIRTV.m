@@ -55,7 +55,7 @@ formodel.beta =3*pi*1.0;
 prior.reg_param =  2;
 
 %Solver params
-opts.maxIts           = 300;%Max iterations of cost-function 
+opts.maxIts           = 1000;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;
