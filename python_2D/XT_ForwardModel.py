@@ -89,7 +89,10 @@ def init_nufft_params(sino,geom):
     params['fftshift1Dinv_center'] = lambda x : temp4*x
 
 ################# Back projector params #######################
-#    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
+    xi = xi.astype(np.float32)
+    yi = yi.astype(np.float32)
+    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r);
+    print s_per_b
 #    params['gs_per_b']=afnp.array(s_per_b,dtype=afnp.int64) #int64
 #    params['gs_in_bin']=afnp.array(s_in_bin,dtype=afnp.int64)
 #    params['gb_dim_x']= afnp.array(b_dim_x,dtype=afnp.int64)
