@@ -1,6 +1,9 @@
 
 #include <Python.h>
+
+#define PY_ARRAY_UNIQUE_SYMBOL gnufft_ARRAY_API
 #include <numpy/arrayobject.h>
+
 #include "pyGnufft.h"
 
 

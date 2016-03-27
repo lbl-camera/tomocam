@@ -6,8 +6,12 @@
 #include <vector_types.h>
 
 #include "pyGnufft.h"
+
+#define NO_IMPORT_ARRAY
+#define PY_ARRAY_UNIQUE_SYMBOL gnufft_ARRAY_API
 #include <numpy/arrayobject.h>
 
+#define NO_IMPORT_ARRAY
 
 void generate_points(float2 *point_pos, float *point_value, int npoints,
                      uint2 grid_size) {
@@ -248,9 +252,8 @@ std::vector<Bin> adaptative_bin_points(float2 *points, int npoints,
 }
 
 PyObject * cPolarBin(PyObject *self, PyObject *args){
-    PyObject *in0, *in1, *in2;
-    int approx_n_bins;
-    float kernel_radius;
+    int approx_n_bins, kernel_radius;
+    PyArrayObject *in0, *in1, *in2;
 
     /* Parse arguments */
     if(!PyArg_ParseTuple(args, "OOOII", &in0, &in1, &in2, &approx_n_bins, &kernel_radius))
@@ -259,23 +262,25 @@ PyObject * cPolarBin(PyObject *self, PyObject *args){
     if ((in0 == NULL) || (in1 == NULL) || (in2 == NULL))
         return NULL;
 
-    //import_array();
-    PyObject * pySx   = PyArray_FROM_OT(in0, NPY_FLOAT);
-    PyObject * pySy   = PyArray_FROM_OT(in1, NPY_FLOAT);
-    PyObject * pyDims = PyArray_FROM_OT(in2, NPY_INT);
+    float    * samples_x = (float *) PyArray_DATA(in0);
+    float    * samples_y = (float *) PyArray_DATA(in1);
+    unsigned * grid_dim  = (unsigned *) PyArray_DATA(in2);
 
-    float * samples_x = (float *) PyArray_DATA(pySx);
-    float * samples_y = (float *) PyArray_DATA(pySy);
-    int   * grid_dim  = (int   *) PyArray_DATA(pyDims);
-    size_t npoints = (size_t) PyArray_SIZE(pySx);
-
+    // get number of elements
+    int ndim = PyArray_NDIM(in0);
+    npy_intp * dims = PyArray_DIMS(in0);
+    unsigned npoints = 1;
+    for (int i = 0; i < ndim; i++)
+        npoints *= dims[i];
+    
+    // allocate memory and initialize
     float2 * point_pos = new float2[npoints];
-    for (int i = 0; i < npoints; i++){
+    for (unsigned i = 0; i < npoints; i++){
         point_pos[i].x = samples_x[i];
        point_pos[i].y = samples_y[i];
     } 
 
-    uint2 grid_size = { grid_dim[0], grid_dim[1] };
+    uint2 grid_size = { (unsigned) grid_dim[0], (unsigned) grid_dim[1] };
     std::vector<Bin> bins = adaptative_bin_points(point_pos, npoints, grid_size,
             approx_n_bins, kernel_radius);
 
@@ -286,19 +291,18 @@ PyObject * cPolarBin(PyObject *self, PyObject *args){
     }
     
     /* construct output containers */
-    npy_intp dims[2];
-    dims[0] = (npy_intp) bins.size(); dims[0] = 0;
-    PyObject * out0 = PyArray_SimpleNew(1, dims, NPY_INT);
-    PyObject * out1 = PyArray_SimpleNew(1, dims, NPY_INT);
-    PyObject * out2 = PyArray_SimpleNew(1, dims, NPY_INT);
-    PyObject * out4 = PyArray_SimpleNew(1, dims, NPY_INT);
-    PyObject * out5 = PyArray_SimpleNew(1, dims, NPY_INT);
+    ndim = 1;
+    dims[0] = (npy_intp) bins.size(); dims[1] = 1;
+    PyObject * out0 = PyArray_SimpleNew(ndim, dims, NPY_INT);
+    PyObject * out1 = PyArray_SimpleNew(ndim, dims, NPY_INT);
+    PyObject * out2 = PyArray_SimpleNew(ndim, dims, NPY_INT);
+    PyObject * out4 = PyArray_SimpleNew(ndim, dims, NPY_INT);
+    PyObject * out5 = PyArray_SimpleNew(ndim, dims, NPY_INT);
     dims[0] = bin_points_size;
-    PyObject * out3 = PyArray_SimpleNew(1, dims, NPY_INT);
-    PyObject * out6 = PyArray_SimpleNew(1, dims, NPY_FLOAT);
-    PyObject * out7 = PyArray_SimpleNew(1, dims, NPY_FLOAT);
+    PyObject * out3 = PyArray_SimpleNew(ndim, dims, NPY_INT);
+    PyObject * out6 = PyArray_SimpleNew(ndim, dims, NPY_FLOAT);
+    PyObject * out7 = PyArray_SimpleNew(ndim, dims, NPY_FLOAT);
 
-   
     /* map data to containers */
     int * points_per_bin = (int *) PyArray_DATA(out0);
     int * bin_dimensions_x = (int *) PyArray_DATA(out1);
@@ -337,10 +341,6 @@ PyObject * cPolarBin(PyObject *self, PyObject *args){
 
     /* clean up */
     delete [] point_pos;
-    Py_XDECREF(pySx);
-    Py_XDECREF(pySy);
-    Py_XDECREF(pyDims);
-
     return lhs;
 }
 

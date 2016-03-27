@@ -7,6 +7,9 @@
 #include <cuda.h>
 #include "cuda_sample.h"
 #include <Python.h>
+
+#define NO_IMPORT_ARRAY
+#define PY_ARRAY_UNIQUE_SYMBOL gnufft_ARRAY_API
 #include <numpy/arrayobject.h>
 
 #include "afnumpyapi.h"
@@ -40,7 +43,7 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
 
     /* in3: Grid Dimension is numpy array */
     int * gdims = (int *) PyArray_DATA(in3);
-    uint2 grid_size = { gdims[0], gdims[1] };
+    uint2 grid_size = { (unsigned) gdims[0], (unsigned) gdims[1] };
 
     complex_t * d_samples_values;
     cudaMalloc(&d_samples_values, sizeof(complex_t) * npoints);
