@@ -139,10 +139,8 @@ end
         Mz   = M(z,1);
         Tz   = TV(z,1);
         Tzw  = Tz.*weightTV;
-        xw   = x;
         Tz2w = Tzw.*conj(Tzw);
-        x2w  = xw.*conj(xw);
-        
+  
         % Compute the objective
         Mzb = Mz - b;
         fRes = Mzb' * Mzb;

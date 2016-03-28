@@ -17,8 +17,8 @@ grnd_truth=grnd_truth*10e-4;
 
  
 load(file_name);
-
-projection = projection(1:2:2048,1:end-1);
+% 
+ projection = projection(1:2:2048,1:end-1);
 
 %% Ring addition
 % img = zeros(size(projection));
@@ -71,10 +71,13 @@ opts.display          = 0;%Display output after each iteration
 
 %
 temp_weight = rand(size(projection));
-temp_weight(temp_weight>0)=1;
-temp_weight(temp_weight<=0)=0;
+temp_weight(temp_weight>0.2)=1;
+temp_weight(temp_weight<=0.2)=0;
+
+FBP =iradon(projection',angle_list,'hamming',0.2,Nr);
+
 tic;
-[recon,x0]=MBIRTV(projection,temp_weight,zeros(Nr,Nr),formodel,prior,opts);
+[recon,x0]=MBIRTV(projection.*temp_weight,temp_weight,FBP,formodel,prior,opts);
 toc;
 
 
@@ -85,7 +88,7 @@ x0 = real(x0(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 -
 recon_original_size = flipud(recon_original_size.');
 x0 = flipud(x0.');
 
-FBP =iradon(projection',angle_list,'hamming',0.2,Nr);
+
 
 figure;imagesc(grnd_truth);axis image;colormap(gray);colorbar;title('Ground truth');
 %figure;imagesc(x0);axis image;colormap(gray);colorbar;title('NUFFT Back Proj');
