@@ -8,8 +8,8 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-Ns=3000;
-nangles=512;
+Ns=256;
+nangles=256;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
@@ -18,10 +18,11 @@ Dt=(180/nangles); %spacing in degrees
 
 % Kernel radius
 k_r=2;beta =3*pi*1.0;
-[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r);
-%[gnuqradon,gnuqiradon,P,op,opprefilter]=gnufft_init_op(Ns,qq,tt,beta,k_r,0);
+%[gnuqradon,gnuqiradon,P,opGNUFFT]=gnufft_init_spmv_op(Ns,qq,tt,beta,k_r);
+[gnuqradon,gnuqiradon,P,opGNUFFT,opprefilter]=gnufft_init_op(Ns,qq,tt,beta,k_r,0);
 opFPolyfilter = opFPolyfit(nangles,Ns);%,P.opprefilter);
 
+P.opprefilter=opprefilter;
 Fmsk=ones(Ns,nangles);
 Fmsk(Ns/2+randi(round(Ns/4),5)-round(Ns/8),:)=0;
 

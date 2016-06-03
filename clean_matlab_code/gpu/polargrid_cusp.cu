@@ -14,12 +14,13 @@
 
 
 
+/*
 __inline__ __device__ void atomicAdd( cusp::complex<float> * x,  cusp::complex<float>  m)
 {
      atomicAdd(&(x[0]).x,m.x);
      atomicAdd(&(x[0]).y,m.y);
 }
-
+*/
 
 float cpu_kb_weight(float2 grid_pos, float2 point_pos,
 		    float * kb_table,
@@ -227,7 +228,7 @@ return	(fetch_x(ix,kb_table)*(1.0f-fx)+ fetch_x(ix+1,kb_table)*(fx))*
 
 }
 
-
+/*
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 __global__ void sum_points(        const cusp::complex<float> * point_value,
         int npoints,  uint2 grid_size,
@@ -301,7 +302,7 @@ __global__ void sum_points(        const cusp::complex<float> * point_value,
 	    }
 	}
 }
-
+*/
 
 //
 // __device__ float kb_weight(float2 grid_pos, float2 point_pos,

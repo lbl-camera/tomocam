@@ -71,6 +71,8 @@ data                 = completeOps(data);
 
   opts.weightTV         = 0.001;
   opts.weightLp         = 0.01;
+  opts.gammaLp = 0;
+  opts.gammaTV = 1;
   opts.pNorm            = 1;
   opts.qNorm            = 1;
   opts.alpha            = 0.01;

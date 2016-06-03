@@ -7,7 +7,8 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_0_5.mat';
+file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2048_dose5000_noise_0_5_weight.mat';
+%ShepLogan_2560_2049_dose5000_noise_0_5.mat';
 %20130807_234356_OIM121R_SAXS_5x.mat';
 
 
@@ -18,7 +19,12 @@ grnd_truth=grnd_truth*10e-4;
  
 load(file_name);
 % 
- projection = projection(1:2:2048,1:end-1);
+% projection = projection(1:2:2048,1:end-1);
+projection = projection(1:2:end,1:end);
+weight = (noisy_data(1:2:end,1:end));
+%ones(size(projection));
+weight = sqrt(weight./sum(weight(:)));
+
 
 %% Ring addition
 % img = zeros(size(projection));
@@ -27,23 +33,25 @@ load(file_name);
 % projection = projection + (.05*max(projection(:))).*img;
 
 
-num_angles=size(projection,1);
+num_angles=180;%size(projection,1);
 angle_list = 0:180/num_angles:180-180/num_angles;
 
-% imsize = 512;
-% P=phantom(imsize);
-% nangles = 512/4;
-% projection = radon(P, angle_list);
-% projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
+imsize = 256;
+P=phantom(imsize);
+%nangles = 180;%512/4;
+projection = radon(P, angle_list);
+projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
+weight = ones(size(projection));
+
 
 
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center = 1280;%1294;%1280;%1294;
+formodel.center = 128;%1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
-formodel.Npad = 3000;%3200;%3200;
+formodel.Npad = 512;%3000;%3200;%3200;
 formodel.ring_corr = 0;
 formodel.angle_list = angle_list;
 
@@ -52,10 +60,10 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param =  2;
+prior.reg_param =  2.5;
 
 %Solver params
-opts.maxIts           = 1000;%Max iterations of cost-function 
+opts.maxIts           = 2000;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;
@@ -70,14 +78,16 @@ opts.mu               = 1e-10;%the rounding value used to make a differentiable 
 opts.display          = 0;%Display output after each iteration
 
 %
-temp_weight = rand(size(projection));
-temp_weight(temp_weight>0.2)=1;
-temp_weight(temp_weight<=0.2)=0;
+%temp_weight = rand(size(projection));
+%temp_weight(temp_weight>0.0)=1;
+%temp_weight(temp_weight<=0.0)=0;
+%temp_weight = sqrt(temp_weight);
+
 
 FBP =iradon(projection',angle_list,'hamming',0.2,Nr);
 
 tic;
-[recon,x0]=MBIRTV(projection.*temp_weight,temp_weight,FBP,formodel,prior,opts);
+[recon,x0]=MBIRTV(projection.*weight,weight,FBP,formodel,prior,opts);
 toc;
 
 

@@ -28,7 +28,7 @@ reset(g);
 
 [Ntheta,Nr]=size(projection);
 projection = (padmat(projection,[Ntheta forward_model.Npad]));
-weight = (padmat(weight,[Ntheta forward_model.Npad]));
+weight = (padmat(weight,[Ntheta forward_model.Npad],0));
 init = (padmat(init,[forward_model.Npad, forward_model.Npad]));
 
 forward_model.center = forward_model.center + (forward_model.Npad/2-Nr/2);
@@ -52,7 +52,7 @@ real_data = gpuArray(projection.');
 data.b=real_data(:);
 data=completeOps(data);
 TV = opDifference(data.signalSize);
-x0=init;
+x0=fliplr(init.');%init;
 %x0=data.reconstruct(data.M(data.b,2));
 x=x0(:);
 %msk1=padmat(ones(Ns/2),[1 1]*Ns);

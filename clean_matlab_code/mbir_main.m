@@ -13,16 +13,17 @@ addpath Common
 
 %% Create a toy data set 
 
-Ns_actual = 256;
+Ns_actual = 2560;
 
-nangles = 180;%180;
+nangles = 512;%180;
 %Ns_pad = 4096;
-center_actual = 128;%128;%sub pixels 
+center_actual = 1280
+;%128;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=512;
+Ns=4096;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 signal = gpuArray(padmat(phantom(Ns_actual),[Ns,Ns]));
@@ -47,8 +48,12 @@ k_r=3;beta =2*pi*2;  %kernel size 2*kr+1
 %%%%%%%%%% Forward-projection %%%%%% 
 display('Projecting using NUFFT');
 tic;
-real_data=Ns.*pi/2.*A.gnuradon(signal);
-toc;
+num_iter=10;
+for i=1:num_iter
+	real_data=Ns.*pi/2.*A.gnuradon(signal);
+end
+elapsed = toc;
+display('Time taken :');display(elapsed/num_iter);
 %input_data=preprocessop.radon2q(real_data);
 
 display('Projecting using Matlab gpu radon');

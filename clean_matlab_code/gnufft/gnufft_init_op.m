@@ -116,7 +116,23 @@ else
     %GDq;
     
     % q-radon to q cartesian
-    P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt,grid,gs_per_b,...
+%    P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt,grid,gs_per_b,...
+%        gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
+%        gb_points_x,gb_points_y,gkblut,scale);
+
+% sample value
+% grid dim 
+% samples per bin 
+% bindimx 
+% bindimy
+% samples in bin
+% bin start offset
+% bin location
+% bin points x 
+% bin points y 
+% klut
+% klut scale 
+    P.qxyXqt =@(Gqt) polargrid_cub(Gqt,grid,gs_per_b,...
         gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
         gb_points_x,gb_points_y,gkblut,scale);
 end

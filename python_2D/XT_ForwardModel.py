@@ -17,6 +17,7 @@ def forward_project(x,params):
     x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
 
     x3 = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+#    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
     return x3 
 
 def back_project(y,params):
@@ -70,7 +71,7 @@ def init_nufft_params(sino,geom):
     params['sino_mask'] = afnp.array(padmat(np.ones((Ns_orig,sino['qq'].shape[1])),np.array((Ns,sino['qq'].shape[1])),0),dtype=afnp.float32)
     params['grid'] = np.array([Ns,Ns],dtype=np.int32)
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
-    params['center'] = sino['center']
+    params['center'] = afnp.array(sino['center'])
     params['Ns'] = Ns
 
     # push parameters to gpu and initalize a few in-line functions 
