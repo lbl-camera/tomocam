@@ -9,7 +9,7 @@ addpath gnufft
 addpath Common
 
 Ns=256;
-nangles=256;
+nangles=180;
 
 signal = padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
 
