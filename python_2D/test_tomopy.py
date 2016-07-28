@@ -29,7 +29,7 @@ tomo,weight = normalize_bo(tomo, flats, darks,num_sets)
 #tomo = tomopy.remove_stripe_fw(tomo)
 
 print('Recon')
-rec = tomopy.recon(tomo, theta, center=1328,algorithm=algo,emission=False)#1294
+rec = tomopy.recon(tomo, theta, center=1328,algorithm=algo)#1294
 
 print('Masking')
 rec = tomopy.circ_mask(rec, 0)

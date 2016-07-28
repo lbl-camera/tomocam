@@ -5,6 +5,7 @@
 //#include "cutil.h"
 #include "cuda.h"
 #include <stdlib.h>
+//#include "cusp/complex.h"
 #include <cusp/complex.h>
 #include <cusp/blas.h>
 #include "mex.h"
@@ -706,7 +707,7 @@ void grid_points_cuda_interleaved_mex(const float * point_pos_x, const float * p
             int grid = nbins;
             int block_size = BLOCKSIZE;
             clock_t t_i = clock();
-            /*
+            
             grid_points_cuda_mex_interleaved_kernel1<<<grid,block_size>>>( point_pos_x, point_pos_y,
                     point_value, npoints, grid_size, points_per_bin,
                     bin_dimension_x, bin_dimension_y, binned_points,
@@ -715,7 +716,7 @@ void grid_points_cuda_interleaved_mex(const float * point_pos_x, const float * p
                     kb_table_size,
                     kb_table_scale, kb_table,  grid_value);
             cudaThreadSynchronize();
-            */
+            
             clock_t t_e = clock();
             error_handle();
             //  printf("%d iter in %5.1f ms\n",iter,(t_e-t_i)*1000.0/CLOCKS_PER_SEC);
@@ -840,7 +841,7 @@ cusp::complex<float> * d_grid_values = (cusp::complex<float>  *)(mxGPUGetData(gr
 
 //   mexErrMsgTxt("gpuArray 1");
 
-/*
+
 grid_points_cuda_interleaved_mex( d_samples_x, d_samples_y,
 				    d_samples_values, npoints, 
 				    grid_size, d_samples_per_bin, d_bin_dimensions_x, d_bin_dimensions_y,
@@ -850,7 +851,7 @@ grid_points_cuda_interleaved_mex( d_samples_x, d_samples_y,
 				    kernel_lookup_table_size,
 				    kernel_lookup_table_scale,
 				    d_grid_values);
-*/
+
 //mexErrMsgTxt("gpuArray 2");
 
 
