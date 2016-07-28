@@ -6,13 +6,13 @@ addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
+gpuDevice(2);
 
-file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_1.mat';
+file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_0_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
 %20130807_234356_OIM121R_SAXS_5x.mat';
 
-
-grnd_truth = phantom(512);%2560
+grnd_truth = phantom(2560);%2560
 grnd_truth(grnd_truth < 0)=0;
 %grnd_truth=grnd_truth*10e-4;
 
@@ -36,22 +36,22 @@ weight = ones(size(projection));
  num_angles=size(projection,1);
  angle_list = 0:180/num_angles:180-180/num_angles;
 % 
- imsize = 512;
- P=(phantom(imsize));
-nangles = 720;%512/4;
- projection = radon(P, angle_list);
- projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
- weight = ones(size(projection));
-
-
+%  imsize = 2560;
+%  P=(phantom(imsize));
+% nangles = 512;%512/4;
+%  projection = radon(P, angle_list);
+%  projection = projection((end-1)/2-imsize/2:(end-1)/2+imsize/2-1,:).';
+%  weight = ones(size(projection));
+% 
+% 
 
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center = 512/2;%1280;%128;%1280;%1294;%1280;%1294;
+formodel.center = 1280;%1280;%128;%1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
-formodel.Npad = 1024;%4000;%512;%3000;%3200;%3200;
+formodel.Npad = 4000;%4000;%512;%3000;%3200;%3200;
 formodel.ring_corr = 0;
 formodel.angle_list = angle_list;
 
@@ -63,7 +63,7 @@ formodel.beta =3*pi*1.0;
 prior.reg_param =  2.5;
 
 %Solver params
-opts.maxIts           = 1000;%Max iterations of cost-function 
+opts.maxIts           = 100;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;

@@ -45,21 +45,21 @@ display('Back-Projecting using Matlab');
 test_backproj_ML=gpuArray(zeros(Ns_actual,Ns_actual,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,Ns_actual);
+    test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,'none',Ns_actual);
 end
 toc;
 
 %% Debugging
 
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
-[A,preprocessop]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
+[A,P]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
 
 %%%%%%%%%% Forward-projection %%%%%% 
 display('Projecting using NUFFT');
 projection = gpuArray(zeros(Ns,nangles,num_slice));
 tic;
 for i=1:num_slice
-    projection(:,:,i)=Ns.*pi/2.*preprocessop.image2radon(squeeze(signal(:,:,i)));
+    projection(:,:,i)=Ns.*pi/2.*P.image2radon(squeeze(signal(:,:,i)));
 end
 toc;
 
@@ -68,8 +68,24 @@ display('Back-Projecting using NUFFT');
 test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj(:,:,i) = preprocessop.radon2image(squeeze(projection(:,:,i)));
+    test_backproj(:,:,i) = P.radon2image(squeeze(projection(:,:,i)))./(Ns.*pi/2);
 end
 toc;
 
+%% plot and comparison
 
+figure;
+imagesc(real(squeeze(projection_ML(:,:,1))));colormap(gray);colorbar;
+title('Matlab projection');
+
+figure;
+imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
+title('NUFFT projection');
+
+figure;
+imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
+title('Matlab back-projection');
+
+figure;
+imagesc(real(squeeze(test_backproj(:,:,1)))./(2*pi*pi));colormap(gray);colorbar;
+title('NUFFT back-projection');

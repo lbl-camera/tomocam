@@ -27,7 +27,6 @@ function [gnuqradon,gnuqiradon,P,op]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,ce
 %Set constants for the file 
 KBLUT_LENGTH = 256;
 SCALING_FACTOR = 1.7;%What is this ? 
-OVERSAMPLING = 2; %New addition - venkat
 
 nangles=size(tt,2);
 

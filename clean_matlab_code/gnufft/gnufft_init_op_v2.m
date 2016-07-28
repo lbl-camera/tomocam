@@ -1,4 +1,4 @@
-function [gnuqradon,gnuqiradon,P,op,opprefilter]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,weight,delta_r,delta_xy,Nr_orig)
+function [gnuqradon,gnuqiradon,P,op]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,weight,delta_r,delta_xy,Nr_orig)
 % function [gnuradon,gnuiradon,qtXqxy,qxyXqt]=gnufft_init(Ns,q,t,beta,k_r)
 %
 % returns radon  and inverse radon trasnform operators (GPU accelerated)
@@ -17,24 +17,36 @@ function [gnuqradon,gnuqiradon,P,op,opprefilter]=gnufft_init_op_v2(Ns,qq,tt,beta
 % Stefano Marchesini,  LBNL 2013
 % S. V. Venkatakrishnan, LBNL 2016
 
+%Set constants for the file 
+KBLUT_LENGTH = 256;
+SCALING_FACTOR = 1.7;%What is this ? 
+
+nangles=size(tt,2);
+
 %fftshift factor
 xx=gpuArray(single(0:Ns-1));
 fftshift2D=bsxfun(@times,(-1).^xx,(-1).^xx');
 %fftshift1D=(-1).^xx';
-fftshift1Dop=@(a) bsxfun(@times,(-1).^xx',a);
+
+fftshift1Dop_old=@(a) bsxfun(@times,(-1).^xx',a);
+fftshift1Dop=@(a) bsxfun(@times,exp(-1i*(center*2*pi/Ns).*xx'),a);
+fftshift1Dop_inv=@(a) bsxfun(@times,exp(1i*(center*2*pi/Ns).*xx'),a);
 
 % Preload the Bessel kernel (real components!)
-[kblut,KB,~,KB2D]=KBlut(k_r,beta,256);
+[kblut,KB,~,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); 
+
 KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
-kblut=kblut/KBnorm;
+kblut=kblut/KBnorm *SCALING_FACTOR;
 
 % % Normalization (density compensation factor)
 Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
+
 % mask
-P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);
+P.grmask =gpuArray(padmat(ones(Nr_orig,size(qq,2)),[Ns size(qq,2)]));
 
 % deapodization factor, (the FT of the kernel):
-dpz=deapodization(Ns,KB);
+dpz=deapodization_v2(Ns,KB,Nr_orig); %TODO : Buggy for large window sizes 
+
 % polar to cartesian, centered
 scaling=1;
 [xi,yi]=pol2cart(tt*pi/180,scaling.*qq);
@@ -49,9 +61,10 @@ gkblut=gpuArray(single(kblut));
 
 P.gDq=gpuArray(single(Dq));
 P.gdpz=gpuArray(single(dpz));
+P.weight = gpuArray(single(weight));
 
 grid = int64([Ns,Ns]);
-scale = single((256-1)/k_r);
+scale = single((KBLUT_LENGTH-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
 
 
 % real (r) to fourier (q) -- cartesian (xy)
@@ -59,8 +72,10 @@ P.qxyXrxy=@(Grxy) (fftshift2D.*fft2(Grxy.*(P.gdpz).*fftshift2D))/Ns;%deapodized
 P.rxyXqxy=@(Gqxy) fftshift2D.*ifft2((Gqxy.*fftshift2D)).*(P.gdpz)*Ns; %deapodized
 
 % real (r) to fourier (q) -- radon space (r/q-theta)
-P.rtXqt=@(Gqt) fftshift1Dop(ifft(fftshift1Dop(Gqt))).*P.grmask;
-P.qtXrt=@(Grt) fftshift1Dop(fft(fftshift1Dop(Grt)));
+%P.rtXqt=@(Gqt) fftshift1Dop(ifft(fftshift1Dop(Gqt))).*P.grmask;
+%P.qtXrt=@(Grt) fftshift1Dop(fft(fftshift1Dop(Grt)));
+P.rtXqt=@(Gqt) fftshift1Dop_old(ifft(fftshift1Dop(Gqt))).*P.grmask;
+P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 
 % q-cartesian to q-radon
 P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
@@ -85,15 +100,17 @@ nangles=size(tt,2);
 op = @(x,mode) opRadon_intrnl(x,mode);
 opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
 
+P.opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
+
     function y =opRadon_intrnl(x,mode)
         checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
         if mode == 0
             y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
         elseif mode == 1
-            y=gnuqradon(reshape(x,grid));
+            y=P.gnuradon(reshape(x,grid)).*P.weight.';
             y=y(:);
         else
-            y=gnuqiradon(reshape(x,[Ns nangles]));
+            y=P.gnuiradon(reshape(x,[Ns nangles]).*P.weight.');
             y=y(:);
         end
         
@@ -104,15 +121,10 @@ opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
         if mode == 0
             y = {nangles*Ns,nangles*Ns,[1,1,1,1],{'PREFILTER'}};
         elseif mode == 1
-            %        y = (reshape(x,length(x)/nangles,nangles));
-            %        P.datafilt=@(GR) P.qtXrt(GR)./P.gDq;
-            %P.datafiltt=@(GR) P.rtXqt(GR.*P.gDq); % and back
             y= P.datafiltt((reshape(x,length(x)/nangles,nangles)));
-            %       y=gnuqradon(reshape(x,grid));
             y=y(:);
         else
             y= P.datafilt((reshape(x,length(x)/nangles,nangles)));
-            %       y=gnuqradon(reshape(x,grid));
             y=y(:);
         end
         
