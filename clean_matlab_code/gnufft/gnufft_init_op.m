@@ -200,6 +200,3 @@ opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
     end
 
 end
-
-
-           

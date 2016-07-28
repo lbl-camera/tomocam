@@ -9,7 +9,7 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 12;
+num_slice = 10;
 Ns_actual = 2560;
 
 nangles = 512;
