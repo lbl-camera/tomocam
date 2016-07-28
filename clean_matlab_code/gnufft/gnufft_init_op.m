@@ -136,8 +136,10 @@ else
 %         gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc,...
 %         gb_points_x,gb_points_y,gkblut,scale);    
 %        P.qxyXqt =@(Gqt) polargrid_cusp(Gqt,        grid,gs_per_b, gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc, gb_points_x, gb_points_y, gkblut, scale);
-        P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt, grid, gs_per_b, gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc, gb_points_x, gb_points_y, gkblut, scale);
+%        P.qxyXqt =@(Gqt) polargrid_cusp(gxi,gyi,Gqt, grid, gs_per_b, gb_dim_x, gb_dim_y, gs_in_bin, gb_offset, gb_loc, gb_points_x, gb_points_y, gkblut, scale);
 
+        P.qxyXqt=@(Gqt) polarsample_transpose(gxi,gyi,Gqt,grid,gkblut,scale,k_r);
+            
 end
 
 % qradon transform: (x y) to (qx qy) to (q theta) with density compensation:
