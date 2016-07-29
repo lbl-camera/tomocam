@@ -6,25 +6,25 @@ addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
+reset(gpuDevice(2));
 gpuDevice(2);
 
-file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_0_1.mat';
+file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
 %20130807_234356_OIM121R_SAXS_5x.mat';
 
 grnd_truth = phantom(2560);%2560
 grnd_truth(grnd_truth < 0)=0;
-%grnd_truth=grnd_truth*10e-4;
+grnd_truth=grnd_truth*10e-3;
 
  
 load(file_name);
 % 
- projection = projection(1:2:2048,1:end-1);
+projection = projection(1:2:2048,1:end-1);
 %projection = projection(1:2:end,1:end);
-weight = ones(size(projection));
-%(noisy_data(1:2:end,1:end));
+weight =ones(size(projection));
+%(noisy_data(1:2:end,1:end-1));
 %weight = sqrt(weight./sum(weight(:)));
-
 
 %% Ring addition
 % img = zeros(size(projection));
@@ -51,7 +51,7 @@ Nr=size(projection,2);
 formodel.center = 1280;%1280;%128;%1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
-formodel.Npad = 4000;%4000;%512;%3000;%3200;%3200;
+formodel.Npad = 3200;%4000;%512;%3000;%3200;%3200;
 formodel.ring_corr = 0;
 formodel.angle_list = angle_list;
 
@@ -63,7 +63,7 @@ formodel.beta =3*pi*1.0;
 prior.reg_param =  2.5;
 
 %Solver params
-opts.maxIts           = 100;%Max iterations of cost-function 
+opts.maxIts           = 500;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;
@@ -86,7 +86,7 @@ opts.display          = 0;%Display output after each iteration
 FBP =iradon(projection',angle_list,'hamming',0.08,Nr);
 
 tic;
-[recon,x0]=MBIRTV(projection.*weight,weight,FBP,formodel,prior,opts);
+[recon,x0]=MBIRTV(projection.*weight,weight,zeros(size(FBP)),formodel,prior,opts);
 toc;
 
 
@@ -97,6 +97,9 @@ x0 = real(x0(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 -
 recon_original_size = flipud(recon_original_size.');
 x0 = flipud(x0.');
 
+%rescale values for projector 
+x0=x0.*(Nr/pi);
+recon_original_size=recon_original_size.*(Nr/(pi*pi));
 
 
 figure;imagesc(grnd_truth);axis image;colormap(gray);colorbar;title('Ground truth');

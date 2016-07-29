@@ -66,7 +66,6 @@ P.weight = gpuArray(single(weight));
 grid = int64([Ns,Ns]);
 scale = single((KBLUT_LENGTH-1)/k_r); %TODO : What is 256 ? - Venkat 1/25/2016
 
-
 % real (r) to fourier (q) -- cartesian (xy)
 P.qxyXrxy=@(Grxy) (fftshift2D.*fft2(Grxy.*(P.gdpz).*fftshift2D))/Ns;%deapodized
 P.rxyXqxy=@(Gqxy) fftshift2D.*ifft2((Gqxy.*fftshift2D)).*(P.gdpz)*Ns; %deapodized
@@ -79,6 +78,7 @@ P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 
 % q-cartesian to q-radon
 P.qtXqxy=@(Gqxy) polarsample(gxi,gyi,Gqxy,grid,gkblut,scale,k_r);
+%P.qxyXqt=@(Gqt) polarsample_transpose(gxi,gyi,Gqt./P.gDq,grid,gkblut,scale,k_r);%Changed to account for density compensation factor - Venkat
 P.qxyXqt=@(Gqt) polarsample_transpose(gxi,gyi,Gqt,grid,gkblut,scale,k_r);
 
 % qradon transform: (x y) to (qx qy) to (q theta) with density compensation:

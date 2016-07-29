@@ -1,15 +1,15 @@
 clear;
 close all;
 
-reset(gpuDevice(4));
-gpuDevice(4);
+reset(gpuDevice(2));
+gpuDevice(2);
 
 addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 10;
+num_slice = 5;
 Ns_actual = 2560;
 
 nangles = 512;
@@ -21,16 +21,23 @@ det_size = 1;%um
 %padding
 Ns=3624;
 center = center_actual + (Ns/2 - Ns_actual/2);
-signal = gpuArray(repmat((padmat(phantom(Ns_actual),[Ns,Ns])),1,1,num_slice));
-%phantom(Ns);
-%padmat(generateAngiogram(Ns/2,Ns/2),[Ns,Ns]);
+
+%temp=zeros(Ns_actual,Ns_actual);
+%temp(end/4-5:end/4+5,end/2-5:end/2+5)=1;
+signal =gpuArray(repmat((padmat(phantom(Ns_actual),[Ns,Ns])),1,1,num_slice));
+%gpuArray(repmat((padmat(temp,[Ns,Ns])),1,1,num_slice));
 
 Dt=(180/nangles); %spacing in degrees
 angle_list= 0:Dt:180-Dt;
 
 %% Matlab
 
+%temp=zeros(Ns_actual,Ns_actual);
+%temp(end/4-5:end/4+5,end/2-5:end/2+5)=1;
 signal_ML = gpuArray(repmat(phantom(Ns_actual),1,1,num_slice));
+%gpuArray(repmat(temp,1,1,num_slice));
+
+
 %%%%%%%%%% Forward-projection %%%%%% 
 display('Projecting using Matlab');
 projection_ML = gpuArray(zeros(Ns+1,nangles,num_slice));
@@ -59,7 +66,7 @@ display('Projecting using NUFFT');
 projection = gpuArray(zeros(Ns,nangles,num_slice));
 tic;
 for i=1:num_slice
-    projection(:,:,i)=Ns.*pi/2.*P.image2radon(squeeze(signal(:,:,i)));
+    projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
 end
 toc;
 
@@ -68,7 +75,7 @@ display('Back-Projecting using NUFFT');
 test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj(:,:,i) = P.radon2image(squeeze(projection(:,:,i)))./(Ns.*pi/2);
+    test_backproj(:,:,i) = P.radon2image(squeeze(projection(:,:,i)));
 end
 toc;
 
@@ -87,5 +94,5 @@ imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
 title('Matlab back-projection');
 
 figure;
-imagesc(real(squeeze(test_backproj(:,:,1)))./(2*pi*pi));colormap(gray);colorbar;
+imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
 title('NUFFT back-projection');
