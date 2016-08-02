@@ -5,10 +5,9 @@ close all;
 addpath operators
 addpath gpu
 addpath gnufft
-addpath Common
+addpath Common;
 reset(gpuDevice(2));
 gpuDevice(2);
-
 file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
 %20130807_234356_OIM121R_SAXS_5x.mat';

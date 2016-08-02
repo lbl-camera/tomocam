@@ -39,6 +39,7 @@ signal_ML = gpuArray(repmat(phantom(Ns_actual),1,1,num_slice));
 
 
 %%%%%%%%%% Forward-projection %%%%%% 
+if false
 display('Projecting using Matlab');
 projection_ML = gpuArray(zeros(Ns+1,nangles,num_slice));
 tic;
@@ -55,18 +56,30 @@ for i=1:num_slice
     test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,'none',Ns_actual);
 end
 toc;
+end
 
 %% Debugging
 
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
-[A,P]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
+k_r=3;beta =4*pi;  %kernel size 2*kr+1
+delta_r=1;
+delta_xy=1;
+
+%[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+%[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+
+[~,~,P,opGNUFFT]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+[~,~,Ps,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+
+%[A,P]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
 
 %%%%%%%%%% Forward-projection %%%%%% 
 display('Projecting using NUFFT');
 projection = gpuArray(zeros(Ns,nangles,num_slice));
 tic;
 for i=1:num_slice
-    projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
+    %projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
+    projection(:,:,i)=(Ns.*pi/2).*P.gnuradon(signal(:,:,i));
 end
 toc;
 
@@ -75,23 +88,26 @@ display('Back-Projecting using NUFFT');
 test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj(:,:,i) = P.radon2image(squeeze(projection(:,:,i)));
+    test_backproj(:,:,i) = P.gnuiradon(projection(:,:,i));
 end
 toc;
 
 %% plot and comparison
 
+if false
 figure;
 imagesc(real(squeeze(projection_ML(:,:,1))));colormap(gray);colorbar;
 title('Matlab projection');
+figure;
+imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
+title('Matlab back-projection');
+
+end
 
 figure;
 imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
 title('NUFFT projection');
 
-figure;
-imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
-title('Matlab back-projection');
 
 figure;
 imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;

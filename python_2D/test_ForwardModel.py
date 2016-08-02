@@ -5,7 +5,7 @@ import os
 import numpy as np
 import afnumpy as afnp
 import matplotlib.pyplot as plt
-import pyqtgraph as pg
+#import pyqtgraph as pg
 import afnumpy as afnp
 import math
 
