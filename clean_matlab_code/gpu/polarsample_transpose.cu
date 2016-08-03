@@ -7,6 +7,17 @@
 #include "cuda_sample.h"
 #include "mex.h"
 #include "gpu/mxGPUArray.h"
+#include <cuComplex.h>
+//#include <cuComplex.h>
+//#include <cuComplex.h>
+#include <cusp/complex.h>
+#include <thrust/complex.h>
+//typedef cuFloatComplex complex_t1;
+
+//typedef thrust::complex<float> complex_t;
+typedef cusp::complex<float> complex_t;
+
+//typedef thrust::complex<float> complex_t1;
 
 
 #define	SX	    prhs[0]
@@ -20,6 +31,19 @@
 #define	SGRID	plhs[0]
 
 texture<float, 1, cudaReadModeElementType> texRef;
+
+
+
+
+__inline__ __device__ void atomicAdd(complex_t* arr,  complex_t  val)
+{
+  float *farr=(float *) arr;
+
+  atomicAdd(&(farr[0]), val.real());
+  atomicAdd(&(farr[1]), val.imag());
+}
+
+
 
 void error_handle(cudaError_t status = cudaErrorLaunchFailure);
 
@@ -68,16 +92,16 @@ __device__ float kb_weight(float grid_pos, float point_pos,
 
 __global__ void cuda_sample_transpose_kernel(const float * point_pos_x,
 					     const float * point_pos_y,
-					     const cusp::complex<float> * sample_value, 
+					     const complex_t * sample_value, 
 					     int npoints, uint2 grid_size,
 					     int kb_table_size,
 					     float kb_table_scale,
 					     float kernel_radius,
-					     cusp::complex<float> * grid_value){
+					     complex_t * grid_value){
   int i = threadIdx.x + blockIdx.x*blockDim.x;
   if(i < npoints){
 
-    cusp::complex<float> sv=  sample_value[i] ;
+    complex_t sv=  sample_value[i] ;
     float sx=point_pos_x[i];
     float sy=point_pos_y[i];
 
@@ -85,14 +109,16 @@ __global__ void cuda_sample_transpose_kernel(const float * point_pos_x,
       if(y < 0 || y > grid_size.y-1){
 	continue;
       }
-      //sv=sv*kb_weight(y,sy,kb_table_size,kb_table_scale);
+      complex_t svy=sv*kb_weight(y,sy,kb_table_size,kb_table_scale);
 
       for(int x = max(0.0f,ceil(sx-kernel_radius));x<= min(floor(sx+kernel_radius),grid_size.x-1.0f);x++){
 	if(x < 0 || x > grid_size.x-1){
 	  continue;
 	}
 	//	grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(x,sx, kb_table_size, kb_table_scale);	
-	grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(make_float2(x,y),   make_float2(sx,sy), kb_table_size, kb_table_scale);	
+	//grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(make_float2(x,y),   make_float2(sx,sy), kb_table_size, kb_table_scale);	
+
+	atomicAdd(&( (grid_value[y*grid_size.x+x])),svy * kb_weight(x,sx, kb_table_size, kb_table_scale));	;
 
       }
     }
@@ -101,14 +127,14 @@ __global__ void cuda_sample_transpose_kernel(const float * point_pos_x,
 }
 
 void cuda_sample_transpose(const float * point_pos_x, const float * point_pos_y,
-		 const cusp::complex<float> * sample_value, int npoints, 
+		 const complex_t * sample_value, int npoints, 
 		 uint2 grid_size,
 		 const float * kb_table,
 		 int kb_table_size,
 		 float kb_table_scale,
 		 float kernel_radius,		 
-		 cusp::complex<float> * grid_value){
-  //  cudaMemset(sample_value,0,sizeof( cusp::complex<float>)*npoints);
+		 complex_t * grid_value){
+  //  cudaMemset(sample_value,0,sizeof( complex_t)*npoints);
 
   size_t offset;
   cudaBindTexture(&offset,texRef, kb_table, sizeof(float)*kb_table_size);
@@ -188,13 +214,13 @@ const float * d_kernel_lookup_table = (const float  *)(mxGPUGetDataReadOnly(kern
 uint2 grid_size = {grid_dim[0],grid_dim[1]};
 
 
-//cusp::complex<float> * d_samples_values = ( cusp::complex<float> *)(mxGPUGetData(samples_values));
-const cusp::complex<float> * d_samples_values = (const cusp::complex<float>  *)(mxGPUGetDataReadOnly(samples_values));
+//complex_t * d_samples_values = ( complex_t *)(mxGPUGetData(samples_values));
+const complex_t * d_samples_values = (const complex_t  *)(mxGPUGetDataReadOnly(samples_values));
 
 
 // OUTPUT
-// cusp::complex<float> * d_grid_values = (cusp::complex<float>  *)(const cusp::complex<float>  *)(mxGPUGetDataReadOnly(grid_values));
-cusp::complex<float> * d_grid_values = (cusp::complex<float>  *)(mxGPUGetData(grid_values));
+// complex_t * d_grid_values = (complex_t  *)(const complex_t  *)(mxGPUGetDataReadOnly(grid_values));
+complex_t * d_grid_values = (complex_t  *)(mxGPUGetData(grid_values));
 
 // mexErrMsgTxt("gpuArray 1");
  

@@ -157,7 +157,7 @@ P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));
 
 %Iradon to go from (r theta) to (q theta) to (qx qy) to (x y): ? - Venkat:
 %1/25/2016
-P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(P.qtXrt(GI)));
+P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(P.qtXrt(GI)./P.gDq));
 
 % fast partial radon transform:
 % remove 1D ffts in (q theta) to (r theta) transform by

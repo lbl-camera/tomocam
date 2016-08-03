@@ -1,6 +1,5 @@
-
 #include <cuda.h>
-#include <cusp/blas.h>
+#include <cusp/blas/blas.h>
 #include<cusp/csr_matrix.h>
 #include<cusp/multiply.h>
 #include <cusp/array1d.h>
