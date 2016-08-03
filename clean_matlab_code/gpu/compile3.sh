@@ -5,9 +5,9 @@ flags2='-L/usr/local/cuda/lib64 -lcudart -L/usr/local/MATLAB/R2015a/bin/glnxa64/
 #flags2='-L/usr/local/cuda/lib64 -lcudart -L/usr/local/MATLAB/R2015b/bin/glnxa64/ -lmwgpu'
 
 
-/usr/local/cuda/bin/nvcc ${flags1} polarsample_transpose.cu
-/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsample_transpose.o  ${flags2}
+#/usr/local/cuda/bin/nvcc ${flags1} polarsample_transposev2.cu
+#/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsample_transposev2.o  ${flags2}
 
-/usr/local/cuda/bin/nvcc ${flags1} polarsample.cu
-/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsample.o  ${flags2}
+/usr/local/cuda/bin/nvcc ${flags1} polarsamplev2.cu
+/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsamplev2.o  ${flags2}
  
