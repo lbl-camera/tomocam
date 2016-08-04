@@ -11,7 +11,7 @@ KBnorm=norm(KB2((-k_r:k_r), 2*k_r, beta)'*KB2((-k_r:k_r), 2*k_r, beta));
 
 %KBnorm
 
-kblut=kblut/KBnorm;
+%kblut=kblut/KBnorm;
 
 ascale=@(x) abs(x)*scale;
 

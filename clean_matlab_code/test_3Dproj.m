@@ -9,17 +9,18 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 5;
-Ns_actual = 2560;
+num_slice = 1;
+%Ns_actual = 2560;
+Ns_actual = 2560/256;
 
-nangles = 512;
+nangles = 256*16;
 %Ns_pad = 4096;
-center_actual = 1280;%sub pixels 
+center_actual = 1280/256;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=3624;
+Ns=3624/2;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 %temp=zeros(Ns_actual,Ns_actual);
@@ -61,9 +62,9 @@ end
 %% Debugging
 
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
-k_r=3;
+k_r=2;
 
-beta =4*pi*1.0;  %kernel size 2*kr+1
+beta =4*pi*1;  %kernel size 2*kr+1
 delta_r=1;
 delta_xy=1;
 
@@ -71,7 +72,7 @@ delta_xy=1;
 %[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
 [P]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
-[Ps]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+%[Ps]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 %[~,~,Ps,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
 %[A,P]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
@@ -116,3 +117,16 @@ figure;
 %imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
 imagesc(abs(squeeze(test_backproj(:,:,1))));cax=caxis;caxis([0 cax(2)]);colormap(gray);colorbar;
 title('NUFFT back-projection');
+
+col=@(x) x(:); 
+normratio=norm(col(test_backproj(:,:,1)))/norm(col(signal(:,:,1)))
+cratio=sum(col(conj(test_backproj(:,:,1)).*signal(:,:,1)))./sum(col(abs(signal(:,:,1).^2)))
+
+% testing the 0 frequency only...:
+normratio1=sum(col(test_backproj(:,:,1)))/sum(col(signal(:,:,1)))
+
+% 1/2/(sum(P.kblut.*(1:numel(P.kblut)))/sum(P.kblut)/numel(P.kblut))
+% comparing with width..
+bwidth=(sum(P.kblut.^2.*(1:numel(P.kblut)))/sum(P.kblut.^2)/numel(P.kblut))*16
+ 
+

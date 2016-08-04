@@ -26,7 +26,6 @@ function [P]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,weight,delta_r,delt
 
 %Set constants for the file 
 KBLUT_LENGTH = 256;
-SCALING_FACTOR = 1.7;%What is this ? 
 
 nangles=size(tt,2);
 
@@ -48,10 +47,13 @@ fftshift1Dop_inv=@(a) bsxfun(@times,phase_ramp1,a);
 %kblut=kblut*(KBnorm)^2;%*SCALING_FACTOR; %scaling fudge factor
 
 %TODO : Remove fudge factors - Venkat 
-figure;plot(kblut);title('KB window');
+%figure;plot(kblut);title('KB window');
+
+P.kblut=kblut;
 
 % % Normalization (density compensation factor)
 Dq=KBdensity1(qq',tt',KB1,k_r,Ns)';
+
 % <------mask
 %P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);%TODO : What are these numbers ? Venkat 
 %P.grmask=gpuArray(abs(qq)<size(qq,1)*3/2);
@@ -70,6 +72,8 @@ grid = [Ns,Ns];
 % push parameters to gpu
 gxi=gpuArray(single(xi));
 gyi=gpuArray(single(yi));
+gxy=gxi+1j*gyi;
+
 gkblut=gpuArray(single(kblut));
 
 P.gDq=gpuArray(single(Dq));
@@ -93,10 +97,9 @@ P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 
 %%
 % q-radon to q cartesian
-gxy=gxi+1j*gyi;
 % q-cartesian to q-radon
-P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r,beta);
-P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r);
+P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r,beta)/Ns^2;
+P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r)/Ns^3;
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));

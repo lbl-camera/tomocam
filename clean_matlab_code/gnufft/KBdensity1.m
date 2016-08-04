@@ -69,6 +69,10 @@ for ii=1:nb+2;
     D(indD+(1:length(jj_in)))=sum(KB(diffx).*KB(diffy),1);
     indD=indD+length(jj_in);
 end
+% normalization of the kernel...
+D=D/sum(sum(KB(-nj:nj)'*KB(-nj:nj)));
+
+%ccc=sum(KB(-nj:nj))
 
 %shift the index to the center of a Ns by Ns array
 % xi = xi+floor((Ns+1)/2)+1; 
@@ -87,6 +91,7 @@ else
     DD=D([end:-1:2, 1:end-1],ones(nt,1))';
 %     DD=DD(cropm);
 end
+
 
 return
 
