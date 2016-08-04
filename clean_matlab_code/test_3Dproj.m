@@ -61,7 +61,9 @@ end
 %% Debugging
 
 [tt,qq]=meshgrid(angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
-k_r=3;beta =4*pi;  %kernel size 2*kr+1
+k_r=3;
+
+beta =4*pi*1.0;  %kernel size 2*kr+1
 delta_r=1;
 delta_xy=1;
 
@@ -78,7 +80,7 @@ delta_xy=1;
 display('Projecting using NUFFT');
 projection = gpuArray(zeros(Ns,nangles,num_slice));
 tic;
-for i=1:num_slice
+for i=1;%:num_slice
     %projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
     projection(:,:,i)=(Ns.*pi/2).*P.gnuradon(signal(:,:,i));
 end
@@ -88,7 +90,7 @@ toc;
 display('Back-Projecting using NUFFT');
 test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 tic;
-for i=1:num_slice
+for i=1;%:num_slice
     test_backproj(:,:,i) = P.gnuiradon(projection(:,:,i));
 end
 toc;

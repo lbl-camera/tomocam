@@ -159,8 +159,6 @@ void cuda_sample_transpose(const complex_t * point_pos, const complex_t * sample
   int block_size = BLOCKSIZE;
   int grid = (npoints+block_size-1)/block_size;
   clock_t t_i = clock();
-  int iter = 1;
-  for(int i = 0;i<iter;i++){
     cuda_sample_transpose_kernel<<<grid,block_size>>>( point_pos,
 					     sample_value, npoints, 
 					     grid_size,
@@ -170,7 +168,7 @@ void cuda_sample_transpose(const complex_t * point_pos, const complex_t * sample
 					     grid_value);
     cudaThreadSynchronize();
     
-  }
+
   clock_t t_e = clock();
   error_handle();
   //  printf("%d iter in %5.1f ms\n",iter,(t_e-t_i)*1000.0/CLOCKS_PER_SEC);

@@ -66,7 +66,7 @@ for ii=1:nb+2;
     diffx=bsxfun(@plus,xi(jj_in),-xi(jj_out)');
     diffy=bsxfun(@plus,yi(jj_in),-yi(jj_out)');
     
-    D(indD+(1:length(jj_in)))=sum(KB(diffx,diffy),1);
+    D(indD+(1:length(jj_in)))=sum(KB(diffx).*KB(diffy),1);
     indD=indD+length(jj_in);
 end
 
