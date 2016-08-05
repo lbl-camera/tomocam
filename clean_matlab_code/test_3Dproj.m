@@ -9,7 +9,7 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 5;
+num_slice = 10;
 Ns_actual = 2560;
 
 nangles = 512;
@@ -39,7 +39,7 @@ signal_ML = gpuArray(repmat(phantom(Ns_actual),1,1,num_slice));
 
 
 %%%%%%%%%% Forward-projection %%%%%% 
-if false
+if true
 display('Projecting using Matlab');
 projection_ML = gpuArray(zeros(Ns+1,nangles,num_slice));
 tic;
@@ -53,7 +53,7 @@ display('Back-Projecting using Matlab');
 test_backproj_ML=gpuArray(zeros(Ns_actual,Ns_actual,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,'none',Ns_actual);
+	test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,'Hamming',0.3,Ns_actual);
 end
 toc;
 end
@@ -69,7 +69,7 @@ delta_xy=1;
 %[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
 [P]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
-[Ps]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
+%[Ps]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 %[~,~,Ps,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
 %[A,P]=forwarmodel_v2(qq,tt,center,pix_size,det_size);
@@ -80,7 +80,7 @@ projection = gpuArray(zeros(Ns,nangles,num_slice));
 tic;
 for i=1:num_slice
     %projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
-    projection(:,:,i)=(Ns.*pi/2).*P.gnuradon(signal(:,:,i));
+     projection(:,:,i)=(pi/2)*P.gnuradon(signal(:,:,i));
 end
 toc;
 
@@ -89,20 +89,19 @@ display('Back-Projecting using NUFFT');
 test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 tic;
 for i=1:num_slice
-    test_backproj(:,:,i) = P.gnuiradon(projection(:,:,i));
+	test_backproj(:,:,i) = (Ns_actual)*(pi/2)*P.gnuiradon(projection(:,:,i));
 end
 toc;
 
 %% plot and comparison
 
-if false
+if true
 figure;
 imagesc(real(squeeze(projection_ML(:,:,1))));colormap(gray);colorbar;
 title('Matlab projection');
 figure;
 imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
 title('Matlab back-projection');
-
 end
 
 figure;
