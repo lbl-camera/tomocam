@@ -119,17 +119,17 @@ end
 
 figure;
 imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
-ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, time=%g\n',nangles,Ns,t_gnuradon);
+ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, time=%g',nangles,Ns,t_gnuradon);
 title(ss_gnuradon);
-fprintf(ss_gnuradon);
+fprintf([ss_gnuradon '\n']);
 
 
 figure;
 %imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
 imagesc(abs(squeeze(test_backproj(:,:,1))));cax=caxis;caxis([0 cax(2)]);colormap(gray);colorbar;
-ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, time=%g\n',nangles,Ns,t_gnuiradon);
+ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, time=%g',nangles,Ns,t_gnuiradon);
 title(ss_gnuiradon);
-fprintf(ss_gnuiradon);
+fprintf([ss_gnuiradon '\n']);
 
 
 col=@(x) x(:); 
@@ -138,7 +138,7 @@ cratio=sum(col(conj(test_backproj(:,:,1)).*signal(:,:,1)))./sum(col(abs(signal(:
 
 % testing the 0 frequency only...:
 normratio1=sum(col(test_backproj(:,:,1)))/sum(col(signal(:,:,1)));
-ss_ratios=sprintf('x0, x1=iradon radon x0,\n sum(x1)/sum(x0)=%g, (x1` * x0)/||x0||^2=%g , ||x1||/||x0||=%g\n',normratio1,cratio,normratio);
+ss_ratios=sprintf('x0, x1=iradon radon x0, \n sum(x1)/sum(x0)=%g, (x1` * x0)/||x0||^2=%g , ||x1||/||x0||=%g\n',normratio1,cratio,normratio);
 fprintf(ss_ratios)
 
 % 1/2/(sum(P.kblut.*(1:numel(P.kblut)))/sum(P.kblut)/numel(P.kblut))
