@@ -26,7 +26,6 @@ function [P]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,weight,delta_r,delt
 
 %Set constants for the file 
 KBLUT_LENGTH = 256;
-SCALING_FACTOR = 1.7;%What is this ? 
 
 nangles=size(tt,2);
 
@@ -44,20 +43,24 @@ fftshift1Dop_inv=@(a) bsxfun(@times,phase_ramp1,a);
 % Preload the Bessel kernel (real components!)
 [kblut,KB,KB1,KB2D]=KBlut(k_r,beta,KBLUT_LENGTH); 
 
-KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
-kblut=kblut/KBnorm*SCALING_FACTOR; %scaling fudge factor
+%KBnorm=gpuArray(single(sum(sum(KB2D((-k_r:k_r)',(-k_r:k_r))))));
+%kblut=kblut*(KBnorm)^2;%*SCALING_FACTOR; %scaling fudge factor
+
 %TODO : Remove fudge factors - Venkat 
-figure;plot(kblut);title('KB window');
+%figure;plot(kblut);title('KB window');
+
+P.kblut=kblut;
 
 % % Normalization (density compensation factor)
-Dq=KBdensity1(qq',tt',KB,k_r,Ns)';
+Dq=KBdensity1(qq',tt',KB1,k_r,Ns)';
+
 % <------mask
 %P.grmask=gpuArray(abs(qq)<size(qq,1)/4*3/2);%TODO : What are these numbers ? Venkat 
 %P.grmask=gpuArray(abs(qq)<size(qq,1)*3/2);
 P.grmask =gpuArray(padmat(ones(Nr_orig,size(qq,2)),[Ns size(qq,2)]));
 
 % deapodization factor, (the FT of the kernel):
-dpz=deapodization_v2(Ns,KB,Nr_orig); %TODO : Buggy for large window sizes 
+dpz=deapodization_v2(Ns,KB1,Nr_orig); %TODO : Buggy for large window sizes 
 % gdpz=gpuArray(single(dpz));
 
 % polar to cartesian, centered
@@ -69,6 +72,8 @@ grid = [Ns,Ns];
 % push parameters to gpu
 gxi=gpuArray(single(xi));
 gyi=gpuArray(single(yi));
+gxy=gxi+1j*gyi;
+
 gkblut=gpuArray(single(kblut));
 
 P.gDq=gpuArray(single(Dq));
@@ -92,10 +97,9 @@ P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 
 %%
 % q-radon to q cartesian
-gxy=gxi+1j*gyi;
 % q-cartesian to q-radon
-P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r);
-P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r);
+P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r,beta)/Ns^2;
+P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r)/Ns^3;
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));

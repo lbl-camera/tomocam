@@ -15,6 +15,7 @@
 #define	KLUT     prhs[3]
 #define	KLUTS     prhs[4]
 #define	KR     prhs[5]
+#define	KB     prhs[6]
 
 
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -64,6 +65,18 @@ __device__ float kb_weight(float grid_pos, float point_pos,
 }
 
 
+__device__ float kb_weight_a(float grid_pos, float point_pos,
+				    int k_r,   float kbeta){
+  float dist_x = fabs(grid_pos-point_pos);
+ 
+  if(dist_x<k_r){
+    dist_x*=2/k_r;
+    dist_x*=dist_x;
+  return     cyl_bessel_i0f(kbeta* sqrtf( 1-dist_x ));
+  }
+  return 0.0f;
+}
+
 
 __device__ float kb_weight(float2 grid_pos, float2 point_pos,
 				    int kb_table_size,
@@ -90,6 +103,7 @@ __global__ void cuda_sample_kernel(cusp::complex<float> * point_pos,
 				   int kb_table_size,
 				   float kb_table_scale,
 				   float kernel_radius,
+				   float kernel_beta,
 				    cusp::complex<float> * sample_value){
   int i = threadIdx.x + blockIdx.x*blockDim.x;
   if(i < npoints){
@@ -103,20 +117,14 @@ __global__ void cuda_sample_kernel(cusp::complex<float> * point_pos,
 	continue;
       }
       float  kby=kb_weight(y,sy,kb_table_size,kb_table_scale);
-
+      //float  kby=kb_weight_a(y,sy,kernel_radius,kernel_beta);
+ 
       for(int x = max(0.0f,ceil(sx-kernel_radius));x<= min(floor(sx+kernel_radius),grid_size.x-1.0f);x++){
 	if(x < 0 || x > grid_size.x-1){
 	  continue;
 	}
-	
-	/*
-	sample_value[i] += grid_value[y*grid_size.x+x]*
-	  kb_weight(make_float2(x,y),
-		    make_float2(point_pos_x[i], point_pos_y[i]),
-		    kb_table_size,
-		    kb_table_scale);
-	*/
-		sv += grid_value[y*grid_size.x+x]*kby*kb_weight(x,sx,kb_table_size, kb_table_scale);
+	sv += grid_value[y*grid_size.x+x]*kby*kb_weight(x,sx,kb_table_size, kb_table_scale);
+	//sv += grid_value[y*grid_size.x+x]*kby*kb_weight_a(x,sx,kernel_radius, kernel_beta);
 	
       }
     }  
@@ -131,7 +139,7 @@ void cuda_sample(cusp::complex<float> * point_pos,
 		 float * kb_table,
 		 int kb_table_size,
 		 float kb_table_scale,
-		 float kernel_radius,		 
+		 float kernel_radius, float kernel_beta,		 
 		 cusp::complex<float> * sample_value){
   cudaMemset(sample_value,0,sizeof( cusp::complex<float>)*npoints);
 
@@ -145,18 +153,16 @@ void cuda_sample(cusp::complex<float> * point_pos,
   int block_size = BLOCKSIZE;
   int grid = (npoints+block_size-1)/block_size;
   clock_t t_i = clock();
-  int iter = 1;
-  for(int i = 0;i<iter;i++){
     cuda_sample_kernel<<<grid,block_size>>>( point_pos,
 					     grid_value, npoints, 
 					     grid_size,
 					     kb_table_size,
 					     kb_table_scale,
-					     kernel_radius,
+					     kernel_radius,kernel_beta,
 					     sample_value);
     cudaThreadSynchronize();
     
-  }
+
   clock_t t_e = clock();
   error_handle();
   //  printf("%d iter in %5.1f ms\n",iter,(t_e-t_i)*1000.0/CLOCKS_PER_SEC);
@@ -183,6 +189,7 @@ mwSize *grid_dim=(mwSize *)grid_dim0;
 
 float kernel_lookup_table_scale = mxGetScalar(KLUTS);
 float  kernel_radius = mxGetScalar(KR);
+float  kernel_beta = mxGetScalar(KB);
 
 
 // 
@@ -229,7 +236,7 @@ cusp::complex<float> * d_samples_values = ( cusp::complex<float> *)(mxGPUGetData
  	       d_kernel_lookup_table,
 	       kernel_lookup_table_size,
 	       kernel_lookup_table_scale,
-           kernel_radius,
+	      kernel_radius, kernel_beta,
 	       d_samples_values);  
 
   // GET OUTPUT

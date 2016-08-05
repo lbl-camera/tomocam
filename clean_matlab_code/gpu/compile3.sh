@@ -8,5 +8,8 @@ flags2='-L/usr/local/cuda/lib64 -lcudart -L/usr/local/MATLAB/R2015b/bin/glnxa64/
 #/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsample_transposev2.o  ${flags2}
 
 /usr/local/cuda/bin/nvcc ${flags1} polarsamplev2.cu
-/usr/local/MATLAB/R2015b/bin/mex -cxx polarsamplev2.o  ${flags2}
+/usr/local/MATLAB/R2015a/bin/mex  -cxx polarsamplev2.o  ${flags2}
+
+/usr/local/cuda/bin/nvcc ${flags1} kb.cu
+/usr/local/MATLAB/R2015a/bin/mex  -cxx kb.o  ${flags2}
  
