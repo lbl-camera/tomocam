@@ -73,6 +73,7 @@ end
 %D=D/sum(sum(KB(-nj:nj)'*KB(-nj:nj)));
 D=D/D(1);
 
+
 %ccc=sum(KB(-nj:nj))
 
 %shift the index to the center of a Ns by Ns array

@@ -85,7 +85,7 @@ projection = gpuArray(zeros(Ns,nangles,num_slice));
 i=1; projection(:,:,i)=(Ns.*pi/2).*P.gnuradon(signal(:,:,i));    
 % now time it
 tic;
-for i=1;%:num_slice
+for i=1:num_slice
     %projection(:,:,i)=(Ns.*pi/2).*P.image2radon(squeeze(signal(:,:,i)));
      projection(:,:,i)=(pi/2)*P.gnuradon(signal(:,:,i));
 end
@@ -118,7 +118,7 @@ end
 
 figure;
 imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
-ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, time=%g',nangles,Ns,t_gnuradon);
+ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuradon);
 title(ss_gnuradon);
 fprintf([ss_gnuradon '\n']);
 
@@ -126,7 +126,7 @@ fprintf([ss_gnuradon '\n']);
 figure;
 %imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
 imagesc(abs(squeeze(test_backproj(:,:,1))));cax=caxis;caxis([0 cax(2)]);colormap(gray);colorbar;
-ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, time=%g',nangles,Ns,t_gnuiradon);
+ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuiradon);
 title(ss_gnuiradon);
 fprintf([ss_gnuiradon '\n']);
 
