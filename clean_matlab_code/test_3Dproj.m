@@ -9,23 +9,17 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-<<<<<<< HEAD
 num_slice = 10;
-Ns_actual = 2560;
-=======
-num_slice = 1;
-%Ns_actual = 2560;
-Ns_actual = 2560/256;
->>>>>>> 40c64a4d0264dd20b55cdb8b19ac59b51300b116
+Ns_actual = 2560/2;
 
-nangles = 256*16;
+nangles = 256*2;
 %Ns_pad = 4096;
-center_actual = 1280/256;%sub pixels 
+center_actual = 1280/2;%sub pixels 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=3624/2;
+Ns=2560;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 %temp=zeros(Ns_actual,Ns_actual);
@@ -45,7 +39,7 @@ signal_ML = gpuArray(repmat(phantom(Ns_actual),1,1,num_slice));
 
 
 %%%%%%%%%% Forward-projection %%%%%% 
-if true
+if false
 display('Projecting using Matlab');
 projection_ML = gpuArray(zeros(Ns+1,nangles,num_slice));
 tic;
@@ -77,11 +71,8 @@ delta_xy=1;
 %[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
 [P]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
-<<<<<<< HEAD
-=======
 bwidth=real((sum(P.kblut.^2.*(1:numel(P.kblut)))/sum(P.kblut.^2)/numel(P.kblut))*16);
 
->>>>>>> 40c64a4d0264dd20b55cdb8b19ac59b51300b116
 %[Ps]=gnufft_init_spmv_op_v3(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 %[~,~,Ps,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,beta,k_r,center,ones(size(qq)),delta_r,delta_xy,Ns);
 
@@ -107,20 +98,16 @@ test_backproj=gpuArray(zeros(Ns,Ns,num_slice));
 i=1;test_backproj(:,:,i) = P.gnuiradon(projection(:,:,i));
 % now time it
 tic;
-<<<<<<< HEAD
 for i=1:num_slice
-	test_backproj(:,:,i) = (Ns_actual)*(pi/2)*P.gnuiradon(projection(:,:,i));
-=======
-for i=1;%:num_slice
+%	test_backproj(:,:,i) = (Ns_actual)*(pi/2)*P.gnuiradon(projection(:,:,i));
     test_backproj(:,:,i) = P.gnuiradon(projection(:,:,i));
->>>>>>> 40c64a4d0264dd20b55cdb8b19ac59b51300b116
 end
 t_gnuiradon=toc;
-test_backproj=test_backproj/bwidth;
+%test_backproj=test_backproj/bwidth;
 
 %% plot and comparison
 
-if true
+if false
 figure;
 imagesc(real(squeeze(projection_ML(:,:,1))));colormap(gray);colorbar;
 title('Matlab projection');
