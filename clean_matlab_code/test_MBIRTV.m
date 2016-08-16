@@ -11,11 +11,9 @@ gpuDevice(2);
 file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
 %ShepLogan_2560_2049_dose5000_noise_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
-
 grnd_truth = phantom(2560);%2560
 grnd_truth(grnd_truth < 0)=0;
 grnd_truth=grnd_truth*10e-3;
-
  
 load(file_name);
 % 

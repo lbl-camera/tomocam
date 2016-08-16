@@ -70,7 +70,9 @@ for ii=1:nb+2;
     indD=indD+length(jj_in);
 end
 % normalization of the kernel...
-D=D/sum(sum(KB(-nj:nj)'*KB(-nj:nj)));
+%D=D/sum(sum(KB(-nj:nj)'*KB(-nj:nj)));
+D=D/D(1);
+
 
 %ccc=sum(KB(-nj:nj))
 
