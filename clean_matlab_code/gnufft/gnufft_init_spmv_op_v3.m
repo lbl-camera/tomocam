@@ -122,28 +122,28 @@ P.gnuiradon=@(GI) P.rxyXqxy(P.qxyXqt(bsxfun(@times,P.qtXrt(GI),P.giDq)));
 % % inverse qradon transform: (q theta) to (qx qy) to (x y)
 % gnuqiradon=@(GI) P.rxyXqxy(P.qxyXqt(GI.*P.gDq));
 % 
-% op = @(x,mode) opRadon_intrnl(x,mode);
+P.op = @(x,mode) opRadon_intrnl(x,mode);
 % 
 % 
 % P.opprefilter = @(x,mode) opPrefilter_intrnl(x,mode);
 % %P.opprefilter = @(x,mode) opIdentity_intrnl(x,mode);
 % 
 % 
-%     function y =opRadon_intrnl(x,mode)
-%         checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
-%         if mode == 0
-%             y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
-%         elseif mode == 1
-%             %y=gnuqradon(reshape(x,grid));
-%             y=P.gnuradon(reshape(x,grid)).*P.weight.';
-%             y=y(:);
-%         else
-%             y=P.gnuiradon(reshape(x,[Ns nangles]).*P.weight.');
+     function y =opRadon_intrnl(x,mode)
+         checkDimensions(nangles*Ns,Ns*Ns,x(:),mode);
+         if mode == 0
+             y = {nangles*Ns,Ns*Ns,[1,1,1,1],{'GNURADON'}};
+         elseif mode == 1
+             %y=gnuqradon(reshape(x,grid));
+             y=P.gnuradon(reshape(x,grid)).*P.weight.';
+             y=y(:);
+         else
+             y=P.gnuiradon(reshape(x,[Ns nangles]).*P.weight.');
 % %                        y=gnuqiradon(reshape(x,[Ns nangles]));
-%             y=y(:);
-%         end
+             y=y(:);
+         end
 %         
-%     end
+     end
 % 
 %     function y =opPrefilter_intrnl(x,mode)
 %         checkDimensions(nangles*Ns,nangles*Ns,x,mode);

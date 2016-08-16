@@ -39,13 +39,13 @@ col=@(x) x(:);
 %vander2=@(x)[ x.^2  ]';
 %vander2=@(x)[x.^2 x.^1 x.^0]';
 %V=vander2(single(gpuArray.linspace(0,1,nangles)'/nangles));
-vander2=@(x)[ x.^0  ]';
+vander2=@(x)[ ((x)+eps).^0  ]';
 
-V=vander2(single(gpuArray.linspace(0,1,nangles)'/nangles))';
+V=real(vander2(single(gpuArray.linspace(0,1,nangles)'/nangles))');
 
 % make polynomial filter: I-V'*(V*V')^(-1)*V;
 %Pfilt2=gpuArray.eye(nangles)-V'*(V*V')^(-1)*V;
-Pfilt2=gpuArray.eye(nangles)-V*(V'*V)^(-1)*V';
+Pfilt2=gpuArray.eye(nangles)-V*(V'*V)\V';
 %Pfilt2=gpuArray.eye(nangles);
 
 if nargin < 4

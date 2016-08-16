@@ -40,13 +40,13 @@ forward_model.center = forward_model.center + (forward_model.Npad/2-Nr/2);
 
 [tt,qq]=meshgrid(forward_model.angle_list,(1:(Ns))-floor((Ns+1)/2)-1);
 %[~,~,P,opGNUFFT]=gnufft_init_spmv_op_v2(Ns,qq,tt,forward_model.beta,forward_model.k_r,forward_model.center,weight,forward_model.pix_size,forward_model.det_size,Nr);
-[~,~,P,opGNUFFT]=gnufft_init_op_v2(Ns,qq,tt,forward_model.beta,forward_model.k_r,forward_model.center,weight,forward_model.pix_size,forward_model.det_size,Nr);
-opFPolyfilter = opFPolyfit(nangle,Ns);
+[P]=gnufft_init_spmv_op_v3(Ns,qq,tt,forward_model.beta,forward_model.k_r,forward_model.center,weight,forward_model.pix_size,forward_model.det_size,Nr);
+opPolyfilter = opPolyfit(nangle,Ns);
 
 data.signal = gpuArray(init);
-data.M=opFoG(opGNUFFT);
+data.M=opFoG(P.op);%GNUFFT);
 if(forward_model.ring_corr)
-    data.M=opFoG(opFPolyfilter,opGNUFFT);
+    data.M=opFoG(opPolyfilter,P.op);%GNUFFT);
 end
 real_data = gpuArray(projection.');
 %data.b=P.opprefilter(real_data(:),2);

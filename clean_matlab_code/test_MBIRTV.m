@@ -2,15 +2,15 @@
 clc;
 clear;
 close all;
-addpath operators
-addpath gpu
-addpath gnufft
+addpath operators;
+addpath gpu;
+addpath gnufft;
 addpath Common;
 reset(gpuDevice(2));
 gpuDevice(2);
-file_name ='/home/svvenkatakrishnan/data/ShepLogan_2560_2049_dose5000_noise_1.mat';
+file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
+%ShepLogan_2560_2049_dose5000_noise_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
-%20130807_234356_OIM121R_SAXS_5x.mat';
 
 grnd_truth = phantom(2560);%2560
 grnd_truth(grnd_truth < 0)=0;
@@ -19,7 +19,7 @@ grnd_truth=grnd_truth*10e-3;
  
 load(file_name);
 % 
-projection = projection(1:2:2048,1:end-1);
+%projection = projection(1:2:2048,1:end-1);
 %projection = projection(1:2:end,1:end);
 weight =ones(size(projection));
 %(noisy_data(1:2:end,1:end-1));
@@ -30,7 +30,6 @@ weight =ones(size(projection));
 % img(:,end/4)=1;
 % img(:,3*end/4)=1;
 % projection = projection + (.05*max(projection(:))).*img;
-
 
  num_angles=size(projection,1);
  angle_list = 0:180/num_angles:180-180/num_angles;
@@ -47,11 +46,11 @@ weight =ones(size(projection));
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center = 1280;%1280;%128;%1280;%1294;%1280;%1294;
+formodel.center = 1294;%1280;%128;%1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
 formodel.Npad = 3200;%4000;%512;%3000;%3200;%3200;
-formodel.ring_corr = 0;
+formodel.ring_corr = 1;
 formodel.angle_list = angle_list;
 
 %KB window params 
@@ -59,7 +58,7 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param =  2.5;
+prior.reg_param =  2.5/8000;
 
 %Solver params
 opts.maxIts           = 500;%Max iterations of cost-function 
@@ -93,12 +92,12 @@ recon_original_size = real(recon(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -
 x0 = real(x0(formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ,formodel.Npad/2 - Nr/2:formodel.Npad/2 + Nr/2 -1 ));
 %imagesc(recon_original_size.');axis image;colormap(gray);colorbar;
 
-recon_original_size = flipud(recon_original_size.');
+recon_original_size = flipud(recon_original_size.')*Nr*Nr*pi*pi/2;%*Nr/(pi*pi);
 x0 = flipud(x0.');
 
 %rescale values for projector 
 x0=x0.*(Nr/pi);
-recon_original_size=recon_original_size.*(Nr/(pi*pi));
+recon_original_size=recon_original_size;%*(Nr/(pi*pi));
 
 
 figure;imagesc(grnd_truth);axis image;colormap(gray);colorbar;title('Ground truth');
