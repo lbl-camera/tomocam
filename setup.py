@@ -59,11 +59,10 @@ ext = Extension('gnufft',
                 sources=[
                     'cuda/pyGnufft.cc',
                     'cuda/afnumpyapi.cc',
-                    'cuda/debug.cu',
-                    'cuda/cuda_sample.cu',
-                    'cuda/polarbin.cc',
                     'cuda/polarsample.cc',
-                    'cuda/polargrid.cc'
+                    'cuda/polarsample_transpose.cc',
+                    'cuda/cuPolarsample.cu',
+                    'cuda/cuPolarsampleTranspose.cu'
                 ],
                 library_dirs=[CUDA['lib64']],
                 libraries=['afcuda', 'cudart'],

@@ -4,9 +4,9 @@
 
 #include <Python.h>
 
-PyObject * cPolarBin(PyObject *, PyObject *);
-PyObject * cPolarSample(PyObject *, PyObject *);
-PyObject * cPolarGrid(PyObject *, PyObject *);
+//PyObject * cPolarBin (PyObject *, PyObject *);
+PyObject * cPolarSample (PyObject *, PyObject *);
+PyObject * cPolarSampleTranspose (PyObject *, PyObject *);
 
 #if DEBUG
 PyObject * cDebug(PyObject *, PyObject *);
