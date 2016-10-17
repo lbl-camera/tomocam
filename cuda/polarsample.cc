@@ -11,7 +11,7 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     PyObject *pyPtPos, *pyGridVals, *pyKernelLUT;
     float kernel_radius, kernel_lookup_table_scale;
 
-    if (!(PyArg_ParseTuple(prhs, "OOOOOff", 
+    if (!(PyArg_ParseTuple(prhs, "OOOff", 
                     &pyPtPos, 
                     &pyGridVals, 
                     &pyKernelLUT, 
@@ -36,6 +36,16 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     float * kernel_lookup_table = (float *) PyAfnumpy_DevicePtr(pyKernelLUT);
     int kernel_lookup_table_size = PyAfnumpy_Size(pyKernelLUT);
 
+#ifdef DEBUG
+    /* check the values */
+    fprintf(stderr, "kernel_lookup_table_size = %d.\n", kernel_lookup_table_size);
+    float * kblut = (float *) malloc(sizeof(float) * kernel_lookup_table_size);
+    cudaMemcpy(kblut, kernel_lookup_table, kernel_lookup_table_size * sizeof(int), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 10; i++)
+        fprintf(stderr, "%f, ", kblut[i]); fflush(stderr);
+#endif // DEBUG
+
+
     // Output: Intesity values on polar-grid 
     complex_t * samples_values;
     cudaMalloc(&samples_values, sizeof(complex_t) * npoints);
@@ -46,9 +56,14 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
                 kernel_lookup_table_scale, kernel_radius, samples_values);
 
     // GET OUTPUT
-    int nd = 1;
-    dims[0] = npoints;
-    dims[1] = 1;
+    int nd = 2;
+    dims[0] = PyAfnumpy_Dims(pyPtPos, 0);
+    dims[1] = PyAfnumpy_Dims(pyPtPos, 1);
     PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, samples_values, true);
+
+    // decrese reference counts
+    Py_DECREF(pyPtPos);
+    Py_DECREF(pyGridVals);
+    Py_DECREF(pyKernelLUT);
     return out;
 }

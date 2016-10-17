@@ -12,6 +12,7 @@ enum DataType {
 };
 
 int         PyAfnumpy_Size(PyObject *);
+int         PyAfnumpy_NumOfDims(PyObject *);
 int         PyAfnumpy_Dims(PyObject *, int );
 DataType    PyAfnumpy_Type(PyObject *);
 void *      PyAfnumpy_DevicePtr (PyObject * in);

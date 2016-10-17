@@ -27,6 +27,18 @@ int PyAfnumpy_Size(PyObject * in){
     return -1;
 }
 
+int PyAfnumpy_NumOfDims(PyObject * in){
+    if (PyObject_HasAttrString(in, "shape")){
+        PyObject * shape = PyObject_GetAttrString(in, "shape");
+        if (PyTuple_Check(shape)){
+            Py_ssize_t len = PyTuple_Size(shape);
+            return (size_t) len;
+        }
+        return -1;
+    }
+    return -1;
+}
+
 int PyAfnumpy_Dims(PyObject * in, int i){
     if (PyObject_HasAttrString(in, "shape")){
         PyObject * shape = PyObject_GetAttrString(in, "shape");
@@ -50,7 +62,17 @@ void * PyAfnumpy_DevicePtr(PyObject * in){
         // get shape, dims and device_ptr
         PyObject * d_array = PyObject_GetAttrString(in, "d_array");
         PyObject * pointer = PyObject_CallMethod(d_array, (char *) "device_ptr", NULL);
-        void * buf = PyLong_AsVoidPtr(pointer);
+        void * buf = NULL;
+        if (PyLong_Check(pointer) || PyInt_Check(pointer))
+            buf = PyLong_AsVoidPtr(pointer);
+        else {
+            PyObject * attrval = PyObject_GetAttrString(pointer, "value");
+            if (PyLong_Check(attrval) || PyInt_Check(attrval)) 
+                buf = PyLong_AsVoidPtr(attrval);
+            else
+               fprintf(stderr, "Error: failed to read the device pointer.\n");
+            Py_DECREF(attrval); 
+        }
         if (!buf) {
             // try the host memory
             fprintf(stderr, "Warning: device_ptr is NULL. Now copying data to device.\n");
@@ -136,7 +158,7 @@ PyObject * PyAfnumpy_FromData(int dims_size, int * dims, DataType type,
             void * buffer, bool is_device){
 
     /* Build an arryfire object-type before everything */
-    PyObject * d_array = PyArrayfire_FromData(dims_size, dims, type, buffer, is_device);
+    //PyObject * d_array = PyArrayfire_FromData(dims_size, dims, type, buffer, is_device);
 
     PyObject * shape = PyTuple_New(dims_size);
     for (int i = 0; i < dims_size; i++)
@@ -177,14 +199,36 @@ PyObject * PyAfnumpy_FromData(int dims_size, int * dims, DataType type,
     }
 
     /* build afnumpy from arrayfire array */
-    PyObject * af = PyString_FromString("afnumpy");
-    PyObject * afmod = PyImport_Import(af);
-    PyObject * afnumpy = PyModule_GetDict(afmod);
-    PyObject * af_array = PyDict_GetItemString(afnumpy, "ndarray");
+    PyObject * module = PyString_FromString("afnumpy");
+    PyObject * afnumpy = PyImport_Import(module);
+    PyObject * ndarray = NULL;
+    if (PyObject_HasAttrString(afnumpy, "ndarray"))
+        ndarray = PyObject_GetAttrString(afnumpy, "ndarray");
+    else {
+        // clean-up and return 
+        Py_DECREF(shape);
+        Py_DECREF(af_type);
+        Py_DECREF(module);
+        Py_DECREF(afnumpy);
+        fprintf(stderr,"error: could not load module or attribute error.\n");
+        return NULL;
+    }
 
-
-    PyObject * args = PyTuple_New(7);
+    PyObject * args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, shape);
+
+    PyObject * kwargs = PyDict_New();
+    PyObject * key = Py_BuildValue("s", "buffer");
+    PyObject * val = PyLong_FromVoidPtr(buffer);
+    PyDict_SetItem(kwargs, key, val);
+    key = Py_BuildValue("s", "buffer_type");
+    val = Py_BuildValue("s", "cuda");
+    PyDict_SetItem(kwargs, key, val);
+     
+
+    PyObject *out = PyObject_Call(ndarray, args, kwargs);
+
+    /*
     PyTuple_SetItem(args, 1, af_type);
     PyTuple_SetItem(args, 2, Py_None);
     PyTuple_SetItem(args, 3, PyLong_FromLong(0));
@@ -192,12 +236,14 @@ PyObject * PyAfnumpy_FromData(int dims_size, int * dims, DataType type,
     PyTuple_SetItem(args, 5, Py_None);
     PyTuple_SetItem(args, 6, d_array);
     PyObject * out = PyObject_CallObject(af_array, args);
-    Py_DECREF(args);
+    */
 
     // relese new references
-    Py_DECREF(af);
-    Py_DECREF(afmod);
-
+    Py_DECREF(args);
+    Py_DECREF(kwargs);
+    Py_DECREF(module);
+    Py_DECREF(afnumpy);
+    Py_DECREF(ndarray);
     if (!out) {
         fprintf(stderr, "error: failed to create afnumpy array");
         return NULL;

@@ -61,7 +61,8 @@ void polarsample(complex_t * point_pos,
   cudaMemset(sample_value,0,sizeof( complex_t)*npoints);
   cudaBindTexture(&offset,texRef, kb_table, sizeof(float)*kb_table_size);
   if(offset != 0){
-    printf("Error: Texture offset different than zero. Table not allocated with cudaMalloc!\n");
+    fprintf(stderr, "offset = %u.\n", offset);
+    fprintf(stderr, "Table not allocated with cudaMalloc!\n");
     return;
   }
 

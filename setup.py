@@ -68,7 +68,7 @@ ext = Extension('gnufft',
                 libraries=['afcuda', 'cudart'],
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64']],
-                #extra_compile_args=[ '-g', '-O0' ],
+                #extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
