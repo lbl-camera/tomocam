@@ -224,19 +224,11 @@ PyObject * PyAfnumpy_FromData(int dims_size, int * dims, DataType type,
     key = Py_BuildValue("s", "buffer_type");
     val = Py_BuildValue("s", "cuda");
     PyDict_SetItem(kwargs, key, val);
+    key = Py_BuildValue("s", "dtype");
+    PyDict_SetItem(kwargs, key, af_type);
      
 
     PyObject *out = PyObject_Call(ndarray, args, kwargs);
-
-    /*
-    PyTuple_SetItem(args, 1, af_type);
-    PyTuple_SetItem(args, 2, Py_None);
-    PyTuple_SetItem(args, 3, PyLong_FromLong(0));
-    PyTuple_SetItem(args, 4, Py_None);
-    PyTuple_SetItem(args, 5, Py_None);
-    PyTuple_SetItem(args, 6, d_array);
-    PyObject * out = PyObject_CallObject(af_array, args);
-    */
 
     // relese new references
     Py_DECREF(args);

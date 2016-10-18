@@ -17,7 +17,6 @@ __device__ float kb_weight1(float grid_pos, float point_pos,
   return 0.0f;
 }
 
-
 __global__ void polarsample_kernel(complex_t * point_pos,
 				   complex_t * grid_value, 
 				   int npoints, uint2 grid_size,
@@ -25,27 +24,37 @@ __global__ void polarsample_kernel(complex_t * point_pos,
 				   float kb_table_scale,
 				   float kernel_radius,
 				    complex_t * sample_value){
-  int i = threadIdx.x + blockIdx.x*blockDim.x;
-  if(i < npoints){
-    complex_t sv= make_cuFloatComplex(0.f, 0.f);
-    float sx = point_pos[i].x;
-    float sy = point_pos[i].y;
+    int i = threadIdx.x + blockIdx.x*blockDim.x;
+    if(i < npoints){
 
-    int y = max(0, (int) ceil(sy - kernel_radius));
-    float ymax = min(floor(sy + kernel_radius), grid_size.y - 1.f);
+        // initialize sample values
+        complex_t sv= make_cuFloatComplex(0.f, 0.f);
+
+        // point positions
+        float sx = point_pos[i].x;
+        float sy = point_pos[i].y;
+
+        // y-coord at the grid position in nbhd of current point
+        int y = max(0, (int) ceil(sy - kernel_radius));
+        int ymax = min((int) floor(sy + kernel_radius), (grid_size.y - 1));
 
 
-    for ( ; y < ymax; y++ ) {
-      if (y < 0 || y > grid_size.y-1) continue; 
-      float  kby = kb_weight1(y, sy, kb_table_size, kb_table_scale);
+        for ( ; y < ymax; y++ ) {
+            if (y < 0 || y > grid_size.y-1) continue; 
+
+            // calculate weight at y-coord
+            float  kby = kb_weight1((float) y, sy, kb_table_size, kb_table_scale);
  
-      int x = max(0, (int)ceil(sx - kernel_radius));
-      float xmax = min(floor(sx + kernel_radius), grid_size.x - 1.f);
-      for(; x < xmax; x++)
-	    sv += grid_value[y*grid_size.x+x]*kby*kb_weight1(x,sx,kb_table_size, kb_table_scale);
+            // y-coord at the grid position in nbhd of current point
+            int x = max(0, (int) ceil(sx - kernel_radius));
+            int xmax = min((int) floor(sx + kernel_radius), (grid_size.x - 1));
+            for(; x < xmax; x++) {
+                float kbx = kb_weight1((float) x, sx, kb_table_size, kb_table_scale);
+	            sv = sv + grid_value[y*grid_size.x+x]; // * kby * kbx;
+            }
+        }
+        sample_value[i] = sv;
     }
-    sample_value[i] = sv;
-  }
 }
 
 void polarsample(complex_t * point_pos,

@@ -5,19 +5,16 @@
 #include <cuda_runtime_api.h>
 #include <cuComplex.h>
 
-/* typedefs */
-typedef cuFloatComplex complex_t;
 
 /* constants */
 const int BLOCKSIZE = 256;
 const int GRIDSIZE = 4096 * 4;
 const int SHARED_SIZE = 256;
 const int SUM_SIZE = 256;
-const complex_t CMPLX_ZERO = make_cuFloatComplex(0.f, 0.f);
 
 
 /* MACROS */
-#define __cudafyit__ __device__ static __inline__ 
+#define __cudafyit__ __device__ __inline__ static 
 
 /* error handeling */
 __inline__ void error_handle(cudaError_t status = cudaErrorLaunchFailure);
@@ -33,16 +30,32 @@ __inline__ void error_handle(cudaError_t status){
 
 
 /* function overloads */
+
+// multiply by scalar to the right
 __cudafyit__ cuFloatComplex operator* (cuFloatComplex a, float b) {
     return make_cuFloatComplex(a.x * b, a.y * b);
 }
 
-__cudafyit__ cuFloatComplex operator += (cuFloatComplex a, cuFloatComplex b) {
-    return make_cuFloatComplex(a.x + b.x, a.y + b.y);
+// multiply scalar to the left
+__cudafyit__ cuFloatComplex operator* (float a, cuFloatComplex b) {
+    return make_cuFloatComplex(b.x * a, b.y * a);
 }
 
+// addition
+__cudafyit__ cuFloatComplex operator + (cuFloatComplex a, cuFloatComplex b) {
+    return cuCaddf(a, b);
+}
+
+// typedefs
+typedef cuFloatComplex complex_t;
+const complex_t CMPLX_ZERO = make_cuFloatComplex(0.f, 0.f);
+
+// cuda calls
+
+// TODO document
 void polarsample(complex_t *, complex_t * , int , uint2 , float *, int, float, float, complex_t *);
 
+// TODO document
 void polarsample_transpose(complex_t *, complex_t * , int , uint2 , float *, int, float, float, complex_t *);
 
 

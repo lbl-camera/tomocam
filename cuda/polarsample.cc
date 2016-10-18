@@ -43,6 +43,7 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
     cudaMemcpy(kblut, kernel_lookup_table, kernel_lookup_table_size * sizeof(int), cudaMemcpyDeviceToHost);
     for (int i = 0; i < 10; i++)
         fprintf(stderr, "%f, ", kblut[i]); fflush(stderr);
+    fprintf(stderr, "\n\n");
 #endif // DEBUG
 
 
@@ -55,15 +56,19 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
                 kernel_lookup_table, kernel_lookup_table_size,
                 kernel_lookup_table_scale, kernel_radius, samples_values);
 
+#ifdef DEBUG
+    /* check the values from kernel */
+    fprintf(stderr, "output values: \n");
+    complex_t disp[10];
+    cudaMemcpy(disp, samples_values, sizeof(complex_t) * 10, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 10; i++) fprintf(stderr, "(%f, %f), ", disp[i].x, disp[i].y);
+    fprintf(stderr, "\n\n");
+#endif
+
     // GET OUTPUT
     int nd = 2;
     dims[0] = PyAfnumpy_Dims(pyPtPos, 0);
     dims[1] = PyAfnumpy_Dims(pyPtPos, 1);
     PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, samples_values, true);
-
-    // decrese reference counts
-    Py_DECREF(pyPtPos);
-    Py_DECREF(pyGridVals);
-    Py_DECREF(pyKernelLUT);
     return out;
 }

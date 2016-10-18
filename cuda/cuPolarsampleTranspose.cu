@@ -36,14 +36,14 @@ __global__ void polarsample_transpose_kernel(const complex_t * point_pos,
     float sy=pp.y;
 
     int y = max(0, (int) ceil(sy - kernel_radius));
-    float ymax = min(floor(sy + kernel_radius), grid_size.y - 1.f);
+    int ymax = min((int) floor(sy + kernel_radius), grid_size.y - 1);
     for( ; y < ymax; y++ ) {
       if(y < 0 || y > grid_size.y-1) continue; 
-      complex_t svy=sv*kb_weight(y,sy,kb_table_size,kb_table_scale);
+      complex_t svy = sv * kb_weight((float) y, sy, kb_table_size, kb_table_scale);
       int x = max(0, (int) ceil(sy - kernel_radius));
-      float xmax = min(floor(sx + kernel_radius), grid_size.x - 1.f);
+      int xmax = min((int) floor(sx + kernel_radius), grid_size.x - 1);
       for( ; x < xmax; x++ )
-          svy = svy * kb_weight(x, sx, kb_table_size, kb_table_scale);
+          svy = svy * kb_weight((float) x, sx, kb_table_size, kb_table_scale);
 	    atomicAdd(grid_value[y*grid_size.x+x],  svy);
     }
   }

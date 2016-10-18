@@ -10,11 +10,17 @@ def afnp_rand(n1, n2=1):
     return afnp.ndarray((n1, n2), dtype=np.float32, af_array=arr)
 
 
-pts = afnp.ndarray((512, 128), dtype=np.complex, af_array=af.randu(128, 512, dtype=af.Dtype.c32))
-cplx = afnp.ndarray((512, 512), dtype=np.complex, af_array=af.randu(512, 512, dtype=af.Dtype.c32))
-kblut = afnp.ndarray((128,1), dtype=np.float, af_array=af.randu(1, 128, dtype=af.Dtype.f32)) 
+pts = afnp.ndarray((512, 128), dtype=np.complex64, af_array=af.randu(128, 512, dtype=af.Dtype.c32))
+cplx = afnp.ndarray((512, 512), dtype=np.complex64, af_array=af.randu(512, 512, dtype=af.Dtype.c32))
+kblut = afnp.ndarray((128,1), dtype=np.float32, af_array=af.randu(1, 128, dtype=af.Dtype.f32)) 
 #print kblut[:10]
 scale = 12
 k_r = 3
 res = gnufft.polarsample(pts, cplx, kblut, scale, k_r)
-print res
+print res.shape
+print res.size
+print res.dtype
+n = res.shape[0]
+row = afnp.ndarray((n,1), dtype=np.float32, af_array=af.randu(1,n,dtype=af.Dtype.f32))
+print row.shape
+res * row
