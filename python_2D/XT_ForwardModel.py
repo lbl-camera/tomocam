@@ -1,3 +1,5 @@
+#Fuction to implement the tomographic forward and back-projection kernel in python
+
 import gnufft 
 import math
 import numpy as np
@@ -7,30 +9,35 @@ import scipy.special as sc_spl #For bessel functions
 import tomopy
 import matplotlib.pyplot as plt
 from XT_Common import padmat
+import ipdb
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
     #       : params - a list containing all parameters for the NUFFT 
 
-    x1 = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
+    qxyXrxy = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
     
-    x2 = gnufft.polarsample(params['gxi'],params['gyi'],x1,params['grid'],params['gkblut'],params['scale'],params['k_r']); #Fourier space to polar coordinates interpolation (qxy to qt)
+    qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
 
-    x3 = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+
+    rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
 #    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
-    return x3 
+    return rtXqt 
 
 def back_project(y,params):
     #inputs : y - afnumpy array containing the complex valued array with size of the sinogram 
     #       : params - a list containing all parameters for the NUFFT 
 
-    y1 = params['fftshift1D_center'](af_fft.fft(params['fftshift1D'](y))) #Detector space rt to Fourier space qt
+    qtXrt = params['fftshift1D_center'](af_fft.fft(params['fftshift1D'](y))) #Detector space rt to Fourier space qt
 
-    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
+    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
+    ipdb.set_trace()
 
-    y3 = params['fftshift2D'](af_fft.ifft2(y2*params['fftshift2D']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+#    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
 
-    return y3 
+    rxyXqxy = params['fft2Dshift'](af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+
+    return rxyXqxy 
 
 
 def init_nufft_params(sino,geom):
@@ -46,7 +53,7 @@ def init_nufft_params(sino,geom):
     KBLUT_LENGTH = 256;
     SCALING_FACTOR = 1.7;#What is this ? 
     k_r=3 #kernel size 2*kr+1
-    beta =2*math.pi*2  
+    beta =4*math.pi  
     Ns = sino['Ns']
     Ns_orig = sino['Ns_orig']
     ang = sino['angles']
@@ -77,13 +84,14 @@ def init_nufft_params(sino,geom):
     # push parameters to gpu and initalize a few in-line functions 
     params['gxi'] = afnp.array(np.single(xi))
     params['gyi'] = afnp.array(np.single(yi))
+    params['gxy'] = params['gxi']+1j*params['gyi']
     params['gkblut'] = afnp.array(np.single(kblut))
     params['det_grid'] = np.array(np.reshape(np.arange(0,sino['Ns']),(sino['Ns'],1)))
     temp = afnp.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = np.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = afnp.array(temp2.reshape(1,sino['Ns']))
-    temp3 = afnp.exp(-1j*2*params['center']*(afnp.pi/params['Ns'])*params['det_grid']).astype(afnp.complex64)
-    temp4 = afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid']).astype(afnp.complex64)
+    temp3 = afnp.array(afnp.exp(-1j*2*params['center']*(afnp.pi/params['Ns'])*params['det_grid']).astype(afnp.complex64))
+    temp4 = afnp.array(afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid']).astype(afnp.complex64))
     params['fft2Dshift'] = temp*temp2
     params['fftshift1D'] = lambda x : temp*x
     params['fftshift1D_center'] = lambda x : temp3*x
@@ -92,7 +100,8 @@ def init_nufft_params(sino,geom):
 ################# Back projector params #######################
     xi = xi.astype(np.float32)
     yi = yi.astype(np.float32)
-    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r)
+    
+#    [s_per_b,b_dim_x,b_dim_y,s_in_bin,b_offset,b_loc,b_points_x,b_points_y] = gnufft.polarbin(xi,yi,params['grid'],4096*4,k_r)
 #    params['gs_per_b']=afnp.array(s_per_b,dtype=afnp.int64) #int64
 #    params['gs_in_bin']=afnp.array(s_in_bin,dtype=afnp.int64)
 #    params['gb_dim_x']= afnp.array(b_dim_x,dtype=afnp.int64)

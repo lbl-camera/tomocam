@@ -21,6 +21,7 @@ res = gnufft.polarsample(pts, cplx, kblut, scale, k_r)
 print res.shape
 print res.size
 print res.dtype
+print res
 n = res.shape[0]
 r = np.random.rand(n,1).astype(np.float32)
 row = afnp.ndarray((n,1), dtype=np.float32, buffer=r)
