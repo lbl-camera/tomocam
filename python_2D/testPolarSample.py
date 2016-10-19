@@ -4,6 +4,7 @@ import gnufft
 import numpy as np
 import afnumpy as afnp
 import arrayfire as af
+import ipdb
 
 def afnp_rand(n1, n2=1):
     arr = afnp.arrayfire.randu(n1, n2)
@@ -22,6 +23,7 @@ print res.size
 print res.dtype
 print res
 n = res.shape[0]
-row = afnp.ndarray((n,1), dtype=np.float32, af_array=af.randu(1,n,dtype=af.Dtype.f32))
+r = np.random.rand(n,1).astype(np.float32)
+row = afnp.ndarray((n,1), dtype=np.float32, buffer=r)
 print row.shape
-res * row
+row * res
