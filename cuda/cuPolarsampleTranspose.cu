@@ -40,7 +40,7 @@ __global__ void polarsample_transpose_kernel(const complex_t * point_pos,
         for( ; y < ymax; y++ ) {
             if(y < 0 || y > grid_size.y-1) continue; 
             complex_t svy = sv * kb_weight((float) y, sy, kb_table_size, kb_table_scale);
-            int x = max(0, (int) ceil(sy - kernel_radius));
+            int x = max(0, (int) ceil(sx - kernel_radius));
             int xmax = min((int) floor(sx + kernel_radius), grid_size.x - 1);
             for( ; x < xmax; x++ ) {
                 if(x < 0 || x > grid_size.x-1) continue; 
