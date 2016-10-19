@@ -4,10 +4,6 @@
 #include <cuda.h>
 #include <Python.h>
 
-#define NO_IMPORT_ARRAY
-#define PY_ARRAY_UNIQUE_SYMBOL gnufft_ARRAY_API
-#include <numpy/arrayobject.h>
-
 #include "afnumpyapi.h"
 #include "pyGnufft.h"
 #include "polarsample.h"
@@ -39,19 +35,42 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
     float * kernel_lookup_table = (float *) PyAfnumpy_DevicePtr(pyKernelLUT);
     int kernel_lookup_table_size = PyAfnumpy_Size(pyKernelLUT);
 
-    /* Grid Dimension is numpy array */
-    int * dims = (int *) PyArray_DATA(pyGridDims);
+    int dims[2]; 
+    int ndims = 2;
+    /* Grid Dimension is a list of ints */
+    if (PyList_Check(pyGridDims)){
+        if (ndims != (int) PyList_Size(pyGridDims)) {
+            fprintf(stderr,"Error: incorrect number or dimensions for output grid.\n");
+            return NULL;
+        }
+        dims[0] = PyInt_AsLong(PyList_GetItem(pyGridDims, (Py_ssize_t) 0));
+        dims[1] = PyInt_AsLong(PyList_GetItem(pyGridDims, (Py_ssize_t) 1));
+    } else {
+        fprintf(stderr, "Error: datatype for grid-dims must be a list.\n");
+        return NULL;
+    }
+
+#ifdef DEBUG
+    printf("grid_size : { %d, %d }\n", dims[0], dims[1]);
+#endif
     uint2 grid_size = { (unsigned) dims[0], (unsigned) dims[1] };
 
     // Output: Grid Values
-    complex_t * grid_values;
-    cudaMalloc((void **) &grid_values, sizeof(complex_t) * dims[0] * dims[1]);
+    size_t len = dims[0] * dims[1];
+    complex_t * grid_values = NULL;
+    cudaMalloc((void **) &grid_values, sizeof(complex_t) * len);
     polarsample_transpose(point_pos, sample_values, npoints, grid_size,
                 kernel_lookup_table, kernel_lookup_table_size,
                 kernel_lookup_table_scale, kernel_radius, grid_values);
 
+#ifdef DEBUG
+    if (!grid_values) fprintf(stderr, "Error: failed to allocate memory.");
+    complex_t disp[10];
+    cudaMemcpy(disp, grid_values, sizeof(complex_t)*10, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 10; i++) printf("(%f, %f)  ", disp[i].x, disp[i].y);
+    printf("\n");    
+#endif
     // GET OUTPUT
-    int nd = 2;
-    PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, grid_values, true);
+    PyObject * out = PyAfnumpy_FromData(ndims, dims, CMPLX32, grid_values, true);
     return out;
 }

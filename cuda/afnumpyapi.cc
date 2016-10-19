@@ -4,7 +4,6 @@
 #include <arrayfire.h>
 #include <cuda_runtime_api.h>
 #include <cuda.h>
-#include <numpy/arrayobject.h>
 
 #include "afnumpyapi.h"
 #include "pyGnufft.h"

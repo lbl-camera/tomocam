@@ -2,9 +2,6 @@
 #include <Python.h>
 #include <iostream>
 
-#define PY_ARRAY_UNIQUE_SYMBOL gnufft_ARRAY_API
-#include <numpy/arrayobject.h>
-
 #include "pyGnufft.h"
 
 static PyObject * polarsample(PyObject * self, PyObject * args){
@@ -40,6 +37,5 @@ static PyMethodDef cGnufftMehods [] = {
 /* Initialize the module */
 PyMODINIT_FUNC initgnufft() {
 	(void) Py_InitModule3("gnufft", cGnufftMehods, module_doc);
-    import_array();
 }
 
