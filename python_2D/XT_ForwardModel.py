@@ -28,15 +28,15 @@ def back_project(y,params):
     #inputs : y - afnumpy array containing the complex valued array with size of the sinogram 
     #       : params - a list containing all parameters for the NUFFT 
 
-    qtXrt = params['fftshift1D_center'](af_fft.fft(params['fftshift1D'](y))) #Detector space rt to Fourier space qt
+    qtXrt = params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T) #Detector space rt to Fourier space qt
 
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
-    ipdb.set_trace()
+
+#    ipdb.set_trace()
 
 #    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
 
-    rxyXqxy = params['fft2Dshift'](af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
-
+    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
     return rxyXqxy 
 
 
@@ -76,7 +76,7 @@ def init_nufft_params(sino,geom):
     params['k_r'] = k_r
     params['deapod_filt']=afnp.array(deapodization(Ns,KB,Ns_orig),dtype=afnp.float32)
     params['sino_mask'] = afnp.array(padmat(np.ones((Ns_orig,sino['qq'].shape[1])),np.array((Ns,sino['qq'].shape[1])),0),dtype=afnp.float32)
-    params['grid'] = np.array([Ns,Ns],dtype=np.int32)
+    params['grid'] = [Ns,Ns] #np.array([Ns,Ns],dtype=np.int32)
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
     params['center'] = afnp.array(sino['center'])
     params['Ns'] = Ns

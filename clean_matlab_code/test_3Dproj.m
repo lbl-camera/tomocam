@@ -10,16 +10,16 @@ addpath gnufft
 addpath Common
 
 num_slice = 10;
-Ns_actual = 256;
+Ns_actual = 256;%2560;
 
 nangles = 256;%2048;%Ns_pad = 4096;
-center_actual = 128;%1280;%sub pixels 
+center_actual = 128+10;%1280;%sub pixels 
 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=512;%3624;
+Ns=512;%3624
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 %temp=zeros(Ns_actual,Ns_actual);

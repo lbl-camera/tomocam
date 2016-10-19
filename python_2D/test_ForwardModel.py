@@ -16,7 +16,7 @@ from normalize import normalize_bo
 
 num_slice = 10;
 im_size = 256 #A n X n X n volume
-sino_center = 128 
+sino_center = 128
 num_angles = 256
 slice_idx = num_slice/2
 
@@ -30,7 +30,7 @@ sim = tomopy.project(obj,ang)
 
 sino={}
 geom={}
-sino['Ns'] = 512#im_size*2 #Sinogram size after padding
+sino['Ns'] = im_size*2 #Sinogram size after padding
 sino['Ns_orig'] = im_size #size of original sinogram
 sino['center'] = sino_center + (sino['Ns']/2 - sino['Ns_orig']/2);  #for padded sinogram
 sino['angles'] = ang
@@ -52,8 +52,8 @@ elapsed_time = (time.time()-t)/num_iter
 
 print('Time for Forward Proj :',elapsed_time)
 
-#y = back_project(Ax,params)
-#plt.imshow(y.real);plt.show();
+y = back_project(Ax,params)
+plt.imshow(y.real);plt.show();
 #plt.imshow(x,cmap='gray')
 
 #####Plotting #######
@@ -62,6 +62,7 @@ print('Time for Forward Proj :',elapsed_time)
 tomopy_sim_slice = np.flipud(np.fliplr(padmat(sim[:,slice_idx,:],np.array([num_angles, sino['Ns']]),0)));
 plt.figure();plt.imshow(tomopy_sim_slice,cmap='gray');plt.title('Tomopy projection');plt.colorbar();plt.draw();
 #rec = tomopy.recon(sim, ang, algorithm='art') # Reconstruct object.
+
 
 Ax_error = np.array(Ax.real.T) - tomopy_sim_slice
 Ax_rmse = np.sum(np.sum((Ax_error**2)/Ax_error.size))
