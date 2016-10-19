@@ -52,11 +52,9 @@ elapsed_time = (time.time()-t)/num_iter
 
 print('Time for Forward Proj :',elapsed_time)
 
-
-y = back_project(Ax,params)
-
+#y = back_project(Ax,params)
+#plt.imshow(y.real);plt.show();
 #plt.imshow(x,cmap='gray')
-
 
 #####Plotting #######
 
@@ -65,7 +63,7 @@ tomopy_sim_slice = np.flipud(np.fliplr(padmat(sim[:,slice_idx,:],np.array([num_a
 plt.figure();plt.imshow(tomopy_sim_slice,cmap='gray');plt.title('Tomopy projection');plt.colorbar();plt.draw();
 #rec = tomopy.recon(sim, ang, algorithm='art') # Reconstruct object.
 
-Ax_error = np.array(Ax.real.T) - tomopy_sim_slice;
+Ax_error = np.array(Ax.real.T) - tomopy_sim_slice
 Ax_rmse = np.sum(np.sum((Ax_error**2)/Ax_error.size))
 print('Normalized RMSE = ', Ax_rmse)
 

@@ -50,7 +50,7 @@ __global__ void polarsample_kernel(complex_t * point_pos,
             int xmax = min((int) floor(sx + kernel_radius), (grid_size.x - 1));
             for(; x < xmax; x++) {
                 float kbx = kb_weight1((float) x, sx, kb_table_size, kb_table_scale);
-	            sv = sv + grid_value[y*grid_size.x+x]; // * kby * kbx;
+	            sv = sv + grid_value[y*grid_size.x+x]* kby * kbx;
             }
         }
         sample_value[i] = sv;

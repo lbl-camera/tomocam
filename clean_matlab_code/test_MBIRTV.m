@@ -6,9 +6,10 @@ addpath operators;
 addpath gpu;
 addpath gnufft;
 addpath Common;
-reset(gpuDevice(2));
-gpuDevice(2);
-file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.mat';
+reset(gpuDevice(3));
+gpuDevice(3);
+file_name ='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x_Full.mat'
+%20131106_074854_S45L3_notch_OP_10x.mat';
 %ShepLogan_2560_2049_dose5000_noise_1.mat';
 %ShepLogan_2560_2049_dose5000_noise_0_5.mat';
 grnd_truth = phantom(2560);%2560
@@ -16,6 +17,10 @@ grnd_truth(grnd_truth < 0)=0;
 grnd_truth=grnd_truth*10e-3;
  
 load(file_name);
+
+%% Run the algorithm 
+%projection = squeeze(norm_data(10,:,:))';
+%weight = squeeze(data(10,:,:))';
 % 
 %projection = projection(1:2:2048,1:end-1);
 %projection = projection(1:2:end,1:end);
@@ -44,11 +49,11 @@ weight =ones(size(projection));
 Nr=size(projection,2);
 
 %Forward model params 
-formodel.center = 1294;%1280;%128;%1280;%1294;%1280;%1294;
+formodel.center = 1330;%1294;%1280;%128;%1280;%1294;%1280;%1294;
 formodel.pix_size = 1;
 formodel.det_size = 1;
 formodel.Npad = 3200;%4000;%512;%3000;%3200;%3200;
-formodel.ring_corr = 1;
+formodel.ring_corr = 0;
 formodel.angle_list = angle_list;
 
 %KB window params 
@@ -56,10 +61,10 @@ formodel.k_r=2;
 formodel.beta =3*pi*1.0;
 
 %Prior model params 
-prior.reg_param =  2.5/8000;
+prior.reg_param =  0.25*2.5/8000;
 
 %Solver params
-opts.maxIts           = 500;%Max iterations of cost-function 
+opts.maxIts           = 200;%Max iterations of cost-function 
 opts.maxLSIts         = 150;%max line-search iterations
 opts.gradTol          = 1e-30;
 opts.weightTV         = 1;%prior.reg_param;
