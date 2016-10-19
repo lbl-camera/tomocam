@@ -68,7 +68,7 @@ ext = Extension('gnufft',
                 libraries=['afcuda', 'cudart'],
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64']],
-                extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
+                #extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
@@ -101,7 +101,7 @@ def customize_compiler_for_nvcc(self):
             # from the extra_compile_args in the Extension class
             #postargs = extra_postargs['nvcc']
             postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
-            postargs += [ '-g', '-O0', '-DDEBUG' ]
+            #postargs += [ '-g', '-O0', '-DDEBUG' ]
         #else:
         #    postargs = extra_postargs['g++']
 
