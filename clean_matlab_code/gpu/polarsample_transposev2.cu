@@ -133,9 +133,6 @@ __global__ void cuda_sample_transpose_kernel(const complex_t * point_pos,
 	if(x < 0 || x > grid_size.x-1){
 	  continue;
 	}
-	//	grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(x,sx, kb_table_size, kb_table_scale);	
-	//grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(make_float2(x,y),   make_float2(sx,sy), kb_table_size, kb_table_scale);	
-
 	atomicAdd(&( (grid_value[y*grid_size.x+x])),svy * kb_weight(x,sx, kb_table_size, kb_table_scale));	;
 
       }
@@ -143,6 +140,9 @@ __global__ void cuda_sample_transpose_kernel(const complex_t * point_pos,
 
   }
 }
+	//	grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(x,sx, kb_table_size, kb_table_scale);	
+	//grid_value[y*grid_size.x+x]+=	  sv * 	  kb_weight(make_float2(x,y),   make_float2(sx,sy), kb_table_size, kb_table_scale);	
+
 
 void cuda_sample_transpose(const complex_t * point_pos, const complex_t * sample_value, int npoints, 
 		 uint2 grid_size, const float * kb_table, int kb_table_size, float kb_table_scale, float kernel_radius,		 

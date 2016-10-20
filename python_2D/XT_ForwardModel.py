@@ -19,7 +19,6 @@ def forward_project(x,params):
     
     qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
 
-
     rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
 #    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
     return rtXqt 
@@ -29,11 +28,11 @@ def back_project(y,params):
     #       : params - a list containing all parameters for the NUFFT 
 
     qtXrt = params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T) #Detector space rt to Fourier space qt
-
+    
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
-#    ipdb.set_trace()
-
+    ipdb.set_trace()
+ 
 #    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
 
     rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
@@ -66,6 +65,7 @@ def init_nufft_params(sino,geom):
     KBnorm=np.array(np.single(np.sum(np.sum(KB2D(np.reshape(np.arange(-k_r,k_r+1),(2*k_r+1,1)),(np.arange(-k_r,k_r+1)))))))
     print KBnorm
     kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
+
 
     # polar to cartesian, centered
     [xi,yi]=pol2cart(sino['qq'],sino['tt']*math.pi/180)

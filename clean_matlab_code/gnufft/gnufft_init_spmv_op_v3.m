@@ -76,6 +76,7 @@ gxy=gxi+1j*gyi;
 
 gkblut=gpuArray(single(kblut));
 
+P.gxy=gxy;
 P.gDq=gpuArray(single(Dq));
 P.giDq=1./P.gDq;
 P.gdpz=gpuArray(single(dpz));

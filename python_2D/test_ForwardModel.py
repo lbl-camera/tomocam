@@ -53,7 +53,7 @@ elapsed_time = (time.time()-t)/num_iter
 print('Time for Forward Proj :',elapsed_time)
 
 y = back_project(Ax,params)
-plt.imshow(y.real);plt.show();
+plt.imshow(np.abs(y));plt.show();
 #plt.imshow(x,cmap='gray')
 
 #####Plotting #######
@@ -73,7 +73,6 @@ plt.figure();plt.imshow(Ax.real.T,cmap='gray');plt.title('NUFFT projection');plt
 plt.figure();plt.imshow(Ax_error,cmap='gray');plt.title('Difference in projection');plt.colorbar();plt.draw();
 
 plt.show()
-
 
 
 #plt.imshow(y,cmap='gray');plt.show()
