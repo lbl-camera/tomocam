@@ -42,7 +42,7 @@ params = init_nufft_params(sino,geom)
 t=time.time()
 
 #loop over all slices
-for i in range(1,num_slice):
+for i in range(100,150):
   #pad data array and move it to GPU 
   Ax = afnp.array(padmat(norm_data[i],np.array([sino['Ns'],num_angles]),0),dtype=afnp.complex64)
   #filtered back-projection
@@ -50,3 +50,6 @@ for i in range(1,num_slice):
   
 elapsed_time = (time.time()-t)
 print('Time for Back-proj of all slices :',elapsed_time)
+
+
+plt.imshow(np.abs(y));plt.show()
