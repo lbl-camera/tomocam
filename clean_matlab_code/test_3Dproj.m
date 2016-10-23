@@ -22,6 +22,9 @@ det_size = 1;%um
 Ns=512;%3624
 center = center_actual + (Ns/2 - Ns_actual/2);
 
+mask=zeros(Ns,Ns);
+index_tmp=Ns/2 - Ns_actual/2:Ns/2 + Ns_actual/2-1;
+mask(index_tmp,index_tmp)=1;
 %temp=zeros(Ns_actual,Ns_actual);
 %temp(end/4-5:end/4+5,end/2-5:end/2+5)=1;
 signal =gpuArray(repmat((padmat(phantom(Ns_actual),[Ns,Ns])),1,1,num_slice));
@@ -116,7 +119,7 @@ title('Matlab back-projection');
 end
 
 figure;
-imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
+imagesc(real(squeeze(projection(:,:,1)))');colormap(gray);axis image;colorbar;
 ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuradon);
 title(ss_gnuradon);
 fprintf([ss_gnuradon '\n']);
@@ -124,7 +127,7 @@ fprintf([ss_gnuradon '\n']);
 
 figure;
 %imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
-imagesc(abs(squeeze(test_backproj(:,:,1))));cax=caxis;caxis([0 cax(2)]);colormap(gray);colorbar;
+imagesc(abs(squeeze(test_backproj(:,:,1))).*mask);cax=caxis;caxis([0 cax(2)]);colormap(gray);axis image;colorbar;
 ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuiradon);
 title(ss_gnuiradon);
 fprintf([ss_gnuiradon '\n']);

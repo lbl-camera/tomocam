@@ -1,11 +1,19 @@
 function DD=KBdensity1(qq,tt,KB,nj,Ns)
-
+%Function to adjust for the non-uniform density of points during
+%interpolation. This serves a similar function as a filter for the fbp algorithm
+%Inputs : qq : 
+%         tt : 
+%         nj : 
+%         Ns : 
+%Output : DD : Density comenstaion factor matrix
+%Stefano Marchesini 2013
+%Modified by S.V. Venkatakrishnan 2016
 
 %divide in blocks
 nb=100; %TODO : Why 100 ? Venkat 
 
 [nt,nq]=size(qq);
-% % crop outer points:
+%% crop outer points:
 
 %crop repeated angles
 ii=(tt(:,1))-min(tt(:,1))<180;
@@ -49,9 +57,7 @@ S1=S1+sparse(indx,ind_out,ones(size(indx)),nb+4,numel(xi));
 indx=i2b(yi(ind_out)+floor(nj/2));
 S1=S1+sparse(indx,ind_out,ones(size(indx)),nb+4,numel(xi));
 
-%crop outer blocks
-% S0=S0(2:end-1,:);
-% S1=S1(2:end-1,:);
+
 
 %%
 %finally, compute density
@@ -70,17 +76,8 @@ for ii=1:nb+2;
     indD=indD+length(jj_in);
 end
 % normalization of the kernel...
-%D=D/sum(sum(KB(-nj:nj)'*KB(-nj:nj)));
 D=D/D(1);
 
-
-%ccc=sum(KB(-nj:nj))
-
-%shift the index to the center of a Ns by Ns array
-% xi = xi+floor((Ns+1)/2)+1; 
-% yi = yi+floor((Ns+1)/2)+1;
-nsm=floor((Ns-1)/2);
-% cropm=(xi>=-nsm & yi>=-nsm & xi<=Ns-nsm-1 & yi<=Ns-nsm-1);
 
 % replicate matrix, 
 % the output 

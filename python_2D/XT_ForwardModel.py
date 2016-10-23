@@ -27,15 +27,12 @@ def back_project(y,params):
     #inputs : y - afnumpy array containing the complex valued array with size of the sinogram 
     #       : params - a list containing all parameters for the NUFFT 
 
-    qtXrt = params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T) #Detector space rt to Fourier space qt
-    
+    qtXrt = params['giDq'].reshape((params['Ns'],1))*(params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T)) #Detector space rt to Fourier space qt
+
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
-    ipdb.set_trace()
- 
-#    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
-
-    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+    rxyXqxy =(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+    #=params['fft2Dshift']*
     return rxyXqxy 
 
 
@@ -67,6 +64,9 @@ def init_nufft_params(sino,geom):
     kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
 
 
+    #Normalization (density compensation factor)
+#    Dq=KBdensity1(sino['qq'],sino['tt'],KB1,k_r,Ns)';
+
     # polar to cartesian, centered
     [xi,yi]=pol2cart(sino['qq'],sino['tt']*math.pi/180)
     xi = xi+np.floor((Ns+1)/2)
@@ -87,6 +87,13 @@ def init_nufft_params(sino,geom):
     params['gxy'] = params['gxi']+1j*params['gyi']
     params['gkblut'] = afnp.array(np.single(kblut))
     params['det_grid'] = np.array(np.reshape(np.arange(0,sino['Ns']),(sino['Ns'],1)))
+
+    #####Generate Ram-Lak/ShepLogan like kernel#########
+    temp_r = np.linspace(-1,1,Ns)
+    kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
+    temp_mask=np.ones(Ns);temp_mask[0:Ns/4]=0;temp_mask[3*Ns/4:]=0
+    params['giDq']=afnp.array(kernel*temp_mask,dtype=afnp.complex64)
+    
     temp = afnp.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = np.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = afnp.array(temp2.reshape(1,sino['Ns']))
@@ -153,3 +160,13 @@ def pol2cart(rho, phi):
     x = rho * np.cos(phi)
     y = rho * np.sin(phi)
     return(x, y)
+
+#def densityCompensation(qq,tt,KB,nj,Ns):
+#    nb=100; #TODO : Why 100 ? Venkat
+#    [nt,nq]=size(qq);   
+    #crop repeated angles
+#    ii=(tt(:,1))-min(tt(:,1))<180;
+#    qq1=qq(ii,:);
+#    tt1=tt(ii,:);
+#    qq1=-fliplr(qq1);
+#    [xi,yi]=pol2cart(tt1*pi/180,qq1);
