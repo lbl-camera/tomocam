@@ -1,26 +1,24 @@
-import tomopy
-import argparse
-import time
-import os
+from __future__ import print_function
 import numpy as np
+import tomopy
+import time
+import h5py
 import afnumpy as afnp
 import matplotlib.pyplot as plt
-#import pyqtgraph as pg
-import afnumpy as afnp
-import math
-import scipy.io as scio
-import h5py
 
-from XT_argsParser import bl832inputs_parser
 from XT_ForwardModel import forward_project, init_nufft_params, back_project
 from XT_Common import padmat,padmat_v2
-from normalize import normalize_bo
+
 
 fpath='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x_Full.mat'
+start_slice=500
+end_slice=561
+pad_size = 3200 #Size of image for Fourier transform
+
 f = h5py.File(fpath)
 norm_data=f['norm_data']
 norm_data=np.transpose(norm_data,(2,1,0))
-print norm_data.shape
+norm_data=norm_data[start_slice:end_slice] #Crop data set
 
 num_slice =  norm_data.shape[0]
 num_angles= norm_data.shape[2]
@@ -45,7 +43,7 @@ params = init_nufft_params(sino,geom)
 
 t=time.time()
 #loop over all slices
-for i in range(500,551):
+for i in range(1,num_slice):
   #pad data array and move it to GPU 
   Ax = afnp.array(padmat(norm_data[i],np.array([sino['Ns'],num_angles]),0),dtype=afnp.complex64)
 #  Ax = padmat_v2(norm_data[i],np.array([sino['Ns'],num_angles]),0,temp_mat)
@@ -54,7 +52,21 @@ for i in range(500,551):
   y = back_project(Ax,params)
   
 elapsed_time = (time.time()-t)
-print('Time for Back-proj of all slices :',elapsed_time)
+print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 
 
-plt.imshow(np.abs(y),cmap='gray');plt.colorbar();plt.title('Reconstructed slice');plt.show()
+plt.figure();plt.imshow(np.abs(y),cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
+
+##Tomopy
+data = np.transpose(norm_data,(2,0,1))
+data.astype(np.float32)
+#np.zeros((1024, 50, 2560), dtype=np.float32)
+t = time.time()
+rec = tomopy.recon(data, ang,center=sino_center, algorithm='gridrec', ncore=12)
+print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() - t))
+
+print(rec.shape)
+
+plt.figure();plt.imshow(np.flipud(np.abs(rec[-1])),cmap='gray');plt.colorbar();plt.title('Reconstructed slice using TomoPy');plt.draw();
+
+plt.show()

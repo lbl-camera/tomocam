@@ -91,7 +91,7 @@ def init_nufft_params(sino,geom):
     #####Generate Ram-Lak/ShepLogan like kernel#########
     temp_r = np.linspace(-1,1,Ns)
     kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
-    temp_mask=np.ones(Ns);temp_mask[0:Ns/4]=0;temp_mask[3*Ns/4:]=0
+    temp_mask=np.ones(Ns);temp_mask[0:Ns/2-100]=0;temp_mask[3*Ns/4-100:]=0
     params['giDq']=afnp.array(kernel*temp_mask,dtype=afnp.complex64)
     
     temp = afnp.array((-1)**params['det_grid'],dtype=afnp.float32)
