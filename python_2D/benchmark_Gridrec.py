@@ -62,7 +62,7 @@ data = np.transpose(norm_data,(2,0,1))
 data.astype(np.float32)
 #np.zeros((1024, 50, 2560), dtype=np.float32)
 t = time.time()
-rec = tomopy.recon(data, ang,center=sino_center, algorithm='gridrec', ncore=12)
+rec = tomopy.recon(data, ang,center=sino_center, algorithm='gridrec', ncore=4)
 print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() - t))
 
 print(rec.shape)
