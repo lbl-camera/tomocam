@@ -12,10 +12,10 @@ from XT_Common import padmat,padmat_v2
 ##Input parameters
 fpath='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x_Full.mat'
 start_slice=400
-end_slice=463
+end_slice=432
 pad_size = 3200 #Size of image for Fourier transform
 sino_center = 1294
-
+nufft_scaling = (np.pi/pad_size)**2
 
 #Read and re-organize data
 f = h5py.File(fpath)
@@ -44,6 +44,8 @@ params = init_nufft_params(sino,geom)
 
 #norm_data=afnp.array(norm_data[:40],dtype=afnp.complex64)
 #temp_mat=afnp.array(np.zeros((sino['Ns'],num_angles)),dtype=afnp.complex64)
+#  Ax = padmat_v2(norm_data[i],np.array([sino['Ns'],num_angles]),0,temp_mat)
+#  temp_mat=temp_mat*0
 
 rec_nufft = afnp.zeros((num_slice,sino['Ns'],sino['Ns']),dtype=afnp.complex64)
 
@@ -52,23 +54,21 @@ t=time.time()
 for i in range(0,num_slice):
   #pad data array and move it to GPU 
   Ax = afnp.array(padmat(norm_data[i],np.array([sino['Ns'],num_angles]),0),dtype=afnp.complex64)
-#  Ax = padmat_v2(norm_data[i],np.array([sino['Ns'],num_angles]),0,temp_mat)
-#  temp_mat=temp_mat*0
   #filtered back-projection 
   rec_nufft[i] = back_project(Ax,params)
+
   
 elapsed_time = (time.time()-t)
 print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 
 #Rescale result to match tomopy
-rec_nufft=rec_nufft/(2*np.pi*np.pi*sino['Ns'])
-temp_index = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
+temp_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
 
 #Move to CPU 
-rec_nufft=np.array(rec_nufft)
-print(rec_nufft.shape)
+rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
+#rec_nufft=rec_nufft/(2*np.pi*np.pi*sino['Ns'])
+#print(rec_nufft.shape)
 
-plt.figure();plt.imshow(np.abs(rec_nufft[slice_idx,temp_index,temp_index]),cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
 
 ##Tomopy
 data = np.transpose(norm_data,(2,0,1))
@@ -78,8 +78,18 @@ t = time.time()
 rec_tomopy = tomopy.recon(data, ang,center=sino_center, algorithm='gridrec', ncore=4)
 print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() - t))
 
-print(rec_tomopy.shape)
 
-plt.figure();plt.imshow(np.flipud(np.abs(rec_tomopy[slice_idx])),cmap='gray');plt.colorbar();plt.title('Reconstructed slice using TomoPy');plt.draw();
+#Plotting results
+nufft_slice = np.abs(rec_nufft[slice_idx,temp_idx,temp_idx])
+plt.figure();plt.imshow(nufft_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
+
+tomopy_slice = np.flipud(np.abs(rec_tomopy[slice_idx]))
+plt.figure();plt.imshow(tomopy_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using TomoPy');plt.draw();
+
+fig,ax=plt.subplots()
+ax.plot(nufft_slice[nufft_slice.shape[1]//2],'r',label='NUFFT')
+ax.plot(tomopy_slice[nufft_slice.shape[1]//2],'b',label='TomoPy')
+ax.legend()
+plt.draw()
 
 plt.show()
