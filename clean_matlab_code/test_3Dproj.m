@@ -1,25 +1,25 @@
 clear;
 close all;
 
-reset(gpuDevice(2));
-gpuDevice(2);
+reset(gpuDevice(7));
+gpuDevice(7);
 
 addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 10;
-Ns_actual = 256;%2560;
+num_slice = 100;
+Ns_actual = 2560;%2560;
 
-nangles = 256;%2048;%Ns_pad = 4096;
-center_actual = 128+10;%1280;%sub pixels 
+nangles = 1024;%256;%2048;%Ns_pad = 4096;
+center_actual = 1280;%1280;%sub pixels 
 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=512;%3624
+Ns=3200;%3624
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 mask=zeros(Ns,Ns);

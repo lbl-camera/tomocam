@@ -131,7 +131,7 @@ def deapodization(Ns,KB,Ns_orig):
     # assume oversampling, do not divide outside box in real space:
     msk = padmat(np.ones((Ns_orig,Ns_orig)),np.array((Ns,Ns)),0)
     msk=msk.astype(bool)
-    dpz=dpz.astype(float)
+    dpz=dpz.real#astype(float)
     dpz[~msk] = 1            #keep the value outside box
     dpz=1/dpz               #deapodization factor truncated
     dpz=dpz/dpz[Ns/2+1,Ns/2+1] #scaling

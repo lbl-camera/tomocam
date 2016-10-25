@@ -54,6 +54,8 @@ def normalize_bo(tomo, flats, darks, num_flat):
 
     arr,weight = _simple_normalize(tomo, flats, dark)
 
+    arr=-np.log(arr)
+
     return arr,weight
 
 

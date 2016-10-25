@@ -4,6 +4,7 @@ import tomopy
 import time
 import h5py
 import afnumpy as afnp
+import arrayfire as af
 import matplotlib.pyplot as plt
 
 from XT_ForwardModel import forward_project, init_nufft_params, back_project
@@ -12,8 +13,9 @@ from XT_Common import padmat,padmat_v2
 ##Input parameters
 fpath='/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x_Full.mat'
 #'/home/svvenkatakrishnan/data/20131106_074854_S45L3_notch_OP_10x.mat'
-start_slice=400
-end_slice=500
+af.set_device(7)
+start_slice=300
+end_slice=400
 pad_size = 3200 #Size of image for Fourier transform
 sino_center = 1294#1328
 nufft_scaling = (np.pi/pad_size)**2
@@ -46,10 +48,9 @@ sino['filter'] = fbp_filter_param #Paramter to control strength of FBP filter no
 params = init_nufft_params(sino,geom)
 
 
-rec_nufft = afnp.zeros((num_slice/2,sino['Ns'],sino['Ns']),dtype=afnp.complex64)
+rec_nufft = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
 Ax = afnp.zeros((sino['Ns'],num_angles),dtype=afnp.complex64)
 pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
-
 
 t=time.time()
 #Move all data to GPU
@@ -61,7 +62,7 @@ gdata=afnp.array(norm_data[slice_1]+1j*norm_data[slice_2],dtype=afnp.complex64)
 for i in range(0,num_slice/2):
   Ax[pad_idx,:]=gdata[i]
   #filtered back-projection 
-  rec_nufft[i] = back_project(Ax,params)
+  rec_nufft[i] = (back_project(Ax,params))[pad_idx,pad_idx]
 
   elapsed_time = (time.time()-t)
 print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
@@ -69,7 +70,6 @@ print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 #Move to CPU
 #Rescale result to match tomopy
 rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
-
 
 ##Tomopy
 data = np.transpose(norm_data,(2,0,1))
@@ -81,11 +81,11 @@ print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() -
 
 
 #Plotting results
-temp_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
+
 if np.mod(slice_idx,2):
-  nufft_slice = np.abs(rec_nufft[slice_idx/2,temp_idx,temp_idx].real)
+  nufft_slice = np.abs(rec_nufft[slice_idx/2].real)
 else:
-  nufft_slice = np.abs(rec_nufft[slice_idx//2,temp_idx,temp_idx].imag)
+  nufft_slice = np.abs(rec_nufft[slice_idx//2].imag)
   
 plt.figure();plt.imshow(nufft_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
 
