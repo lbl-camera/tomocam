@@ -60,7 +60,7 @@ def init_nufft_params(sino,geom):
     # Preload the Bessel kernel (real components!)
     kblut,KB,KB1D,KB2D=KBlut(k_r,beta,KBLUT_LENGTH) 
     KBnorm=np.array(np.single(np.sum(np.sum(KB2D(np.reshape(np.arange(-k_r,k_r+1),(2*k_r+1,1)),(np.arange(-k_r,k_r+1)))))))
-    print KBnorm
+    #print KBnorm
     kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
 
 
@@ -92,7 +92,10 @@ def init_nufft_params(sino,geom):
     temp_r = np.linspace(-1,1,Ns)
     kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
     temp_mask=np.ones(Ns);
-    temp_mask[0:Ns/4]=0;temp_mask[3*Ns/4:]=0
+    if 'filter' in sino:
+      temp_pos = (1-sino['filter'])/2
+      temp_mask[0:np.int16(temp_pos*Ns)]=0
+      temp_mask[np.int16((1-temp_pos)*Ns):]=0
     params['giDq']=afnp.array(kernel*temp_mask,dtype=afnp.complex64)
     
     temp = afnp.array((-1)**params['det_grid'],dtype=afnp.float32)
