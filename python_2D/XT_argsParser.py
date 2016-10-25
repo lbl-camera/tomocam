@@ -15,6 +15,7 @@ def bl832inputs_parser(parser):
         parser.add_argument("--dual_norm",help="Average brights and darks from the beginning AND end.",action="store_true")
         parser.add_argument("--full_rot",help="Use this flag if the views correspond to 0-360 degrees instead of 0-180 degrees.",action="store_true")
         parser.add_argument("--view_subsmpl_fact", help="View skipping factor. This can be used to subset the data in terms of views",type=int,default=1)
+        parser.add_argument("--gpu_device", help="Device id of the GPU",type=int,default=0)
 
         #Reconstruction parameters                                                                                                                                        
         parser.add_argument("--x_width", help="Number of detector elements along x-direction",type=int)
@@ -40,6 +41,7 @@ def bl832inputs_parser(parser):
             return -1
 
         inputs['output_hdf5']= args.output_hdf5
+        inputs['gpu_device'] = args.gpu_device
 
         inputs['pix_size'] = args.pix_size
         inputs['num_bright'] = args.num_bright

@@ -5,6 +5,7 @@ import os
 import math
 import numpy as np
 import afnumpy as afnp
+import arrayfire as af
 import matplotlib.pyplot as plt
 import pyqtgraph as pg
 
@@ -19,7 +20,7 @@ def main():
 
         num_slice = inputs['z_numElts']
         num_angles= inputs['num_views']/inputs['view_subsmpl_fact']
-
+        af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
         oversamp_factor = 1.25
         pad_size = np.int16(inputs['x_width']*oversamp_factor)
         fbp_filter_param=0.75
