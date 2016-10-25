@@ -50,25 +50,10 @@ def main():
         fig.suptitle('Sinogram')
 #        pg.image(tomo)
 
-        #TomoPy Recon
-        print('Recon - tomopy GridRec')
-        t=time.time()
-        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
-        elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
-
-#        print('Recon - tomopy Astra')
-#        t=time.time()
-        #options = {'proj_type':'cuda', 'method':'FBP_CUDA'}
-#        rec_astra = tomopy.recon(tomo, theta, center=inputs['rot_center'], algorithm=tomopy.astra, options=options)
-#        elapsed_time = (time.time()-t)
-#        print('Time for reconstucting using Tomopy Astra of %d slices : %f' % (num_slice,elapsed_time))
-
-
         ################## GPU gridrec() ######################
 
-        tomo=np.transpose(tomo,(1,2,0))
-        im_size =  tomo.shape[1]
+        new_tomo=np.transpose(tomo,(1,2,0))
+        im_size =  new_tomo.shape[1]
         #Initialize structures for NUFFT
         sino={}
         geom={}
@@ -89,7 +74,7 @@ def main():
         #Move all data to GPU
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
-        gdata=afnp.array(tomo[slice_1]+1j*tomo[slice_2],dtype=afnp.complex64)
+        gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
         #loop over all slices
         for i in range(0,num_slice/2):
           Ax[pad_idx,:]=gdata[i]
@@ -103,6 +88,23 @@ def main():
         #Rescale result to match tomopy
         rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
 
+        ##################TomoPy Recon#####################
+        print('Recon - tomopy GridRec')
+        t=time.time()
+        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
+        elapsed_time = (time.time()-t)
+        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+
+#       print('Recon - tomopy Astra')
+#       t=time.time()
+#       options = {'proj_type':'cuda', 'method':'FBP_CUDA'}
+#       rec_astra = tomopy.recon(tomo, theta, center=inputs['rot_center'], algorithm=tomopy.astra, options=options)
+#       elapsed_time = (time.time()-t)
+#       print('Time for reconstucting using Tomopy Astra of %d slices : %f' % (num_slice,elapsed_time))
+
+
+
+        
         fig = plt.figure()
         plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
         plt.colorbar()
