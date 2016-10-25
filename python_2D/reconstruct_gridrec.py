@@ -19,8 +19,10 @@ def main():
 
         num_slice = inputs['z_numElts']
         num_angles= inputs['num_views']/inputs['view_subsmpl_fact']
-        pad_size = 3200
-        fbp_filter_param=0.5
+
+        oversamp_factor = 1.25
+        pad_size = np.int16(inputs['x_width']*oversamp_factor)
+        fbp_filter_param=0.75
         nufft_scaling = (np.pi/pad_size)**2
         
         algorithm='gridrec'
@@ -45,14 +47,22 @@ def main():
         fig = plt.figure()
         plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
         fig.suptitle('Sinogram')
-        pg.image(tomo)
+#        pg.image(tomo)
 
         #TomoPy Recon
-        print('Recon - tomopy')
+        print('Recon - tomopy GridRec')
         t=time.time()
         rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
         elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy of %d slices : %f' % (num_slice,elapsed_time))
+        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+
+#        print('Recon - tomopy Astra')
+#        t=time.time()
+        #options = {'proj_type':'cuda', 'method':'FBP_CUDA'}
+#        rec_astra = tomopy.recon(tomo, theta, center=inputs['rot_center'], algorithm=tomopy.astra, options=options)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy Astra of %d slices : %f' % (num_slice,elapsed_time))
+
 
         ################## GPU gridrec() ######################
 
@@ -93,9 +103,9 @@ def main():
         rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
 
         fig = plt.figure()
-        plt.imshow(np.flipud(rec_tomopy[0]),cmap=plt.cm.Greys_r)
+        plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
         plt.colorbar()
-        fig.suptitle('Tomopy GridRec Reconstruction')
+        fig.suptitle('Tomopy Gridrec Reconstruction')
 
         fig = plt.figure()
         plt.imshow(np.abs(rec_nufft[0].real),cmap=plt.cm.Greys_r)
