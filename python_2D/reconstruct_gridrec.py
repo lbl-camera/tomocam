@@ -45,12 +45,13 @@ def main():
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
 
-        fig = plt.figure()
-        plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
-        fig.suptitle('Sinogram')
+#        fig = plt.figure()
+#        plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
+#        fig.suptitle('Sinogram')
         
 
         ################## GPU gridrec() ######################
+        print('Starting GPU NUFFT recon')
 
         new_tomo=np.transpose(tomo,(1,2,0))
         im_size =  new_tomo.shape[1]
@@ -89,11 +90,11 @@ def main():
         rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
 
         ##################TomoPy Recon#####################
-        print('Recon - tomopy GridRec')
-        t=time.time()
-        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
-        elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+#        print('Recon - tomopy GridRec')
+#        t=time.time()
+#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
 
 #       print('Recon - tomopy Astra')
 #       t=time.time()
@@ -103,15 +104,14 @@ def main():
 #       print('Time for reconstucting using Tomopy Astra of %d slices : %f' % (num_slice,elapsed_time))
 
 
-
         
-        fig = plt.figure()
-        plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
-        plt.colorbar()
-        fig.suptitle('Tomopy Gridrec Reconstruction')
+#        fig = plt.figure()
+#        plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
+#        plt.colorbar()
+#        fig.suptitle('Tomopy Gridrec Reconstruction')
 
         fig = plt.figure()
-        plt.imshow(np.abs(rec_nufft[0].real),cmap=plt.cm.Greys_r)
+        plt.imshow(rec_nufft[0].real,cmap=plt.cm.Greys_r)
         plt.colorbar()
         fig.suptitle('GPU NUFFT Reconstruction')
 

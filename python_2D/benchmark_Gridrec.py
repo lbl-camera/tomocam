@@ -83,9 +83,9 @@ print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() -
 #Plotting results
 
 if np.mod(slice_idx,2):
-  nufft_slice = np.abs(rec_nufft[slice_idx/2].real)
+  nufft_slice = (rec_nufft[slice_idx/2].real)
 else:
-  nufft_slice = np.abs(rec_nufft[slice_idx//2].imag)
+  nufft_slice = (rec_nufft[slice_idx//2].imag)
   
 plt.figure();plt.imshow(nufft_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
 

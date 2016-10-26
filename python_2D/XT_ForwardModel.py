@@ -31,8 +31,8 @@ def back_project(y,params):
 
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
-    rxyXqxy =(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
-    #=params['fft2Dshift']*
+    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+    #=
     return rxyXqxy 
 
 
@@ -103,7 +103,7 @@ def init_nufft_params(sino,geom):
     temp2 = afnp.array(temp2.reshape(1,sino['Ns']))
     temp3 = afnp.array(afnp.exp(-1j*2*params['center']*(afnp.pi/params['Ns'])*params['det_grid']).astype(afnp.complex64))
     temp4 = afnp.array(afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid']).astype(afnp.complex64))
-    params['fft2Dshift'] = temp*temp2
+    params['fft2Dshift'] = afnp.array(temp*temp2,dtype=afnp.complex64)
     params['fftshift1D'] = lambda x : temp*x
     params['fftshift1D_center'] = lambda x : temp3*x
     params['fftshift1Dinv_center'] = lambda x : temp4*x
