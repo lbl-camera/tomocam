@@ -9,7 +9,7 @@ import scipy.special as sc_spl #For bessel functions
 import tomopy
 import matplotlib.pyplot as plt
 from XT_Common import padmat
-import ipdb
+#import ipdb
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image

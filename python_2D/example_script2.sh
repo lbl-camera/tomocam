@@ -9,8 +9,12 @@ num_brt=30
 num_dark=10
 view_sub=1
 xwidth=2560
-z_start=1600
-z_numElts=130
-gpu_device=3
+z_start=1900
+z_numElts=132
 
-python reconstruct_gridrec.py --input_hdf5 $input_file --group_hdf5 /$group_h5 --output_hdf5 temp.h5 --rot_center $center --pix_size $pix_size --num_views $num_views --num_bright $num_brt --num_dark $num_dark --view_subsmpl_fact $view_sub --x_width $xwidth --z_start $z_start --z_numElts $z_numElts --p 1.2 --smoothness 10 --zinger_thresh 0 --gpu_device $gpu_device
+#gpu_device=0
+
+for gpu_device in 0 1 2 3 
+do
+    python reconstruct_gridrec.py --input_hdf5 $input_file --group_hdf5 /$group_h5 --output_hdf5 temp.h5 --rot_center $center --pix_size $pix_size --num_views $num_views --num_bright $num_brt --num_dark $num_dark --view_subsmpl_fact $view_sub --x_width $xwidth --z_start $z_start --z_numElts $z_numElts --p 1.2 --smoothness 10 --zinger_thresh 0 --gpu_device $gpu_device &
+done

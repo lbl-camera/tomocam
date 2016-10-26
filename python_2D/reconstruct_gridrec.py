@@ -7,7 +7,7 @@ import numpy as np
 import afnumpy as afnp
 import arrayfire as af
 import matplotlib.pyplot as plt
-import pyqtgraph as pg
+#import pyqtgraph as pg
 
 from XT_argsParser import bl832inputs_parser
 from normalize import normalize_bo
@@ -48,7 +48,7 @@ def main():
         fig = plt.figure()
         plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
         fig.suptitle('Sinogram')
-#        pg.image(tomo)
+        pg.image(tomo)
 
         ################## GPU gridrec() ######################
 
