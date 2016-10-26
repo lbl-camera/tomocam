@@ -20,6 +20,7 @@ pad_size = 3200 #Size of image for Fourier transform
 sino_center = 1294#1328
 nufft_scaling = (np.pi/pad_size)**2
 fbp_filter_param = 0.5 #Normalized number from 0-1
+slice_idx = 51#num_slice/2
 
 #Read and re-organize data
 f = h5py.File(fpath)
@@ -30,7 +31,6 @@ norm_data=norm_data[start_slice:end_slice] #Crop data set
 num_slice =  norm_data.shape[0]
 num_angles= norm_data.shape[2]
 im_size =  norm_data.shape[1] #A n X n X n volume
-slice_idx = 50#num_slice/2
 ang = tomopy.angles(num_angles+1) # Generate uniformly spaced tilt angles.
 ang=ang[:-1]
 
@@ -89,7 +89,7 @@ else:
   
 plt.figure();plt.imshow(nufft_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
 
-tomopy_slice = np.flipud(np.abs(rec_tomopy[slice_idx]))
+tomopy_slice = np.flipud((rec_tomopy[slice_idx]))
 plt.figure();plt.imshow(tomopy_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using TomoPy');plt.draw();
 
 fig,ax=plt.subplots()
