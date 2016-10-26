@@ -48,7 +48,7 @@ def main():
         fig = plt.figure()
         plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
         fig.suptitle('Sinogram')
-        pg.image(tomo)
+        
 
         ################## GPU gridrec() ######################
 
