@@ -25,6 +25,7 @@ def bl832inputs_parser(parser):
         parser.add_argument("--smoothness",help="A scaling parameter use to control the balance between resolution and noise in the reconstruction. This value is multiplied by a predtermined internal value",type=float,default=0.50)
         parser.add_argument("--zinger_thresh",help="Controls the rejection thresold of bad measurements that cause zingers. In a future version this will have proper units\
  At present try values in the range 1-50 to correct for zingers",type=float,default=10000)
+        parser.add_argument("--filter_param",help="Filter cut-off (0-1)",type=float,default=1)
 
         #Advanced parameters which the user need not worry about but can manipulate if necessary                                                                            
         parser.add_argument("--stop_threshold",help="Stopping thresold as a percentage of average change in pixel values in percentage",type=float,default=10)
@@ -53,6 +54,7 @@ def bl832inputs_parser(parser):
         inputs['z_start'] = args.z_start
         inputs['z_numElts'] = args.z_numElts
         inputs['p'] = args.p
+        inputs['fbp_filter_param']=args.filter_param
         inputs['smoothness'] = args.smoothness
         inputs['stop_threshold'] = args.stop_threshold
         inputs['max_iter'] = args.max_iter

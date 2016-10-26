@@ -23,7 +23,7 @@ def main():
         af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
         oversamp_factor = 1.25
         pad_size = np.int16(inputs['x_width']*oversamp_factor)
-        fbp_filter_param=0.75
+        fbp_filter_param=inputs['fbp_filter_param']
         nufft_scaling = (np.pi/pad_size)**2
         
         algorithm='gridrec'
