@@ -1,14 +1,18 @@
 #!/bin/bash
 
-input_file="/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.h5"
-group_h5="20130807_234356_OIM121R_SAXS_5x"
-center=1294
+input_file="/home/svvenkatakrishnan/data/20131106_074854_S45L3_notch_OP_10x.h5"
+#20160717_164333_NASA_FiberInCell_TrajectoryD.h5"
+#20130807_234356_OIM121R_SAXS_5x.h5"
+group_h5="20131106_074854_S45L3_notch_OP_10x"
+#"20160717_164333_NASA_FiberInCell_TrajectoryD"
+#"20130807_234356_OIM121R_SAXS_5x"
+center=1328 #982.5 #1294
 pix_size=1.3
-num_views=1024
-num_brt=30
+num_views=1024 #512 
+num_brt=30 #15 
 num_dark=10
 view_sub=1
-xwidth=2560
+xwidth=2560 #2000 
 z_start=0
 z_numElts=132
 curr_slice=0

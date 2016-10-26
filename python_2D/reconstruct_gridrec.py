@@ -88,6 +88,9 @@ def main():
         #Move to CPU
         #Rescale result to match tomopy
         rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
+        rec_nufft_final=np.zeros((num_slice,sino['Ns_orig'],sino['Ns_orig']),dtype=np.float32)
+        rec_nufft_final[slice_1]=np.array(rec_nufft.real,dtype=np.float32)
+        rec_nufft_final[slice_2]=np.array(rec_nufft.imag,dtype=np.float32)
 
         ##################TomoPy Recon#####################
 #        print('Recon - tomopy GridRec')
@@ -110,14 +113,15 @@ def main():
 #        plt.colorbar()
 #        fig.suptitle('Tomopy Gridrec Reconstruction')
 
-        fig = plt.figure()
+#        fig = plt.figure()
 #        plt.imshow(rec_nufft[0].real,cmap=plt.cm.Greys_r)
 #        plt.colorbar()
 #        fig.suptitle('GPU NUFFT Reconstruction')
-        pg.image(rec_nufft.real)
+
+        pg.image(rec_nufft_final);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
-        plt.show()
+#        plt.show()
 main()
 
 
