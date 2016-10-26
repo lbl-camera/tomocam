@@ -32,8 +32,8 @@ def back_project(y,params):
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
     rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
-    #=
-    return rxyXqxy 
+
+    return rxyXqxy
 
 
 def init_nufft_params(sino,geom):

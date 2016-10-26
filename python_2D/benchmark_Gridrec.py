@@ -65,7 +65,7 @@ for i in range(0,num_slice/2):
   #filtered back-projection 
   rec_nufft[i] = (back_project(Ax,params))[pad_idx,pad_idx]
 
-  elapsed_time = (time.time()-t)
+elapsed_time = (time.time()-t)
 print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 
 #Move to CPU
