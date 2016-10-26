@@ -7,7 +7,7 @@ import numpy as np
 import afnumpy as afnp
 import arrayfire as af
 import matplotlib.pyplot as plt
-#import pyqtgraph as pg
+import pyqtgraph as pg
 
 from XT_argsParser import bl832inputs_parser
 from normalize import normalize_bo
@@ -111,9 +111,10 @@ def main():
 #        fig.suptitle('Tomopy Gridrec Reconstruction')
 
         fig = plt.figure()
-        plt.imshow(rec_nufft[0].real,cmap=plt.cm.Greys_r)
-        plt.colorbar()
-        fig.suptitle('GPU NUFFT Reconstruction')
+#        plt.imshow(rec_nufft[0].real,cmap=plt.cm.Greys_r)
+#        plt.colorbar()
+#        fig.suptitle('GPU NUFFT Reconstruction')
+        pg.image(rec_nufft.real)
 
         print 'main: Done!'
         plt.show()

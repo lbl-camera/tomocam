@@ -15,7 +15,7 @@ curr_slice=0
 
 #gpu_device=0
 
-for gpu_device in 0 1 2 3 4 5 6 7 
+for gpu_device in 0 #1 2 3 4 5 6 7 
 do
     let "curr_slice=$z_start+$gpu_device*$z_numElts"
 #    echo $curr_slice

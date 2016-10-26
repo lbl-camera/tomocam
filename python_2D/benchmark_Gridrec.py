@@ -6,6 +6,7 @@ import h5py
 import afnumpy as afnp
 import arrayfire as af
 import matplotlib.pyplot as plt
+import pyqtgraph as pg
 
 from XT_ForwardModel import forward_project, init_nufft_params, back_project
 from XT_Common import padmat,padmat_v2
@@ -97,5 +98,7 @@ ax.plot(nufft_slice[nufft_slice.shape[1]//2],'r',label='NUFFT')
 ax.plot(tomopy_slice[nufft_slice.shape[1]//2],'b',label='TomoPy')
 ax.legend()
 plt.draw()
+
+pg.image(rec_nufft.real);pg.QtGui.QApplication.exec_()
 
 plt.show()
