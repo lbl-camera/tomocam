@@ -20,7 +20,7 @@ def forward_project(x,params):
     qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
 
     rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
-#    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+
     return rtXqt 
 
 def back_project(y,params):

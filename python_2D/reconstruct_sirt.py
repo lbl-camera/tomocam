@@ -16,7 +16,7 @@ from XT_ForwardModel import forward_project, init_nufft_params, back_project
 def main():
 
         oversamp_factor = 1.25 #For NUFFT
-        num_iter = 5
+        num_iter = 1
         parser = argparse.ArgumentParser()
         inputs = bl832inputs_parser(parser)
 
@@ -67,27 +67,53 @@ def main():
         x_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64) 
         pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
 
+
+        #Pre-compute diagonal scaling matrices ; one the same size as the image and the other the same as data
+        #initialize an image of all ones
+        x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
+        temp_x[pad_idx,pad_idx]=x_ones
+        R = 1/afnp.abs(forward_project(temp_x,params)*(1/nufft_scaling))#(math.pi/2)*sino['Ns']*
+        R[afnp.isnan(R)]=0
+        R[afnp.isinf(R)]=0
+        print(R.max())
+        print(R.min())
+        plt.imshow(temp_x.real);plt.show()
+        plt.imshow(R.real);plt.show()
+
+        #Initialize a sinogram of all ones
+        y_ones=afnp.ones((sino['Ns_orig'],num_angles),dtype=afnp.complex64)
+        temp_y[pad_idx]=y_ones
+        C = 1/(afnp.abs(back_project(temp_y,params)*nufft_scaling))
+        C[afnp.isnan(C)]=0
+        C[afnp.isinf(C)]=0
+        print(C.max())
+        print(C.min())
+        plt.imshow(temp_y.real);plt.show()
+        plt.imshow(C.real);plt.show()
+
+        
         t=time.time()
         #Move all data to GPU
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
         gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
-        for iter_num in range(1,num_iter):
+        
+        for iter_num in range(1,num_iter+1):
           print('Iteration number : %d' % iter_num)
-        #loop over all slices
+          #loop over all slices
           for i in range(0,num_slice/2):
             #filtered back-projection
             temp_x[pad_idx,pad_idx]=x_recon[i]
             Ax = (math.pi/2)*sino['Ns']*forward_project(temp_x,params)
             temp_y[pad_idx]=gdata[i]
-            x_recon[i] = x_recon[i]+(back_project(temp_y-Ax,params))[pad_idx,pad_idx]          
+            x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),params))[pad_idx,pad_idx]          
 
         elapsed_time = (time.time()-t)
         print('Time for SIRT recon of %d slices : %f' % (num_slice,elapsed_time))
-        print(temp_x.shape)
-        print(Ax.shape)
-        print(temp_y.shape)
-        print(x_recon.shape)
+        #print(temp_x.shape)
+        #print(Ax.shape)
+        #print(temp_y.shape)
+        #print(x_recon.shape)
 
         #Move to CPU
         #Rescale result to match tomopy
