@@ -71,27 +71,19 @@ def main():
         x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
         temp_x[pad_idx,pad_idx]=x_ones
         temp_proj=forward_project(temp_x,params)*(sino['Ns']*afnp.pi/2)
-        print(temp_proj.max())
         R = 1/afnp.abs(temp_proj)#(math.pi/2)*sino['Ns']*
         R[afnp.isnan(R)]=0
         R[afnp.isinf(R)]=0
         R=afnp.array(R,dtype=afnp.complex64)
-        #print(R.max())
-        #print(R.min())
-        #plt.imshow(R.real);plt.title('R matrix');plt.show()
 
         #Initialize a sinogram of all ones
         y_ones=afnp.ones((sino['Ns_orig'],num_angles),dtype=afnp.complex64)
         temp_y[pad_idx]=y_ones
         temp_backproj=back_project(temp_y,params)*nufft_scaling/2
-        print(temp_backproj.max())
         C = 1/(afnp.abs(temp_backproj))
         C[afnp.isnan(C)]=0
         C[afnp.isinf(C)]=0
         C=afnp.array(C,dtype=afnp.complex64)
-        #print(C.max())
-        #print(C.min())
-        #plt.imshow(C.real);plt.title('C matrix');plt.show()
         
         t=time.time()
         #Move all data to GPU
@@ -100,23 +92,16 @@ def main():
         gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
         
         #loop over all slices
-
-        for iter_num in range(1,num_iter+1):
-          for i in range(0,num_slice/2):
-            #print('Iteration number : %d' % iter_num)
+        for i in range(0,num_slice/2):
+          for iter_num in range(1,num_iter+1):
             #filtered back-projection
             temp_x[pad_idx,pad_idx]=x_recon[i]
             Ax = (math.pi/2)*sino['Ns']*forward_project(temp_x,params)
             temp_y[pad_idx]=gdata[i]
             x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]
-#            x_recon[i] = x_recon[i]+(back_project((temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]          
 
         elapsed_time = (time.time()-t)
         print('Time for SIRT recon of %d slices : %f' % (num_slice,elapsed_time))
-        #print(temp_x.shape)
-        #print(Ax.shape)
-        #print(temp_y.shape)
-        #print(x_recon.shape)
 
         #Move to CPU
         #Rescale result to match tomopy
