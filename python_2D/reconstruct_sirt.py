@@ -16,7 +16,6 @@ from XT_ForwardModel import forward_project, init_nufft_params, back_project
 def main():
 
         oversamp_factor = 1.25 #For NUFFT
-        num_iter = 30
         parser = argparse.ArgumentParser()
         inputs = bl832inputs_parser(parser)
 
@@ -25,7 +24,7 @@ def main():
         af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
         
         pad_size = np.int16(inputs['x_width']*oversamp_factor)
-        fbp_filter_param=inputs['fbp_filter_param']
+        num_iter = inputs['num_iter']
         nufft_scaling = (np.pi/pad_size)**2
         
         
@@ -57,7 +56,6 @@ def main():
         sino['Ns_orig'] = im_size #size of original sinogram
         sino['center'] = inputs['rot_center'] + (sino['Ns']/2 - sino['Ns_orig']/2)  #for padded sinogram
         sino['angles'] = theta
-#        sino['filter'] = fbp_filter_param #Paramter to control strength of FBP filter normalized to [0,1]
 
         #Initialize NUFFT parameters
         params = init_nufft_params(sino,geom)

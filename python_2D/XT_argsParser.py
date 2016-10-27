@@ -29,7 +29,7 @@ def bl832inputs_parser(parser):
 
         #Advanced parameters which the user need not worry about but can manipulate if necessary                                                                            
         parser.add_argument("--stop_threshold",help="Stopping thresold as a percentage of average change in pixel values in percentage",type=float,default=10)
-        parser.add_argument("--max_iter",help="Maximum number of ICD iterations for the algorithm",type=int,default=30)
+        parser.add_argument("--max_iter",help="Maximum number of ICD iterations for the algorithm",type=int,default=20)
 
         args = parser.parse_args()
 
@@ -62,4 +62,5 @@ def bl832inputs_parser(parser):
         inputs['dual_norm'] = args.dual_norm  
         inputs['full_rot'] = args.full_rot  
         inputs['num_views'] = args.num_views
+        inputs['num_iter']= args.max_iter
         return inputs
