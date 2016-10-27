@@ -16,7 +16,7 @@ from XT_ForwardModel import forward_project, init_nufft_params, back_project
 def main():
 
         oversamp_factor = 1.25 #For NUFFT
-        num_iter = 20
+        num_iter = 30
         parser = argparse.ArgumentParser()
         inputs = bl832inputs_parser(parser)
 
@@ -57,7 +57,7 @@ def main():
         sino['Ns_orig'] = im_size #size of original sinogram
         sino['center'] = inputs['rot_center'] + (sino['Ns']/2 - sino['Ns_orig']/2)  #for padded sinogram
         sino['angles'] = theta
-        sino['filter'] = fbp_filter_param #Paramter to control strength of FBP filter normalized to [0,1]
+#        sino['filter'] = fbp_filter_param #Paramter to control strength of FBP filter normalized to [0,1]
 
         #Initialize NUFFT parameters
         params = init_nufft_params(sino,geom)
@@ -110,8 +110,8 @@ def main():
             temp_x[pad_idx,pad_idx]=x_recon[i]
             Ax = (math.pi/2)*sino['Ns']*forward_project(temp_x,params)
             temp_y[pad_idx]=gdata[i]
-#            x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]
-            x_recon[i] = x_recon[i]+(back_project((temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]          
+            x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]
+#            x_recon[i] = x_recon[i]+(back_project((temp_y-Ax),params)*nufft_scaling/2)[pad_idx,pad_idx]          
 
         elapsed_time = (time.time()-t)
         print('Time for SIRT recon of %d slices : %f' % (num_slice,elapsed_time))

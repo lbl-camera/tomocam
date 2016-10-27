@@ -89,10 +89,12 @@ def init_nufft_params(sino,geom):
     params['det_grid'] = np.array(np.reshape(np.arange(0,sino['Ns']),(sino['Ns'],1)))
 
     #####Generate Ram-Lak/ShepLogan like filter kernel#########
-    temp_r = np.linspace(-1,1,Ns)
-    kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
-    temp_mask=np.ones(Ns);
+    
+    temp_mask=np.ones(Ns)
+    kernel=np.ones(Ns)
     if 'filter' in sino:
+      temp_r = np.linspace(-1,1,Ns)
+      kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
       temp_pos = (1-sino['filter'])/2
       temp_mask[0:np.int16(temp_pos*Ns)]=0
       temp_mask[np.int16((1-temp_pos)*Ns):]=0
