@@ -40,7 +40,7 @@ params = init_nufft_params(sino,geom)
 x = afnp.array(padmat(obj[slice_idx],np.array([sino['Ns'],sino['Ns']]),0),dtype=afnp.complex64)
 
 t=time.time()
-num_iter = 100               
+num_iter = 2000               
 for i in range(1,num_iter+1):
   Ax = (math.pi/2)*sino['Ns']*forward_project(x,params)
 elapsed_time = (time.time()-t)/num_iter

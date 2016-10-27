@@ -6,6 +6,7 @@ import h5py
 import afnumpy as afnp
 import arrayfire as af
 import matplotlib.pyplot as plt
+import pyqtgraph as pg
 
 from XT_ForwardModel import forward_project, init_nufft_params, back_project
 from XT_Common import padmat,padmat_v2
@@ -20,6 +21,7 @@ pad_size = 3200 #Size of image for Fourier transform
 sino_center = 1294#1328
 nufft_scaling = (np.pi/pad_size)**2
 fbp_filter_param = 0.5 #Normalized number from 0-1
+slice_idx = 51#num_slice/2
 
 #Read and re-organize data
 f = h5py.File(fpath)
@@ -30,7 +32,6 @@ norm_data=norm_data[start_slice:end_slice] #Crop data set
 num_slice =  norm_data.shape[0]
 num_angles= norm_data.shape[2]
 im_size =  norm_data.shape[1] #A n X n X n volume
-slice_idx = 50#num_slice/2
 ang = tomopy.angles(num_angles+1) # Generate uniformly spaced tilt angles.
 ang=ang[:-1]
 
@@ -64,7 +65,7 @@ for i in range(0,num_slice/2):
   #filtered back-projection 
   rec_nufft[i] = (back_project(Ax,params))[pad_idx,pad_idx]
 
-  elapsed_time = (time.time()-t)
+elapsed_time = (time.time()-t)
 print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 
 #Move to CPU
@@ -83,13 +84,13 @@ print('Time for tomopy gridrec of %d slices : %f' % (data.shape[1],time.time() -
 #Plotting results
 
 if np.mod(slice_idx,2):
-  nufft_slice = np.abs(rec_nufft[slice_idx/2].real)
+  nufft_slice = (rec_nufft[slice_idx/2].real)
 else:
-  nufft_slice = np.abs(rec_nufft[slice_idx//2].imag)
+  nufft_slice = (rec_nufft[slice_idx//2].imag)
   
 plt.figure();plt.imshow(nufft_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using FastNUFFT');plt.draw();
 
-tomopy_slice = np.flipud(np.abs(rec_tomopy[slice_idx]))
+tomopy_slice = np.flipud((rec_tomopy[slice_idx]))
 plt.figure();plt.imshow(tomopy_slice,cmap='gray');plt.colorbar();plt.title('Reconstructed slice using TomoPy');plt.draw();
 
 fig,ax=plt.subplots()
@@ -97,5 +98,7 @@ ax.plot(nufft_slice[nufft_slice.shape[1]//2],'r',label='NUFFT')
 ax.plot(tomopy_slice[nufft_slice.shape[1]//2],'b',label='TomoPy')
 ax.legend()
 plt.draw()
+
+pg.image(rec_nufft.real);pg.QtGui.QApplication.exec_()
 
 plt.show()

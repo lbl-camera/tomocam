@@ -9,7 +9,7 @@ import scipy.special as sc_spl #For bessel functions
 import tomopy
 import matplotlib.pyplot as plt
 from XT_Common import padmat
-import ipdb
+#import ipdb
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
@@ -20,7 +20,7 @@ def forward_project(x,params):
     qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
 
     rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
-#    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+
     return rtXqt 
 
 def back_project(y,params):
@@ -31,9 +31,9 @@ def back_project(y,params):
 
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
-    rxyXqxy =(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
-    #=params['fft2Dshift']*
-    return rxyXqxy 
+    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+
+    return rxyXqxy
 
 
 def init_nufft_params(sino,geom):
@@ -89,10 +89,12 @@ def init_nufft_params(sino,geom):
     params['det_grid'] = np.array(np.reshape(np.arange(0,sino['Ns']),(sino['Ns'],1)))
 
     #####Generate Ram-Lak/ShepLogan like filter kernel#########
-    temp_r = np.linspace(-1,1,Ns)
-    kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
-    temp_mask=np.ones(Ns);
+    
+    temp_mask=np.ones(Ns)
+    kernel=np.ones(Ns)
     if 'filter' in sino:
+      temp_r = np.linspace(-1,1,Ns)
+      kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
       temp_pos = (1-sino['filter'])/2
       temp_mask[0:np.int16(temp_pos*Ns)]=0
       temp_mask[np.int16((1-temp_pos)*Ns):]=0
@@ -103,7 +105,7 @@ def init_nufft_params(sino,geom):
     temp2 = afnp.array(temp2.reshape(1,sino['Ns']))
     temp3 = afnp.array(afnp.exp(-1j*2*params['center']*(afnp.pi/params['Ns'])*params['det_grid']).astype(afnp.complex64))
     temp4 = afnp.array(afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid']).astype(afnp.complex64))
-    params['fft2Dshift'] = temp*temp2
+    params['fft2Dshift'] = afnp.array(temp*temp2,dtype=afnp.complex64)
     params['fftshift1D'] = lambda x : temp*x
     params['fftshift1D_center'] = lambda x : temp3*x
     params['fftshift1Dinv_center'] = lambda x : temp4*x

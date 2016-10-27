@@ -23,7 +23,7 @@ def main():
         af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
         oversamp_factor = 1.25
         pad_size = np.int16(inputs['x_width']*oversamp_factor)
-        fbp_filter_param=0.75
+        fbp_filter_param=inputs['fbp_filter_param']
         nufft_scaling = (np.pi/pad_size)**2
         
         algorithm='gridrec'
@@ -45,12 +45,13 @@ def main():
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
 
-        fig = plt.figure()
-        plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
-        fig.suptitle('Sinogram')
-#        pg.image(tomo)
+#        fig = plt.figure()
+#        plt.imshow(tomo[:,1,:],cmap=plt.cm.Greys_r)
+#        fig.suptitle('Sinogram')
+        
 
         ################## GPU gridrec() ######################
+        print('Starting GPU NUFFT recon')
 
         new_tomo=np.transpose(tomo,(1,2,0))
         im_size =  new_tomo.shape[1]
@@ -69,12 +70,13 @@ def main():
         rec_nufft = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
         Ax = afnp.zeros((sino['Ns'],num_angles),dtype=afnp.complex64)
         pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
-
+        
         t=time.time()
         #Move all data to GPU
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
         gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
+        x_recon = afnp.zeros((sino['Ns'],sino['Ns']),dtype=afnp.complex64)
         #loop over all slices
         for i in range(0,num_slice/2):
           Ax[pad_idx,:]=gdata[i]
@@ -87,13 +89,16 @@ def main():
         #Move to CPU
         #Rescale result to match tomopy
         rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
+        rec_nufft_final=np.zeros((num_slice,sino['Ns_orig'],sino['Ns_orig']),dtype=np.float32)
+        rec_nufft_final[slice_1]=np.array(rec_nufft.real,dtype=np.float32)
+        rec_nufft_final[slice_2]=np.array(rec_nufft.imag,dtype=np.float32)
 
         ##################TomoPy Recon#####################
-        print('Recon - tomopy GridRec')
-        t=time.time()
-        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
-        elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+#        print('Recon - tomopy GridRec')
+#        t=time.time()
+#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
 
 #       print('Recon - tomopy Astra')
 #       t=time.time()
@@ -103,20 +108,21 @@ def main():
 #       print('Time for reconstucting using Tomopy Astra of %d slices : %f' % (num_slice,elapsed_time))
 
 
-
         
-        fig = plt.figure()
-        plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
-        plt.colorbar()
-        fig.suptitle('Tomopy Gridrec Reconstruction')
+#        fig = plt.figure()
+#        plt.imshow(np.abs(np.flipud(rec_tomopy[0])),cmap=plt.cm.Greys_r)
+#        plt.colorbar()
+#        fig.suptitle('Tomopy Gridrec Reconstruction')
 
-        fig = plt.figure()
-        plt.imshow(np.abs(rec_nufft[0].real),cmap=plt.cm.Greys_r)
-        plt.colorbar()
-        fig.suptitle('GPU NUFFT Reconstruction')
+#        fig = plt.figure()
+#        plt.imshow(rec_nufft[0].real,cmap=plt.cm.Greys_r)
+#        plt.colorbar()
+#        fig.suptitle('GPU NUFFT Reconstruction')
+
+        pg.image(rec_nufft_final);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
-        plt.show()
+#        plt.show()
 main()
 
 
