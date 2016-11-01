@@ -4,7 +4,6 @@ import gnufft
 import numpy as np
 import afnumpy as afnp
 import arrayfire as af
-import ipdb
 
 def afnp_rand(n1, n2=1):
     arr = afnp.arrayfire.randu(n1, n2)
@@ -17,7 +16,8 @@ kblut = afnp.ndarray((128,1), dtype=np.float32, af_array=af.randu(1, 128, dtype=
 #print kblut[:10]
 scale = 12
 k_r = 3
-res = gnufft.polarsample(pts, cplx, kblut, scale, k_r)
+for i in range(10000):
+    res = gnufft.polarsample(pts, cplx, kblut, scale, k_r)
 print res.shape
 print res.size
 print res.dtype
