@@ -110,7 +110,41 @@ def main():
         rec_sirt_final[slice_1]=np.array(rec_sirt.real,dtype=np.float32)
         rec_sirt_final[slice_2]=np.array(rec_sirt.imag,dtype=np.float32)
 
+#        fig = plt.figure()
+#        sirt_camTomo = rec_sirt_final[0] 
+#        plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
+#        plt.colorbar()
+#        fig.suptitle('GNUFFT SIRT Reconstruction')
+#        plt.show()
+#        plt.draw()
+
         pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
+
+        ##################TomoPy Recon#####################
+#        print('Recon - tomopy ASTRA-SIRT')
+#        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':15}
+#        t=time.time()
+#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy SIRT of %d slices : %f' % (num_slice,elapsed_time))
+        
+#        fig = plt.figure()
+#        sirt_Tomopy = np.flipud(rec_tomopy[0])
+#        plt.imshow(sirt_Tomopy,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
+#        plt.colorbar()
+#        fig.suptitle('Tomopy SIRT-ASTRA Reconstruction')
+#        plt.show()
+#        plt.draw()
+
+#        fig,ax=plt.subplots()
+#        ax.plot(sirt_camTomo[sirt_camTomo.shape[0]//2],'r',label='NUFFT-SIRT')
+#        ax.plot(sirt_Tomopy[sirt_Tomopy.shape[0]//2],'b',label='TomoPy-SIRT')
+#        ax.legend()
+#        plt.draw()
+
+#        plt.show()
+
+#        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
 main()

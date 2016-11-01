@@ -20,7 +20,7 @@ def main():
 
         num_slice = inputs['z_numElts']
         num_angles= inputs['num_views']/inputs['view_subsmpl_fact']
-        af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
+        
         oversamp_factor = 1.25
         pad_size = np.int16(inputs['x_width']*oversamp_factor)
         fbp_filter_param=inputs['fbp_filter_param']
@@ -53,6 +53,7 @@ def main():
         ################## GPU gridrec() ######################
         print('Starting GPU NUFFT recon')
 
+        af.set_device(inputs['gpu_device']) #Set the device number for gpu based code
         new_tomo=np.transpose(tomo,(1,2,0))
         im_size =  new_tomo.shape[1]
         #Initialize structures for NUFFT
