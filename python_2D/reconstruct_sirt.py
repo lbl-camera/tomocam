@@ -121,12 +121,12 @@ def main():
         pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
 
         ##################TomoPy Recon#####################
-#        print('Recon - tomopy ASTRA-SIRT')
-#        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':15}
-#        t=time.time()
-#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
-#        elapsed_time = (time.time()-t)
-#        print('Time for reconstucting using Tomopy SIRT of %d slices : %f' % (num_slice,elapsed_time))
+        print('Recon - tomopy ASTRA-SIRT')
+        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':15}
+        t=time.time()
+        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
+        elapsed_time = (time.time()-t)
+        print('Time for reconstucting using Tomopy SIRT of %d slices : %f' % (num_slice,elapsed_time))
         
 #        fig = plt.figure()
 #        sirt_Tomopy = np.flipud(rec_tomopy[0])
@@ -144,7 +144,7 @@ def main():
 
 #        plt.show()
 
-#        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
+        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
 main()
