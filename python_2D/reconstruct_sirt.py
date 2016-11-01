@@ -77,7 +77,7 @@ def main():
 
 #        plt.show()
 
-        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
+#        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
 main()
