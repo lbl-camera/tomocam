@@ -57,14 +57,18 @@ def main():
         input_params['gpu_device']=inputs['gpu_device']
         input_params['fbp_filter_param']=inputs['fbp_filter_param']
         input_params['oversamp_factor']=oversamp_factor
-        rec_nufft_final=gpuGridrec(tomo,theta,inputs['rot_center'],input_params)                
+
+        t=time.time()
+        rec_nufft_final=gpuGridrec(tomo,theta,inputs['rot_center'],input_params)
+        elapsed_time=time.time()-t
+        print('Time for NUFFT Gridrec of %d slices : %f' % (num_slice,elapsed_time))
 
         ##################TomoPy Recon#####################
-#        print('Recon - tomopy GridRec')
-#        t=time.time()
-#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
-#        elapsed_time = (time.time()-t)
-#        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+        print('Recon - tomopy GridRec')
+        t=time.time()
+        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
+        elapsed_time = (time.time()-t)
+        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
 
 #       print('Recon - tomopy Astra')
 #       t=time.time()

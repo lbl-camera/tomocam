@@ -50,16 +50,19 @@ def main():
         input_params['gpu_device']=inputs['gpu_device']
         input_params['oversamp_factor']=oversamp_factor
         input_params['num_iter']=num_iter
+        t=time.time()
         rec_sirt_final = gpuSIRT(tomo,theta,inputs['rot_center'],input_params)
+        elapsed_time = (time.time()-t)
+        print('Time for reconstucting using GPU-SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
         pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
 
         ##################TomoPy Recon#####################
-#        print('Recon - tomopy ASTRA-SIRT')
-#        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':num_iter}
-#        t=time.time()
-#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
-#        elapsed_time = (time.time()-t)
-#        print('Time for reconstucting using Tomopy SIRT of %d slices : %f' % (num_slice,elapsed_time))
+        print('Recon - tomopy ASTRA-SIRT')
+        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':num_iter}
+        t=time.time()
+        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
+        elapsed_time = (time.time()-t)
+        print('Time for reconstucting using Tomopy SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
         
 #        fig = plt.figure()
 #        sirt_Tomopy = np.flipud(rec_tomopy[0])

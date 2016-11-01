@@ -47,7 +47,7 @@ def gpuGridrec(tomo,angles,center,input_params):
         pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
         rec_nufft_final=np.zeros((num_slice,sino['Ns_orig'],sino['Ns_orig']),dtype=np.float32)
         
-        t=time.time()
+#        t=time.time()
         #Move all data to GPU
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
@@ -59,8 +59,8 @@ def gpuGridrec(tomo,angles,center,input_params):
           #filtered back-projection 
           rec_nufft[i] = (back_project(Ax,nufft_params))[pad_idx,pad_idx]
 
-        elapsed_time = (time.time()-t)
-        print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
+#        elapsed_time = (time.time()-t)
+#        print('Time for NUFFT Back-proj of %d slices : %f' % (num_slice,elapsed_time))
 
         #Move to CPU
         #Rescale result to match tomopy
@@ -126,7 +126,7 @@ def gpuSIRT(tomo,angles,center,input_params):
         C[afnp.isinf(C)]=0
         C=afnp.array(C,dtype=afnp.complex64)
         
-        t=time.time()
+#        t=time.time()
         #Move all data to GPU
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
@@ -141,8 +141,8 @@ def gpuSIRT(tomo,angles,center,input_params):
             temp_y[pad_idx]=gdata[i]
             x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),nufft_params)*nufft_scaling/2)[pad_idx,pad_idx]
 
-        elapsed_time = (time.time()-t)
-        print('Time for SIRT recon of %d slices : %f' % (num_slice,elapsed_time))
+#        elapsed_time = (time.time()-t)
+#        print('Time for SIRT recon of %d slices : %f' % (num_slice,elapsed_time))
 
         #Move to CPU
         #Rescale result to match tomopy
