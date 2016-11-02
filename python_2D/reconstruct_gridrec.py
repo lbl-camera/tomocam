@@ -64,11 +64,11 @@ def main():
         print('Time for NUFFT Gridrec of %d slices : %f' % (num_slice,elapsed_time))
 
         ##################TomoPy Recon#####################
-        print('Recon - tomopy GridRec')
-        t=time.time()
-        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
-        elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
+#        print('Recon - tomopy GridRec')
+#        t=time.time()
+#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=algorithm)#emission=False)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy GridRec of %d slices : %f' % (num_slice,elapsed_time))
 
 #       print('Recon - tomopy Astra')
 #       t=time.time()
