@@ -55,7 +55,7 @@ except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
 
-ext = Extension('gnufft',
+ext = Extension('tomocam.gnufft',
                 sources=[
                     'cuda/pyGnufft.cc',
                     'cuda/afnumpyapi.cc',
@@ -119,13 +119,11 @@ class custom_build_ext(build_ext):
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
-setup(name='gnufft',
+setup(name='tomocam',
       # random metadata. there's more you can supploy
-      author='Robert McGibbon',
-      version='0.1',
-
+      author='LBL Camera',
+      version='1.0.0',
       ext_modules = [ext],
-
-      # inject our custom trigger
+      packages = [ 'tomocam' ],
       cmdclass={'build_ext': custom_build_ext}
       )
