@@ -4,7 +4,7 @@ import gnufft
 import numpy as np
 import afnumpy as afnp
 import arrayfire as af
-import ipdb
+import time
 
 def afnp_rand(n1, n2=1):
     arr = afnp.arrayfire.randu(n1, n2)
@@ -17,7 +17,10 @@ kblut = afnp.ndarray((128,1), dtype=np.float32, af_array=af.randu(1, 128, dtype=
 #print kblut[:10]
 scale = 12
 k_r = 3
+t0 = time.time()
 res = gnufft.polarsample(pts, cplx, kblut, scale, k_r)
+dt = time.time() - t0
+print "time: "+str(dt)
 print res.shape
 print res.size
 print res.dtype
