@@ -9,7 +9,7 @@ import scipy.special as sc_spl #For bessel functions
 import tomopy
 import matplotlib.pyplot as plt
 from XT_Common import padmat
-import ipdb
+#import ipdb
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
@@ -20,23 +20,20 @@ def forward_project(x,params):
     qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
 
     rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
-#    x3 = params['fftshift1D']((af_fft.ifft((params['fftshift1D_center'](x2).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+
     return rtXqt 
 
 def back_project(y,params):
     #inputs : y - afnumpy array containing the complex valued array with size of the sinogram 
     #       : params - a list containing all parameters for the NUFFT 
 
-    qtXrt = params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T) #Detector space rt to Fourier space qt
-    
+    qtXrt = params['giDq'].reshape((params['Ns'],1))*(params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T)) #Detector space rt to Fourier space qt
+
     qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
 
-    ipdb.set_trace()
- 
-#    y2 = gnufft.polargrid_cub(params['gxi'],params['gyi'],y2,params['grid'],params['gs_per_b'],params['gb_dim_x'],params['gb_dim_y'],params['gs_in_bin'],params['gb_offset'],params['gb_loc'],params['gb_points_x'],params['gb_points_y'],params['gkblut'],params['scale']) # Polar to cartesian qt->qxy
-
     rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
-    return rxyXqxy 
+
+    return rxyXqxy
 
 
 def init_nufft_params(sino,geom):
@@ -63,9 +60,12 @@ def init_nufft_params(sino,geom):
     # Preload the Bessel kernel (real components!)
     kblut,KB,KB1D,KB2D=KBlut(k_r,beta,KBLUT_LENGTH) 
     KBnorm=np.array(np.single(np.sum(np.sum(KB2D(np.reshape(np.arange(-k_r,k_r+1),(2*k_r+1,1)),(np.arange(-k_r,k_r+1)))))))
-    print KBnorm
+    #print KBnorm
     kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
 
+
+    #Normalization (density compensation factor)
+#    Dq=KBdensity1(sino['qq'],sino['tt'],KB1,k_r,Ns)';
 
     # polar to cartesian, centered
     [xi,yi]=pol2cart(sino['qq'],sino['tt']*math.pi/180)
@@ -87,12 +87,25 @@ def init_nufft_params(sino,geom):
     params['gxy'] = params['gxi']+1j*params['gyi']
     params['gkblut'] = afnp.array(np.single(kblut))
     params['det_grid'] = np.array(np.reshape(np.arange(0,sino['Ns']),(sino['Ns'],1)))
+
+    #####Generate Ram-Lak/ShepLogan like filter kernel#########
+    
+    temp_mask=np.ones(Ns)
+    kernel=np.ones(Ns)
+    if 'filter' in sino:
+      temp_r = np.linspace(-1,1,Ns)
+      kernel = (Ns)*np.fabs(temp_r)*np.sinc(temp_r/2)
+      temp_pos = (1-sino['filter'])/2
+      temp_mask[0:np.int16(temp_pos*Ns)]=0
+      temp_mask[np.int16((1-temp_pos)*Ns):]=0
+    params['giDq']=afnp.array(kernel*temp_mask,dtype=afnp.complex64)
+    
     temp = afnp.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = np.array((-1)**params['det_grid'],dtype=afnp.float32)
     temp2 = afnp.array(temp2.reshape(1,sino['Ns']))
     temp3 = afnp.array(afnp.exp(-1j*2*params['center']*(afnp.pi/params['Ns'])*params['det_grid']).astype(afnp.complex64))
     temp4 = afnp.array(afnp.exp(1j*2*params['center']*afnp.pi/params['Ns']*params['det_grid']).astype(afnp.complex64))
-    params['fft2Dshift'] = temp*temp2
+    params['fft2Dshift'] = afnp.array(temp*temp2,dtype=afnp.complex64)
     params['fftshift1D'] = lambda x : temp*x
     params['fftshift1D_center'] = lambda x : temp3*x
     params['fftshift1Dinv_center'] = lambda x : temp4*x
@@ -120,7 +133,7 @@ def deapodization(Ns,KB,Ns_orig):
     # assume oversampling, do not divide outside box in real space:
     msk = padmat(np.ones((Ns_orig,Ns_orig)),np.array((Ns,Ns)),0)
     msk=msk.astype(bool)
-    dpz=dpz.astype(float)
+    dpz=dpz.real#astype(float)
     dpz[~msk] = 1            #keep the value outside box
     dpz=1/dpz               #deapodization factor truncated
     dpz=dpz/dpz[Ns/2+1,Ns/2+1] #scaling
@@ -153,3 +166,13 @@ def pol2cart(rho, phi):
     x = rho * np.cos(phi)
     y = rho * np.sin(phi)
     return(x, y)
+
+#def densityCompensation(qq,tt,KB,nj,Ns):
+#    nb=100; #TODO : Why 100 ? Venkat
+#    [nt,nq]=size(qq);   
+    #crop repeated angles
+#    ii=(tt(:,1))-min(tt(:,1))<180;
+#    qq1=qq(ii,:);
+#    tt1=tt(ii,:);
+#    qq1=-fliplr(qq1);
+#    [xi,yi]=pol2cart(tt1*pi/180,qq1);

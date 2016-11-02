@@ -1,27 +1,30 @@
 clear;
 close all;
 
-reset(gpuDevice(2));
-gpuDevice(2);
+reset(gpuDevice(7));
+gpuDevice(7);
 
 addpath operators
 addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 10;
-Ns_actual = 256;%2560;
+num_slice = 100;
+Ns_actual = 2560;%2560;
 
-nangles = 256;%2048;%Ns_pad = 4096;
-center_actual = 128+10;%1280;%sub pixels 
+nangles = 1024;%256;%2048;%Ns_pad = 4096;
+center_actual = 1280;%1280;%sub pixels 
 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=512;%3624
+Ns=3200;%3624
 center = center_actual + (Ns/2 - Ns_actual/2);
 
+mask=zeros(Ns,Ns);
+index_tmp=Ns/2 - Ns_actual/2:Ns/2 + Ns_actual/2-1;
+mask(index_tmp,index_tmp)=1;
 %temp=zeros(Ns_actual,Ns_actual);
 %temp(end/4-5:end/4+5,end/2-5:end/2+5)=1;
 signal =gpuArray(repmat((padmat(phantom(Ns_actual),[Ns,Ns])),1,1,num_slice));
@@ -116,7 +119,7 @@ title('Matlab back-projection');
 end
 
 figure;
-imagesc(real(squeeze(projection(:,:,1))));colormap(gray);colorbar;
+imagesc(real(squeeze(projection(:,:,1)))');colormap(gray);axis image;colorbar;
 ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuradon);
 title(ss_gnuradon);
 fprintf([ss_gnuradon '\n']);
@@ -124,7 +127,7 @@ fprintf([ss_gnuradon '\n']);
 
 figure;
 %imagesc(real(squeeze(test_backproj(:,:,1))));colormap(gray);colorbar;
-imagesc(abs(squeeze(test_backproj(:,:,1))));cax=caxis;caxis([0 cax(2)]);colormap(gray);colorbar;
+imagesc(abs(squeeze(test_backproj(:,:,1))).*mask);cax=caxis;caxis([0 cax(2)]);colormap(gray);axis image;colorbar;
 ss_gnuiradon=sprintf('NUFFT back-projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuiradon);
 title(ss_gnuiradon);
 fprintf([ss_gnuiradon '\n']);

@@ -15,6 +15,7 @@ def bl832inputs_parser(parser):
         parser.add_argument("--dual_norm",help="Average brights and darks from the beginning AND end.",action="store_true")
         parser.add_argument("--full_rot",help="Use this flag if the views correspond to 0-360 degrees instead of 0-180 degrees.",action="store_true")
         parser.add_argument("--view_subsmpl_fact", help="View skipping factor. This can be used to subset the data in terms of views",type=int,default=1)
+        parser.add_argument("--gpu_device", help="Device id of the GPU",type=int,default=0)
 
         #Reconstruction parameters                                                                                                                                        
         parser.add_argument("--x_width", help="Number of detector elements along x-direction",type=int)
@@ -24,10 +25,11 @@ def bl832inputs_parser(parser):
         parser.add_argument("--smoothness",help="A scaling parameter use to control the balance between resolution and noise in the reconstruction. This value is multiplied by a predtermined internal value",type=float,default=0.50)
         parser.add_argument("--zinger_thresh",help="Controls the rejection thresold of bad measurements that cause zingers. In a future version this will have proper units\
  At present try values in the range 1-50 to correct for zingers",type=float,default=10000)
+        parser.add_argument("--filter_param",help="Filter cut-off (0-1)",type=float,default=1)
 
         #Advanced parameters which the user need not worry about but can manipulate if necessary                                                                            
         parser.add_argument("--stop_threshold",help="Stopping thresold as a percentage of average change in pixel values in percentage",type=float,default=10)
-        parser.add_argument("--max_iter",help="Maximum number of ICD iterations for the algorithm",type=int,default=30)
+        parser.add_argument("--max_iter",help="Maximum number of ICD iterations for the algorithm",type=int,default=20)
 
         args = parser.parse_args()
 
@@ -40,6 +42,7 @@ def bl832inputs_parser(parser):
             return -1
 
         inputs['output_hdf5']= args.output_hdf5
+        inputs['gpu_device'] = args.gpu_device
 
         inputs['pix_size'] = args.pix_size
         inputs['num_bright'] = args.num_bright
@@ -51,6 +54,7 @@ def bl832inputs_parser(parser):
         inputs['z_start'] = args.z_start
         inputs['z_numElts'] = args.z_numElts
         inputs['p'] = args.p
+        inputs['fbp_filter_param']=args.filter_param
         inputs['smoothness'] = args.smoothness
         inputs['stop_threshold'] = args.stop_threshold
         inputs['max_iter'] = args.max_iter
@@ -58,4 +62,5 @@ def bl832inputs_parser(parser):
         inputs['dual_norm'] = args.dual_norm  
         inputs['full_rot'] = args.full_rot  
         inputs['num_views'] = args.num_views
+        inputs['num_iter']= args.max_iter
         return inputs

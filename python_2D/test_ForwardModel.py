@@ -14,7 +14,7 @@ from XT_ForwardModel import forward_project, init_nufft_params, back_project
 from XT_Common import padmat
 from normalize import normalize_bo
 
-num_slice = 10;
+num_slice = 24
 im_size = 256 #A n X n X n volume
 sino_center = 128
 num_angles = 256
@@ -27,39 +27,41 @@ ang = tomopy.angles(num_angles) # Generate uniformly spaced tilt angles.
 ### Comparing to tomopy 
 sim = tomopy.project(obj,ang)
 
-
 sino={}
 geom={}
-sino['Ns'] = im_size*2 #Sinogram size after padding
+sino['Ns'] =512#3624#im_size*2 #Sinogram size after padding
 sino['Ns_orig'] = im_size #size of original sinogram
-sino['center'] = sino_center + (sino['Ns']/2 - sino['Ns_orig']/2);  #for padded sinogram
+sino['center'] = sino_center + (sino['Ns']/2 - sino['Ns_orig']/2)  #for padded sinogram
 sino['angles'] = ang
 
-params = init_nufft_params(sino,geom);
+params = init_nufft_params(sino,geom)
 
 ##Create a simulated object to test forward and back-projection routines
-
 x = afnp.array(padmat(obj[slice_idx],np.array([sino['Ns'],sino['Ns']]),0),dtype=afnp.complex64)
-#plt.imshow(x,cmap='gray');plt.title('Ground truth');plt.show();
-#x_imag = afnp.array(padmat(obj[150],np.array([sino['Ns'],sino['Ns']]),0))
-#x= x_real + 1j*x_imag
 
 t=time.time()
-num_iter = 10
+num_iter = 2000               
 for i in range(1,num_iter+1):
   Ax = (math.pi/2)*sino['Ns']*forward_project(x,params)
 elapsed_time = (time.time()-t)/num_iter
-
 print('Time for Forward Proj :',elapsed_time)
 
-y = back_project(Ax,params)
-plt.imshow(np.abs(y));plt.show();
+t=time.time()
+for i in range(1,num_iter+1):
+  y = back_project(Ax,params)
+elapsed_time = (time.time()-t)/num_iter
+print('Time for Back Proj :',elapsed_time)
+
+plt.imshow(np.abs(y),cmap='gray')
+plt.colorbar()
+plt.title('NUFFT back-proj')
+plt.draw()
 #plt.imshow(x,cmap='gray')
 
 #####Plotting #######
 
 #tomopy
-tomopy_sim_slice = np.flipud(np.fliplr(padmat(sim[:,slice_idx,:],np.array([num_angles, sino['Ns']]),0)));
+tomopy_sim_slice = np.flipud(np.fliplr(padmat(sim[:,slice_idx,:],np.array([num_angles, sino['Ns']]),0)))
 plt.figure();plt.imshow(tomopy_sim_slice,cmap='gray');plt.title('Tomopy projection');plt.colorbar();plt.draw();
 #rec = tomopy.recon(sim, ang, algorithm='art') # Reconstruct object.
 
