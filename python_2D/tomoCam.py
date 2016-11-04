@@ -6,16 +6,18 @@ import arrayfire as af
 
 from XT_ForwardModel import forward_project, init_nufft_params, back_project
 
-#Gridrec reconstruction using GPU based gridding
-#Inputs: tomo : 3D numpy sinogram array with dimensions same as tomopy
-#        angles : Array of angles in radians
-#        center : Floating point center of rotation
-#       input_params : A dictionary with the keys
-#        'gpu_device' : Device id of the gpu (For a 4 GPU cluster ; 0-3)
-#       'oversamp_factor': A factor by which to pad the image/data for FFT
-#       'fbp_filter_param' : A number between 0-1 for setting the filter cut-off for FBP
+def gpuGridrec(tomo,angles,center,input_params):
+        """
+        Gridrec reconstruction using GPU based gridding
+        Inputs: tomo : 3D numpy sinogram array with dimensions same as tomopy
+        angles : Array of angles in radians
+        center : Floating point center of rotation
+        input_params : A dictionary with the keys
+        'gpu_device' : Device id of the gpu (For a 4 GPU cluster ; 0-3)
+        'oversamp_factor': A factor by which to pad the image/data for FFT
+        'fbp_filter_param' : A number between 0-1 for setting the filter cut-off for FBP
+        """
 
-def gpuGridrec(tomo,angles,center,input_params):        
         print('Starting GPU NUFFT recon')
         #allocate space for final answer 
         af.set_device(input_params['gpu_device']) #Set the device number for gpu based code
@@ -61,15 +63,18 @@ def gpuGridrec(tomo,angles,center,input_params):
         rec_nufft_final[slice_2]=np.array(rec_nufft.imag,dtype=np.float32)
         return rec_nufft_final
 
-#SIRT reconstruction using GPU based gridding operators
-#Inputs: tomo : 3D numpy sinogram array with dimensions same as tomopy
-#        angles : Array of angles in radians
-#        center : Floating point center of rotation
-#       input_params : A dictionary with the keys
-#        'gpu_device' : Device id of the gpu (For a 4 GPU cluster ; 0-3)
-#        'oversamp_factor': A factor by which to pad the image/data for FFT
-#        'num_iter' : Number of SIRT iterations
+
 def gpuSIRT(tomo,angles,center,input_params):
+        """
+        SIRT reconstruction using GPU based gridding operators
+        Inputs: tomo : 3D numpy sinogram array with dimensions same as tomopy
+        angles : Array of angles in radians
+        center : Floating point center of rotation
+        input_params : A dictionary with the keys
+        'gpu_device' : Device id of the gpu (For a 4 GPU cluster ; 0-3)
+        'oversamp_factor': A factor by which to pad the image/data for FFT
+        'num_iter' : Number of SIRT iterations
+        """
         print('Starting GPU SIRT recon')
         #allocate space for final answer 
         af.set_device(input_params['gpu_device']) #Set the device number for gpu based code
