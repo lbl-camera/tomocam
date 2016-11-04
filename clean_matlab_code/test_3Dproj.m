@@ -9,17 +9,19 @@ addpath gpu
 addpath gnufft
 addpath Common
 
-num_slice = 100;
-Ns_actual = 2560;%2560;
+matlab_funcs = true;
 
-nangles = 1024;%256;%2048;%Ns_pad = 4096;
-center_actual = 1280;%1280;%sub pixels 
+num_slice = 4;
+Ns_actual = 512;%2560;
+
+nangles = 512*2;%256;%2048;%Ns_pad = 4096;
+center_actual = Ns_actual/2;%1280;%sub pixels 
 
 pix_size = 1;%um 
 det_size = 1;%um 
 
 %padding
-Ns=3200;%3624
+Ns=728;
 center = center_actual + (Ns/2 - Ns_actual/2);
 
 mask=zeros(Ns,Ns);
@@ -40,12 +42,12 @@ signal_ML = gpuArray(repmat(phantom(Ns_actual),1,1,num_slice));
 %gpuArray(repmat(temp,1,1,num_slice));
 
 %%%%%%%%%% Forward-projection %%%%%% 
-if false
+if matlab_funcs
 display('Projecting using Matlab');
 projection_ML = gpuArray(zeros(Ns+1,nangles,num_slice));
 tic;
 for i=1:num_slice
-    projection_ML(:,:,i)=radon(squeeze(signal_ML(:,:,i)),angle_list);
+    projection_ML(:,:,i)=radon(squeeze(signal_ML(:,:,i)),angle_list-90);
 end
 toc;
 
@@ -54,7 +56,7 @@ display('Back-Projecting using Matlab');
 test_backproj_ML=gpuArray(zeros(Ns_actual,Ns_actual,num_slice));
 tic;
 for i=1:num_slice
-	test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list,'Hamming',0.3,Ns_actual);
+	test_backproj_ML(:,:,i) = iradon(squeeze(projection_ML(:,:,i)),angle_list-90,'Hamming',0.95,Ns_actual);
 end
 toc;
 end
@@ -109,17 +111,17 @@ t_gnuiradon=toc;
 
 %% plot and comparison
 
-if false
+if matlab_funcs
 figure;
-imagesc(real(squeeze(projection_ML(:,:,1))));colormap(gray);colorbar;
+imagesc(real(squeeze(projection_ML(:,:,1)))');colormap(gray);colorbar;
 title('Matlab projection');
 figure;
-imagesc(real(squeeze(test_backproj_ML(:,:,1))));colormap(gray);colorbar;
+imagesc(real(squeeze(test_backproj_ML(:,:,1))));axis image;colormap(gray);colorbar;
 title('Matlab back-projection');
 end
 
 figure;
-imagesc(real(squeeze(projection(:,:,1)))');colormap(gray);axis image;colorbar;
+imagesc(real(squeeze(projection(:,:,1)))');colormap(gray);colorbar;
 ss_gnuradon=sprintf('NUFFT projection, angles=%d, Ns=%d, nslices=%d, time=%g',nangles,Ns,num_slice,t_gnuradon);
 title(ss_gnuradon);
 fprintf([ss_gnuradon '\n']);

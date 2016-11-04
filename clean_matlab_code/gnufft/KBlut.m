@@ -7,7 +7,7 @@ scale = (nlut-1)/k_r;
 
 kbcrop=@(x) (abs(x)<=k_r);     %crop outer values
 
-KBnorm=norm(KB2((-k_r:k_r), 2*k_r, beta)'*KB2((-k_r:k_r), 2*k_r, beta));
+%KBnorm=norm(KB2((-k_r:k_r), 2*k_r, beta)'*KB2((-k_r:k_r), 2*k_r, beta));
 
 %KBnorm
 

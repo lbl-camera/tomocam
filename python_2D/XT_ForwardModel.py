@@ -15,11 +15,12 @@ def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
     #       : params - a list containing all parameters for the NUFFT 
 
-    qxyXrxy = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift']))/params['Ns'] #real space (rxy) to Fourier space (qxy)
+    qxyXrxy = (params['fft2Dshift']*af_fft.fft2(x*params['deapod_filt']*params['fft2Dshift'])) #real space (rxy) to Fourier space (qxy)
     
-    qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r']) #Fourier space to polar coordinates interpolation (qxy to qt)
+    qtXqxy = gnufft.polarsample(params['gxy'],qxyXrxy,params['gkblut'],params['scale'],params['k_r'])/(params['Ns']**2) #Fourier space to polar coordinates interpolation (qxy to qt)
 
-    rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt 
+    rtXqt = params['fftshift1D']((af_fft.ifft(afnp.array(params['fftshift1D_center'](qtXqxy).T))).T)*params['sino_mask'] #Polar cordinates to real space qt to rt
+    #TODO : Remove afnp array allocation
 
     return rtXqt 
 
@@ -29,9 +30,10 @@ def back_project(y,params):
 
     qtXrt = params['giDq'].reshape((params['Ns'],1))*(params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T)) #Detector space rt to Fourier space qt
 
-    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])
+    #Polar to cartesian 
+    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])/(params['Ns']**3)
 
-    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt']*params['Ns'] #Fourier to real space : qxy to rxy
+    rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt'] #Fourier to real space : qxy to rxy
 
     return rxyXqxy
 
@@ -46,9 +48,8 @@ def init_nufft_params(sino,geom):
     #       : geom - TBD
     #
      
-    KBLUT_LENGTH = 256;
-    SCALING_FACTOR = 1.7;#What is this ? 
-    k_r=3 #kernel size 2*kr+1
+    KBLUT_LENGTH = 256
+    k_r=3 #kernel size 2*kr+1 TODO : Breaks when k_r is large. Why ? 
     beta =4*math.pi  
     Ns = sino['Ns']
     Ns_orig = sino['Ns_orig']
@@ -59,9 +60,6 @@ def init_nufft_params(sino,geom):
 
     # Preload the Bessel kernel (real components!)
     kblut,KB,KB1D,KB2D=KBlut(k_r,beta,KBLUT_LENGTH) 
-    KBnorm=np.array(np.single(np.sum(np.sum(KB2D(np.reshape(np.arange(-k_r,k_r+1),(2*k_r+1,1)),(np.arange(-k_r,k_r+1)))))))
-    #print KBnorm
-    kblut=kblut/KBnorm*SCALING_FACTOR #scaling fudge factor
 
 
     #Normalization (density compensation factor)
@@ -74,9 +72,9 @@ def init_nufft_params(sino,geom):
    
     params={}
     params['k_r'] = k_r
-    params['deapod_filt']=afnp.array(deapodization(Ns,KB,Ns_orig),dtype=afnp.float32)
+    params['deapod_filt']=afnp.array(deapodization(Ns,KB1D),dtype=afnp.float32)
     params['sino_mask'] = afnp.array(padmat(np.ones((Ns_orig,sino['qq'].shape[1])),np.array((Ns,sino['qq'].shape[1])),0),dtype=afnp.float32)
-    params['grid'] = [Ns,Ns] #np.array([Ns,Ns],dtype=np.int32)
+    params['grid'] = [Ns,Ns] 
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
     params['center'] = afnp.array(sino['center'])
     params['Ns'] = Ns
@@ -112,19 +110,12 @@ def init_nufft_params(sino,geom):
     
     return params
 
-def deapodization(Ns,KB,Ns_orig):
-
+def deapodization(Ns,KB1D):
     xx=np.arange(1,Ns+1)-Ns/2-1
-    dpz=np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(np.reshape(KB(xx,np.array(0)),(np.size(xx),1))*KB(xx,np.array(0)))))
-    # assume oversampling, do not divide outside box in real space:
-    msk = padmat(np.ones((Ns_orig,Ns_orig)),np.array((Ns,Ns)),0)
-    msk=msk.astype(bool)
-    dpz=dpz.real#astype(float)
-    dpz[~msk] = 1            #keep the value outside box
-    dpz=1/dpz               #deapodization factor truncated
-    dpz=dpz/dpz[Ns/2+1,Ns/2+1] #scaling
+    dpz=np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(np.reshape(KB1D(xx),(np.size(xx),1))*KB1D(xx))))
+    dpz=dpz.real #astype(float)
+    dpz=1/dpz         
     return dpz
-
     
 def KBlut(k_r,beta,nlut):
     kk=np.linspace(0,k_r,nlut)
@@ -139,7 +130,7 @@ def KBlut(k_r,beta,nlut):
 
 def KB2(x, k_r, beta):
     w = sc_spl.iv(0, beta*np.sqrt(1-(2*x/k_r)**2)) 
-    w=w/np.abs(sc_spl.iv(0, beta))
+    #w=w/np.abs(sc_spl.iv(0, beta))
     w=(w*(x<=k_r))
     return w
 

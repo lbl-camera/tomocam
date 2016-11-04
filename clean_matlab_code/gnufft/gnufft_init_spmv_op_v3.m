@@ -99,8 +99,8 @@ P.qtXrt=@(Grt) fftshift1Dop_inv(fft(fftshift1Dop_old(Grt)));
 %%
 % q-radon to q cartesian
 % q-cartesian to q-radon
-P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r,beta)/Ns^2;
-P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r)/Ns^3;
+P.qtXqxy=@(Gqxy) polarsamplev2(gxy,Gqxy,grid,gkblut,scale,k_r,beta)/Ns^2;%Why Ns^2
+P.qxyXqt=@(Gqt) polarsample_transposev2(gxy,Gqt,grid,gkblut,scale,k_r)/Ns^3;%why Ns^3
 
 % radon transform: (x y) to (qx qy) to (q theta) to (r theta):
 P.gnuradon=@(G) P.rtXqt(P.qtXqxy(P.qxyXrxy(G)));
