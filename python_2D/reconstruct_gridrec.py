@@ -62,6 +62,7 @@ def main():
         rec_nufft_final=gpuGridrec(tomo,theta,inputs['rot_center'],input_params)
         elapsed_time=time.time()-t
         print('Time for NUFFT Gridrec of %d slices : %f' % (num_slice,elapsed_time))
+        pg.image(rec_nufft_final);pg.QtGui.QApplication.exec_()
 
         ##################TomoPy Recon#####################
 #        print('Recon - tomopy GridRec')
@@ -88,7 +89,6 @@ def main():
 #        plt.colorbar()
 #        fig.suptitle('GPU NUFFT Reconstruction')
 
-        pg.image(rec_nufft_final);pg.QtGui.QApplication.exec_()
 
         print 'main: Done!'
 #        plt.show()

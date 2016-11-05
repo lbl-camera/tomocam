@@ -27,7 +27,7 @@ def gpuGridrec(tomo,angles,center,input_params):
         num_slice = new_tomo.shape[0]
         num_angles=new_tomo.shape[2]
         pad_size=np.int16(im_size*input_params['oversamp_factor'])
-        nufft_scaling = (np.pi/pad_size)**2
+#        nufft_scaling = (np.pi/pad_size)**2
         #Initialize structures for NUFFT
         sino={}
         geom={}
@@ -58,7 +58,7 @@ def gpuGridrec(tomo,angles,center,input_params):
 
         #Move to CPU
         #Rescale result to match tomopy
-        rec_nufft=np.array(rec_nufft,dtype=np.complex64)*nufft_scaling
+        rec_nufft=np.array(rec_nufft,dtype=np.complex64) #*nufft_scaling
         rec_nufft_final[slice_1]=np.array(rec_nufft.real,dtype=np.float32)
         rec_nufft_final[slice_2]=np.array(rec_nufft.imag,dtype=np.float32)
         return rec_nufft_final
@@ -84,7 +84,7 @@ def gpuSIRT(tomo,angles,center,input_params):
         num_slice = new_tomo.shape[0]
         num_angles=new_tomo.shape[2]
         pad_size=np.int16(im_size*input_params['oversamp_factor'])
-        nufft_scaling = (np.pi/pad_size)**2
+#        nufft_scaling = (np.pi/pad_size)**2
         num_iter = input_params['num_iter']
         #Initialize structures for NUFFT
         sino={}
@@ -108,7 +108,7 @@ def gpuSIRT(tomo,angles,center,input_params):
         #initialize an image of all ones
         x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
         temp_x[pad_idx,pad_idx]=x_ones
-        temp_proj=forward_project(temp_x,nufft_params)*(sino['Ns']*afnp.pi/2)
+        temp_proj=forward_project(temp_x,nufft_params) #*(sino['Ns']*afnp.pi/2)
         R = 1/afnp.abs(temp_proj)
         R[afnp.isnan(R)]=0
         R[afnp.isinf(R)]=0
@@ -117,7 +117,7 @@ def gpuSIRT(tomo,angles,center,input_params):
         #Initialize a sinogram of all ones
         y_ones=afnp.ones((sino['Ns_orig'],num_angles),dtype=afnp.complex64)
         temp_y[pad_idx]=y_ones
-        temp_backproj=back_project(temp_y,nufft_params)*nufft_scaling/2
+        temp_backproj=back_project(temp_y,nufft_params) #*nufft_scaling/2
         C = 1/(afnp.abs(temp_backproj))
         C[afnp.isnan(C)]=0
         C[afnp.isinf(C)]=0
@@ -133,9 +133,9 @@ def gpuSIRT(tomo,angles,center,input_params):
           for iter_num in range(num_iter):
             #filtered back-projection
             temp_x[pad_idx,pad_idx]=x_recon[i]
-            Ax = (np.pi/2)*sino['Ns']*forward_project(temp_x,nufft_params)
+            Ax = forward_project(temp_x,nufft_params)
             temp_y[pad_idx]=gdata[i]
-            x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),nufft_params)*nufft_scaling/2)[pad_idx,pad_idx]
+            x_recon[i] = x_recon[i]+(C*back_project(R*(temp_y-Ax),nufft_params))[pad_idx,pad_idx] #nufft_scaling
 
         #Move to CPU
         #Rescale result to match tomopy

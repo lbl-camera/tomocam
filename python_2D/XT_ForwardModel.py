@@ -31,7 +31,7 @@ def back_project(y,params):
     qtXrt = params['giDq'].reshape((params['Ns'],1))*(params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T)) #Detector space rt to Fourier space qt
 
     #Polar to cartesian 
-    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r'])/(params['Ns']**3)
+    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r']) *(afnp.pi/(2*params['Ntheta']*params['Ns']**2))
 
     rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt'] #Fourier to real space : qxy to rxy
 
@@ -78,6 +78,7 @@ def init_nufft_params(sino,geom):
     params['scale']= ((KBLUT_LENGTH-1)/k_r)
     params['center'] = afnp.array(sino['center'])
     params['Ns'] = Ns
+    params['Ntheta'] = np.size(ang)
 
     # push parameters to gpu and initalize a few in-line functions 
     params['gxi'] = afnp.array(np.single(xi))
