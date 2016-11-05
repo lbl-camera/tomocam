@@ -55,37 +55,36 @@ def main():
         elapsed_time = (time.time()-t)
         print('Time for reconstucting using GPU-SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
 
-        fig = plt.figure()
-        sirt_camTomo = rec_sirt_final[0]
-        plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
-        plt.colorbar()
-        fig.suptitle('Tomopy GPU-SIRT Reconstruction')
-        plt.draw()
+#        fig = plt.figure()
+#        sirt_camTomo = rec_sirt_final[0]
+#        plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
+#        plt.colorbar()
+#        fig.suptitle('Tomopy GPU-SIRT Reconstruction')
+#        plt.draw()
 
-#        pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
+        pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
 
         ##################TomoPy Recon#####################
-        print('Recon - tomopy ASTRA-SIRT')
-        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':num_iter}
-        t=time.time()
-        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
-        elapsed_time = (time.time()-t)
-        print('Time for reconstucting using Tomopy SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
+#        print('Recon - tomopy ASTRA-SIRT')
+#        options = {'proj_type':'cuda', 'method':'SIRT_CUDA', 'num_iter':num_iter}
+#        t=time.time()
+#        rec_tomopy = tomopy.recon(tomo, theta, center=inputs['rot_center'],algorithm=tomopy.astra,options=options)#emission=False)
+#        elapsed_time = (time.time()-t)
+#        print('Time for reconstucting using Tomopy SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
         
-        fig = plt.figure()
-        sirt_Tomopy = np.flipud(rec_tomopy[0])
-        plt.imshow(sirt_Tomopy,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
-        plt.colorbar()
-        fig.suptitle('Tomopy SIRT-ASTRA Reconstruction')
-        plt.draw()
+#        fig = plt.figure()
+#        sirt_Tomopy = np.flipud(rec_tomopy[0])
+#        plt.imshow(sirt_Tomopy,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
+#        plt.colorbar()
+#        fig.suptitle('Tomopy SIRT-ASTRA Reconstruction')
+#        plt.draw()
 
-        fig,ax=plt.subplots()
-        ax.plot(sirt_camTomo[sirt_camTomo.shape[0]//2],'r',label='NUFFT-SIRT')
-        ax.plot(sirt_Tomopy[sirt_Tomopy.shape[0]//2],'b',label='TomoPy-SIRT')
-        ax.legend()
-        plt.draw()
-
-        plt.show()
+#        fig,ax=plt.subplots()
+#        ax.plot(sirt_camTomo[sirt_camTomo.shape[0]//2],'r',label='NUFFT-SIRT')
+#        ax.plot(sirt_Tomopy[sirt_Tomopy.shape[0]//2],'b',label='TomoPy-SIRT')
+#        ax.legend()
+#        plt.draw()
+#        plt.show()
 
 #        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
 
