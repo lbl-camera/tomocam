@@ -1,5 +1,5 @@
 #Code by Daniel Pelt (Oct 2016)
-#Modifications by S. V. Venkatakishnan
+#Modifications by S. V. Venkatakishnan (Oct 2016)
 
 from __future__ import print_function
 import numpy as np
@@ -27,7 +27,7 @@ def gpu_add_v2(a,b,c,i,blk_size):
     c[i*blk_size:(i+1)*blk_size] = np.array(gc)
 
 num_gpu = 8
-arr_size = 512*8
+arr_size = 2160
 im_size = 512
 a = np.ones((arr_size, im_size, im_size),dtype=np.float32)
 b = np.ones((arr_size, im_size, im_size),dtype=np.float32)
@@ -41,8 +41,8 @@ blk_size = arr_size/num_gpu
 e = cf.ThreadPoolExecutor(num_gpu)
 print('Starting compute ..')
 t_start=time.time()
-#thrds=[e.submit(add, a[i*blk_size:(i+1)*blk_size], b[i*blk_size:(i+1)*blk_size], c[i*blk_size:(i+1)*blk_size]) for i in range(num_gpu)]
-thrds=[e.submit(gpu_add, a[i*blk_size:(i+1)*blk_size], b[i*blk_size:(i+1)*blk_size], c[i*blk_size:(i+1)*blk_size],i) for i in range(num_gpu)]
+thrds=[e.submit(add, a[i*blk_size:(i+1)*blk_size], b[i*blk_size:(i+1)*blk_size], c[i*blk_size:(i+1)*blk_size]) for i in range(num_gpu)]
+#thrds=[e.submit(gpu_add, a[i*blk_size:(i+1)*blk_size], b[i*blk_size:(i+1)*blk_size], c[i*blk_size:(i+1)*blk_size],i) for i in range(num_gpu)]
 #thrds=[e.submit(gpu_add_v2, a, b, c,i,blk_size) for i in range(num_gpu)]
 #for i in range(num_gpu):
 #e.shutdown()
