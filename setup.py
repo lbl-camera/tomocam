@@ -1,11 +1,11 @@
 import  os
 from os.path import join
-import subprocess
-import numpy
+
+#import numpy
 #from distutils.command.build_ext import build_ext
 #from numpy.distutils.core import Extension, setup
-from numpy.distutils.core import Extension, setup
-from numpy.distutils.command.build_ext import build_ext
+from distutils.core import Extension, setup
+from distutils.command.build_ext import build_ext
 
 def find_in_path(name, path):
     "Find a file in a search path"
@@ -40,22 +40,27 @@ def locate_cuda():
                 'located in your $PATH. Either add it to your path, or set $CUDAHOME')
         home = os.path.dirname(os.path.dirname(nvcc))
 
-    cudaconfig = {'home':home, 'nvcc':nvcc,
-                  'include': join(home, 'include'),
-                  'lib64': join(home, 'lib64')}
-    for k, v in cudaconfig.iteritems():
-        if not os.path.exists(v):
-            raise EnvironmentError('The CUDA %s path could not be located in %s' % (k, v))
+    # setup config
+    if os.path.isdir(join(home, 'include')):
+        include = join(home, 'include')
+    else:
+        include = None
+
+    if os.path.isdir(join(home, 'lib64')):
+        libdir = join(home, 'lib64')
+    elif os.path.isdir(join(home, 'lib')):
+        libdir = join(home, 'lib')
+    else:
+        libdir = None
+
+    cudaconfig = {
+                    'home':home, 'nvcc':nvcc,
+                    'include': include,
+                    'lib64': libdir
+                 }
 
     return cudaconfig
 CUDA = locate_cuda()
-
-
-# Obtain the numpy include directory.  This logic works across numpy versions.
-try:
-    numpy_include = numpy.get_include()
-except AttributeError:
-    numpy_include = numpy.get_numpy_include()
 
 
 ext = Extension('tomocam.gnufft',
@@ -72,7 +77,7 @@ ext = Extension('tomocam.gnufft',
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64']],
                 #extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
-                include_dirs = [numpy_include, CUDA['include'], 'src'])
+                include_dirs = [CUDA['include'], 'src'])
 
 
 
@@ -105,8 +110,8 @@ def customize_compiler_for_nvcc(self):
             #postargs = extra_postargs['nvcc']
             postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
             #postargs += [ '-g', '-O0', '-DDEBUG' ]
-        #else:
-        #    postargs = extra_postargs['g++']
+        else:
+            postargs = []
 
         super(obj, src, ext, cc_args, postargs, pp_opts)
         # reset the default compiler_so, which we might have changed for cuda
