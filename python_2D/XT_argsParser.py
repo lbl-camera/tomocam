@@ -64,3 +64,4 @@ def bl832inputs_parser(parser):
         inputs['num_views'] = args.num_views
         inputs['num_iter']= args.max_iter
         return inputs
+
