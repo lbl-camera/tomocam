@@ -17,13 +17,12 @@
 /* matrix size and thread dimensions */
 
 #define SIZE_ROW 2048
-#define SIZE_COL 1024
+#define SIZE_COL 2048
 #define THREADS_PER_BLOCK_X 16
 #define THREADS_PER_BLOCK_Y 16
 #define BLOCK_K 16 // square block of K size
 
-__device__ float FILTER[3][3]={{1.0/12,1.0/6,1.0/12},{1.0/6, 0, 1.0/6},{1.0/12,1.0/6,1.0/12}};
-
+__device__  float FILTER[3][3]={{1.0/12,1.0/6,1.0/12},{1.0/6, 0, 1.0/6},{1.0/12,1.0/6,1.0/12}};
 
 __device__ void deriv_potFunc(float delta, float *ret_val)
 {
@@ -48,7 +47,7 @@ __device__ void deriv_potFunc(float delta, float *ret_val)
 
 /* Shared memory GPU kernel where each element of is computed by a single thread */
 
-__global__ void GPU_shmem( const int m, float const * const in_img, float  *out_img)
+__global__ void GPU_shmem(const int num_row,const int num_col, float const * const in_img, float  *out_img)
 {
   
   const int tx = threadIdx.x;
@@ -57,8 +56,8 @@ __global__ void GPU_shmem( const int m, float const * const in_img, float  *out_
   const int ibx = blockIdx.x * THREADS_PER_BLOCK_X;
 
   /* shared memory arrays for A and B */
-  __shared__ double in_s[ THREADS_PER_BLOCK_X ][ BLOCK_K + 1 ];
-  __shared__ double out_s[ BLOCK_K ][ THREADS_PER_BLOCK_Y + 1 ];
+  __shared__ float in_s[(BLOCK_K + 2)*(BLOCK_K+2)];
+  __shared__ float out_s[BLOCK_K*BLOCK_K];
   
 /* determine my threads's row and col indices in the global matrix */
 
@@ -67,27 +66,27 @@ __global__ void GPU_shmem( const int m, float const * const in_img, float  *out_
   float value=0;
   int k,l;
 
-  int aoff = INDX( ibx + tx, ty, m );
+  int aoff = INDX( ibx + tx, ty, num_col );
   /* main loop over blocks of K */
 
-  for( int Kblock = 0; Kblock < m; Kblock+=BLOCK_K )
+  for( int Kblock = 0; Kblock < BLOCK_K; Kblock++ )
   {
 /* read block of A into shared memory */
-    in_s[ tx ][ ty ] = in_img[ aoff ];		
+    in_s[ tx + blockDim.x*ty ] = in_img[ aoff ];
     __syncthreads();
-    aoff+=m*BLOCK_K;
     
   }
 
 /* if my row and col are not in the boundary accumulate */
 
-  if( myrow>0 && myrow < m-1 && mycol>0 && mycol < m-1 )
+  if(myrow < num_row && mycol < num_col )
   {
       	for (k=-1;k<2;k++)
 	  for (l=-1;l<2;l++)
 	    {
-	    deriv_potFunc(in_img[INDX(myrow,mycol,m)]-in_img[INDX(myrow+k,mycol+l,m)],&value);
-	    out_img[INDX(myrow,mycol,m)]++;//FILTER[k+1][l+1]*value;
+	    deriv_potFunc(in_img[INDX(myrow,mycol,num_col)]-in_img[INDX(myrow+k,mycol+l,num_col)],&value);
+	    out_img[INDX(myrow,mycol,num_col)]++;
+	    //FILTER[k+1][l+1]*value;
 	    }
     
   } /* end if */
@@ -96,6 +95,7 @@ __global__ void GPU_shmem( const int m, float const * const in_img, float  *out_
 
 __global__ void GPU_naive( const int num_row,const int num_col, float const * const in_img, float  *out_img)
 {
+
 /* determine my threads's row and col indices in the global matrix */
   const int myrow = blockDim.x * blockIdx.x + threadIdx.x;
   const int mycol = blockDim.y * blockIdx.y + threadIdx.y;

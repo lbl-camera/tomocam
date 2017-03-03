@@ -55,14 +55,14 @@ def main():
         elapsed_time = (time.time()-t)
         print('Time for reconstucting using GPU-SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
 
-#        fig = plt.figure()
-#        sirt_camTomo = rec_sirt_final[0]
-#        plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
-#        plt.colorbar()
-#        fig.suptitle('Tomopy GPU-SIRT Reconstruction')
-#        plt.draw()
+        fig = plt.figure()
+        sirt_camTomo = rec_sirt_final[124]
+        plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
+        plt.colorbar()
+        fig.suptitle('Tomopy GPU-SIRT Reconstruction')
+        plt.draw()
 
-        pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
+#        pg.image(rec_sirt_final);pg.QtGui.QApplication.exec_()
 
         ##################TomoPy Recon#####################
 #        print('Recon - tomopy ASTRA-SIRT')
@@ -84,7 +84,7 @@ def main():
 #        ax.plot(sirt_Tomopy[sirt_Tomopy.shape[0]//2],'b',label='TomoPy-SIRT')
 #        ax.legend()
 #        plt.draw()
-#        plt.show()
+        plt.show()
 
 #        pg.image(rec_tomopy);pg.QtGui.QApplication.exec_()
 
