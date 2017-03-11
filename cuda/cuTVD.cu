@@ -1,19 +1,46 @@
 
 #include "polarsample.h"
 
-const int WORK = 8;
+__device__ const int WORK = 8;
+__device__ const float FILTER[3][3][3] = 
+    { 
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
+        {{0.037,  0.0523, 0.037}, {0.0532, 0., 0.0523}, {0.037, 0.0523, 0.037}}
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
+    };
 
 __constant__ int nx, ny, nz;
 
-__inline__ __device__ complex_t filter(complex_t v) {
-    return make_cuFloatComplex(fabs(v.x), fabs(f.y));
+__inline__ __device__ complex_t wght(int k, int j, int i){
+    return FILTER[k][j][i];
+    
 }
 
 __inline__ __device__ int globalIdx(int i, int j, int k){
     return (nx * ny * k + nx * j + i);
 }
 
-__global__ void tvd_update_kernel(complex_t * val, complex_t *grad){
+__inline__ __device__ float deriv_potFCN(float delta) {
+    float MRF_C = .001;
+    float MRF_P = 1.2;
+    float MRF_Q = 2;
+    float MRF_SIGMA = 1;
+
+    float temp1 = pow(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA;
+    float temp2 = pow(fabs(delta), MRF_Q - 1);
+    float temp3 = MRF_C + temp1;
+
+    if(delta < 0) {
+        return ((-1*temp2/(temp3*MRF_SIGMA))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
+    } else if(delta > 0) {
+        return ((temp2/(temp3*MRF_SIGMA))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
+    } else {
+        return MRF_Q / (MRF_SIGMA*MRF_C);
+    }
+}
+
+
+__global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
     int i = threadIdx.x;
     int j = threadIdx.y;
     int k = threadIdx.z; 
@@ -40,43 +67,43 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t *grad){
          */
 
         const CMPLX_ZERO = make_cuFloatComplex(0.f, 0.f);
-        __shared__ complex_t s_val[sNX][sNY][sNZ];
+        __shared__ complex_t s_val[sNZ][sNY][sNX];
 
         // copy from global memory
-        s_val[i+1][j+1][k+1] = val[gid];
+        s_val[k+1][j+1][i+1] = val[gid];
 
         /* copy ghost cells, except corners */
         if (i == 0){
-            if (x > 0) s_val[i][j][k] = val[globalIdx(x-1, y, z)];
-            else s_val[i][j][k] = CMPLX_ZERO;
+            if (x > 0) s_val[k][j][i] = val[globalIdx(x-1, y, z)];
+            else s_val[k][j][i] = CMPLX_ZERO;
         }
 
         if (j == 0){
-            if (y > 0) s_val[i][j][k] = val[globalIdx(x, y-1, z)];
-            else s_val[i][j][k] = CMPLX_ZERO;
+            if (y > 0) s_val[k][j][i] = val[globalIdx(x, y-1, z)];
+            else s_val[k][j][i] = CMPLX_ZERO;
         }
 
         if (k == 0){
-            if (z > 0) s_val[i][j][k] = val[globalIdx(x, y, z-1)];
-            else s_val[i][j][k] = CMPLX_ZERO;
+            if (z > 0) s_val[k][j][i] = val[globalIdx(x, y, z-1)];
+            else s_val[k][j][i] = CMPLX_ZERO;
         }
 
         int xlen = min(sNX, nx - xOffset);
         if (i == xlen-1) {
-            if (xOffset + xlen < nx) s_val[i+2][j][k] = val[gid+1];
-            else s_val[i+2][j][k] = CMPLX_ZERO;
+            if (xOffset + xlen < nx) s_val[k][j][i+2] = val[gid+1];
+            else s_val[k][j][i+2] = CMPLX_ZERO;
         }
 
         int ylen = min(sNY, ny - yOffset);
         if (j == ylen-1) {
-            if (yOffset + ylen < ny) s_val[i][j+2][k] = val[globalIdx(x, y+1,z)];
-            else s_val[i][j+2][k] = CMPLX_ZERO;
+            if (yOffset + ylen < ny) s_val[k][j+2][i] = val[globalIdx(x, y+1,z)];
+            else s_val[k][j+2][i] = CMPLX_ZERO;
         }
 
         int zlen = min(sNZ, nz - zOffset);
         if (k == zlen-1) {
-            if (zOffset + zlen < nz) s_val[i][j][k+2] = val[globalIdx(x, y, z+1)];
-            else s_val[i][j][k+2] = CMPLX_ZERO;
+            if (zOffset + zlen < nz) s_val[k+2][j][i] = val[globalIdx(x, y, z+1)];
+            else s_val[k+2][j][i] = CMPLX_ZERO;
         }
 
         __synchthreads();
@@ -86,25 +113,25 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t *grad){
             if (j == 0){
                 if (i == 0){
                     if ((x > 0) && (y > 0) && (z > 0)) 
-                        s_val[i][j][k] = val[globalIdx(x-1,y-1,z-1)];
-                    else s_val[i][j][k] = CMPLX_ZERO;
+                        s_val[k][j][i] = val[globalIdx(x-1,y-1,z-1)];
+                    else s_val[k][j][i] = CMPLX_ZERO;
                 }
                 if (i == xlen-1) {
                     if (xOffset + xlen < nx)
-                        s_val[i+2][j][k] = val[globalIdx(x+1, y-1, z-1)];
-                    else s_val[i+2][j][k] = CMPLX_ZERO;
+                        s_val[k][j][i+2] = val[globalIdx(x+1, y-1, z-1)];
+                    else s_val[k][j][i+2] = CMPLX_ZERO;
                 }
             }
             if (j == ylen-1){
                 if (i == 0){
                     if ((x > 0) && (yOffset + ylen < ny) && (z > 0))
-                        s_val[i][j+2][k] = val[globalIdx(x-1, y+1, z-1)];
-                    else s_val[i][j+2][k] = CMPLX_ZERO;
+                        s_val[k][j+2][i] = val[globalIdx(x-1, y+1, z-1)];
+                    else s_val[k][j+2][i] = CMPLX_ZERO;
                 }
                 if (i == xlen-1){
                     if ((xOffset + xlen < nx) && (yOffset + ylen < ny) && (z > 0))
-                        s_val[i+2][j+2][k] = val[globalIdx(x+1, y+1, z-1)];
-                    else s_val[i+2][j+2][k] = CMPLX_ZERO;
+                        s_val[k][j+2][i+2] = val[globalIdx(x+1, y+1, z-1)];
+                    else s_val[k][j+2][i+2] = CMPLX_ZERO;
                 }
             }
         }
@@ -112,35 +139,44 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t *grad){
             if (j == 0){
                 if (i == 0){
                     if ((x > 0) && (y > 0) && (zOffset + zlen < nz)) 
-                        s_val[i][j][k+2] = val[globalIdx(x-1,y-1,z+1)];
-                    else s_val[i][j][k+2] = CMPLX_ZERO;
+                        s_val[k+2][j][i] = val[globalIdx(x-1,y-1,z+1)];
+                    else s_val[k+2][j][i] = CMPLX_ZERO;
                 }
                 if (i == xlen-1){
                     if (xOffset + xlen < nx)
-                        s_val[i+2][j][k+2] = val[globalIdx(x+1, y-1, z+1)];
-                    else s_val[i+2][j][k+2] = CMPLX_ZERO;
+                        s_val[k+2][j][i+2] = val[globalIdx(x+1, y-1, z+1)];
+                    else s_val[k+2][j][i+2] = CMPLX_ZERO;
                 }
             }
             if (j == ylen-1){
                 if (i == 0){
                     if ((x > 0) && (yOffset + ylen < ny) && (zOffset + zlen < nz))
-                        s_val[i][j+2][k+2] = val[globalIdx(x-1, y+1, z+1)];
-                    else s_val[i][j+2][k+2] = CMPLX_ZERO;
+                        s_val[k+2][j+2][i] = val[globalIdx(x-1, y+1, z+1)];
+                    else s_val[k+2][j+2][i] = CMPLX_ZERO;
                 }
                 if (i == xlen-1){
                     if ((xOffset + xlen < nx) && (yOffset + ylen < ny) && (zOffset + zlen < nz))
-                        s_val[i+2][j+2][k+2] = val[globalIdx(x+1, y+1, z+1)];
-                    else s_val[i+2][j+2][k+2] = CMPLX_ZERO;
+                        s_val[k+2][j+2][i+2] = val[globalIdx(x+1, y+1, z+1)];
+                    else s_val[k+2][j+2][i+2] = CMPLX_ZERO;
                 }
             }
         }
         __synchthreads();
-        complex_t v = s_val[i+1][j+1][k+1];
-        for (int ix = 0; ix  < 3; ix++)
-            for (int iy = 0; iy < 3; iy++) 
-                for (int iz = 0; iz < 3; iz++) 
-                    grad[gid] += filter(s_val[i+ix][j+iy][k+iz] - v);
+        complex_t v = s_val[k+1][j+1][i+1];
+        for (int iy = 0; iy < 3; iy++)
+            for (int ix = 0; ix  < 3; ix++) {
+                // same slice as current element
+                tvd[gid].x += wght(1, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].x - v.x);
+                tvd[gid].y += wght(1, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].y - v.y);
 
+                //  current slice - 1
+                tvd[gid].x += wght(0, iy, ix) * deriv_potFCN(s_val[k][j+iy][i+ix].y - v.x);
+                tvd[gid].y += wght(0, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].x - v.y);
+
+                //  current slice + 1
+                tvd[gid].x += wght(2, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].y - v.x);
+                tvd[gid].y += wght(2, iy, ix) * deriv_potFCN(s_val[k+2][j+iy][i+ix].x - v.y);
+            }
     }
 }
 
