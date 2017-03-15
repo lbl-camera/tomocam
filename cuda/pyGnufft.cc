@@ -13,6 +13,10 @@ static PyObject * polarsample_transpose(PyObject * self, PyObject * args){
     return res;
 }
 
+static PyObject * tvd_update(PyObject * self, PyObject * args){
+    return cTVDUpdate(self, args);
+}
+
 /*
 static PyObject * debug(PyObject * self, PyObject * args){
 #if DEBUG
@@ -31,6 +35,7 @@ PyDoc_STRVAR(rev_doc, "C++/CUDA extension to map polar grid to cartesian grid\n"
 static PyMethodDef cGnufftMehods [] = {
     { "polarsample",           polarsample,           METH_VARARGS, fwd_doc },
 	{ "polarsample_transpose", polarsample_transpose, METH_VARARGS, rev_doc },
+    { "tvd_update",            tvd_update,            METH_VARARGS, NULL},
 	{ NULL, NULL}
 };
 

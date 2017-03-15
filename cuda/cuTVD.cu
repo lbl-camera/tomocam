@@ -1,17 +1,24 @@
-
+#include <cuda.h>
 #include "polarsample.h"
 
-__device__ const int WORK = 8;
+const int DIMX = 16;
+const int DIMY = 4;
+const int DIMZ = 4;
+const int WORK = 8;
+const int sNX = DIMX + 2;
+const int sNY = DIMY + 2;
+const int sNZ = DIMZ + 2;
+
 __device__ const float FILTER[3][3][3] = 
     { 
-        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
-        {{0.037,  0.0523, 0.037}, {0.0532, 0., 0.0523}, {0.037, 0.0523, 0.037}}
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}},
+        {{0.037,  0.0523, 0.037}, {0.0532, 0., 0.0523}, {0.037, 0.0523, 0.037}},
         {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
     };
 
 __constant__ int nx, ny, nz;
 
-__inline__ __device__ complex_t wght(int k, int j, int i){
+__inline__ __device__ float wght(int k, int j, int i){
     return FILTER[k][j][i];
     
 }
@@ -53,12 +60,6 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
        
     if ((x < nx) && (y < ny) && (z < nz)) {
 
-        /* 
-         * e.g. sNX = 4, sNY = 4, sNZ = 128
-         */
-        const int sNX = blockDim.x + 2;
-        const int sNY = blockDim.y + 2;
-        const int sNZ = blockDim.z + 2;
         int gid = z * nx * ny + y * nx + z;
 
         /* copy values into shared memory. 
@@ -66,7 +67,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
          * which translates to  8192 complex number
          */
 
-        const CMPLX_ZERO = make_cuFloatComplex(0.f, 0.f);
+        const complex_t CMPLX_ZERO = make_cuFloatComplex(0.f, 0.f);
         __shared__ complex_t s_val[sNZ][sNY][sNX];
 
         // copy from global memory
@@ -106,7 +107,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
             else s_val[k+2][j][i] = CMPLX_ZERO;
         }
 
-        __synchthreads();
+        __syncthreads();
 
         /* copy the corners, all eight of them */
         if (k == 0){
@@ -161,7 +162,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                 }
             }
         }
-        __synchthreads();
+        __syncthreads();
         complex_t v = s_val[k+1][j+1][i+1];
         for (int iy = 0; iy < 3; iy++)
             for (int ix = 0; ix  < 3; ix++) {
@@ -183,20 +184,19 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
 
 void addTVD(int nrow, int ncol, int nslice, complex_t * objfn, complex_t * val) {
 
-    const DIMX = 16;
-    const DIMY = 16;
-    const DIMZ = 2;
-    dim3 blocks(DIMX, DIMY, DIMZ);
 
-    int GRIDX = (nx / DIMX) + 1;
-    int GRIDY = (ny / DIMY) + 1;
-    int GRIDZ = (nz / DIMZ) + 1;
+    int GRIDX = nrow % DIMX > 0 ? nrow/DIMX+1 : nrow/DIMX;
+    int GRIDY = ncol % DIMY > 0 ? ncol/DIMY+1 : ncol/DIMY;
+    int GRIDZ = nslice%DIMZ > 0 ? nslice/DIMZ+1 : nslice/DIMZ;
+
+    // block dims
+    dim3 block(DIMX, DIMY, DIMZ);
     dim3 grid(GRIDX, GRIDY, GRIDZ);
 
     cudaError_t status;
-    status = cuMemcpyToSymbol(nx, &ncol, 1);   error_handle();
-    status = cuMemcpyToSymbol(ny, &nrow, 1);   error_handle();
-    status = cuMemcpyToSymbol(nz, &nslice, 1); error_handle();
-    tvd_update_kernel<<<grid, blocks>>> (val, objfn);
+    status = cudaMemcpyToSymbol(nx, &ncol, 1);   error_handle();
+    status = cudaMemcpyToSymbol(ny, &nrow, 1);   error_handle();
+    status = cudaMemcpyToSymbol(nz, &nslice, 1); error_handle();
+    tvd_update_kernel<<<grid, block>>> (val, objfn);
     error_handle();
 }

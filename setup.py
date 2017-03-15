@@ -68,9 +68,11 @@ ext = Extension('tomocam.gnufft',
                     'cuda/pyGnufft.cc',
                     'cuda/afnumpyapi.cc',
                     'cuda/polarsample.cc',
+                    'cuda/tvd_update.cc',
                     'cuda/polarsample_transpose.cc',
                     'cuda/cuPolarsample.cu',
-                    'cuda/cuPolarsampleTranspose.cu'
+                    'cuda/cuPolarsampleTranspose.cu',
+                    'cuda/cuTVD.cu'
                 ],
                 library_dirs=[CUDA['lib64']],
                 libraries=['afcuda', 'cudart'],
