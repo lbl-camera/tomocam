@@ -143,3 +143,73 @@ def gpuSIRT(tomo,angles,center,input_params):
         rec_sirt_final[slice_1]=np.array(rec_sirt.real,dtype=np.float32)
         rec_sirt_final[slice_2]=np.array(rec_sirt.imag,dtype=np.float32)
         return rec_sirt_final
+
+
+def gpuMBIR(tomo,angles,center,input_params):
+        """
+        MBIR reconstruction using GPU based gridding operators
+        Inputs: tomo : 3D numpy sinogram array with dimensions same as tomopy
+        angles : Array of angles in radians
+        center : Floating point center of rotation
+        input_params : A dictionary with the keys
+        'gpu_device' : Device id of the gpu (For a 4 GPU cluster ; 0-3)
+        'oversamp_factor': A factor by which to pad the image/data for FFT
+        'num_iter' : Max number of MBIR iterations
+        'beta' : Regularization constant
+        """
+        print('Starting GPU MBIR recon')
+        #allocate space for final answer 
+        af.set_device(input_params['gpu_device']) #Set the device number for gpu based code
+        #Change tomopy format
+        new_tomo=np.transpose(tomo,(1,2,0)) #slice, columns, angles
+        im_size =  new_tomo.shape[1]
+        num_slice = new_tomo.shape[0]
+        num_angles=new_tomo.shape[2]
+        pad_size=np.int16(im_size*input_params['oversamp_factor'])
+#        nufft_scaling = (np.pi/pad_size)**2
+        num_iter = input_params['num_iter']
+        beta = input_params['beta']
+        #Initialize structures for NUFFT
+        sino={}
+        geom={}
+        sino['Ns'] =  pad_size#Sinogram size after padding
+        sino['Ns_orig'] = im_size #size of original sinogram
+        sino['center'] = center + (sino['Ns']/2 - sino['Ns_orig']/2)  #for padded sinogram
+        sino['angles'] = angles
+        
+        #Initialize NUFFT parameters
+        nufft_params = init_nufft_params(sino,geom)
+        temp_y = afnp.zeros((sino['Ns'],num_angles),dtype=afnp.complex64)
+        temp_x = afnp.zeros((sino['Ns'],sino['Ns']),dtype=afnp.complex64)
+        x_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64) 
+        pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
+
+        #allocate output array
+        rec_mbir_final=np.zeros((num_slice,sino['Ns_orig'],sino['Ns_orig']),dtype=np.float32)
+        
+        #Move all data to GPU
+        slice_1=slice(0,num_slice,2)
+        slice_2=slice(1,num_slice,2)
+        gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
+
+        gradient = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']), dtype=afnp.complex64)#temp array to store the derivative of cost func
+        
+        #loop over all slices
+        for iter_num in range(num_iter):
+            #Derivative of the data fitting term
+            for i in range(num_slice/2):
+              temp_x[pad_idx,pad_idx]=x_recon[i]
+              Ax = forward_project(temp_x,nufft_params)
+              temp_y[pad_idx]=gdata[i]
+              gradient[i] =(back_project((temp_y-Ax),nufft_params))[pad_idx,pad_idx] #nufft_scaling
+          #Derivative of regularization term           
+          tvd_update(x_recon, gradient) #TODO : This shoud accumulate the answer into fcn
+          x_recon = x_recon - beta*gradient
+
+
+        #Move to CPU
+        #Rescale result to match tomopy
+        rec_mbir=np.array(x_recon,dtype=np.complex64)
+        rec_mbir_final[slice_1]=np.array(rec_mbir.real,dtype=np.float32)
+        rec_mbir_final[slice_2]=np.array(rec_mbir.imag,dtype=np.float32)
+        return rec_mbir_final
