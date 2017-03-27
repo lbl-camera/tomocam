@@ -176,7 +176,7 @@ int main( int argc, char *argv[] )
 
   for( int i = 0; i < size_row * size_col; i++ )
   {
-    h_in_img[i] = 4;//fabs(rand());// / ( float(RAND_MAX) + 1.0 );
+    h_in_img[i] = 1;//fabs(rand());// / ( float(RAND_MAX) + 1.0 );
     h_out_img[i] = 0;
   }
 
