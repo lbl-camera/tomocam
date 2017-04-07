@@ -24,7 +24,10 @@ PyObject * cTVDUpdate(PyObject *self, PyObject *prhs) {
     int n2 = PyAfnumpy_Dims(pyVolume, 1);
     int n3 = PyAfnumpy_Dims(pyVolume, 2);
 
-    //printf("n1 = %d, n2 = %d, n3 = %d\n", n1, n2, n3);
+#ifdef DEBUG
+    printf("n1 = %d, n2 = %d, n3 = %d\n", n1, n2, n3);
+#endif
+
     // calculate TVD and add it to objective function
     addTVD(n1, n2, n3, objfcn, volume);
     Py_RETURN_NONE;

@@ -11,3 +11,7 @@ TARGET_LINK_LIBRARIES(polar -lafcuda -lcudart)
 
 CUDA_ADD_EXECUTABLE(trans polarsample_transpose.cc cuPolarsampleTranspose.cu)
 TARGET_LINK_LIBRARIES(trans -lafcuda -lcudart)
+
+CUDA_ADD_EXECUTABLE(tvd test_tvd.cc cuTVD.cu)
+TARGET_LINK_LIBRARIES(tvd -lafcuda -lcudart)
+

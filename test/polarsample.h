@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <cuComplex.h>
-
+#include <stdio.h>
 
 /* constants */
 const int BLOCKSIZE = 256;
@@ -58,5 +58,8 @@ void polarsample(complex_t *, complex_t * , int , uint2 , float *, int, float, f
 // TODO document
 void polarsample_transpose(complex_t *, complex_t * , int , uint2 , float *, int, float, float, complex_t *);
 
+
+// TODO document
+void addTVD(int , int, int, complex_t *, complex_t *);
 
 #endif
