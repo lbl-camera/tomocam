@@ -3,7 +3,8 @@ import afnumpy as afnp
 import numpy as np
 import sys
 #sys.path.append('/home/dkumar/tomocam')
-from tomocam.gnufft import tvd_update
+#from tomocam.gnufft import tvd_update
+from gnufft import tvd_update
 import tomopy
 import pyqtgraph as pg 
 
@@ -17,6 +18,9 @@ print(x.shape)
 #y = np.ones((nslice, 2000, 2000)).astype(np.float32)
 vol = x + 1j * y
 vol=255*afnp.array(vol.astype(np.complex64))
+vol[0]=vol[0]*0
+vol[-1]=vol[-1]*0
+
 fcn = afnp.zeros((nslice/2, im_size, im_size), dtype=np.complex64)
 tvd_update(vol, fcn)
 print fcn.sum()
