@@ -79,20 +79,17 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
             else s_val[k][j][i] = CMPLX_ZERO;
         }
 
-        if (j == 0){
-            if (y > 0) s_val[k][j][i] = val[globalIdx(x, y-1, z)];
-            else s_val[k][j][i] = CMPLX_ZERO;
-        }
-
-        if (k == 0){
-            if (z > 0) s_val[k][j][i] = val[globalIdx(x, y, z-1)];
-            else s_val[k][j][i] = CMPLX_ZERO;
-        }
 
         int xlen = min(sNX, nx - xOffset);
         if (i == xlen-1) {
             if (xOffset + xlen < nx) s_val[k][j][i+2] = val[gid+1];
             else s_val[k][j][i+2] = CMPLX_ZERO;
+        }
+        __syncthreads();
+
+        if (j == 0){
+            if (y > 0) s_val[k][j][i] = val[globalIdx(x, y-1, z)];
+            else s_val[k][j][i] = CMPLX_ZERO;
         }
 
         int ylen = min(sNY, ny - yOffset);
@@ -100,13 +97,18 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
             if (yOffset + ylen < ny) s_val[k][j+2][i] = val[globalIdx(x, y+1,z)];
             else s_val[k][j+2][i] = CMPLX_ZERO;
         }
+        __syncthreads();
+        
+        if (k == 0){
+            if (z > 0) s_val[k][j][i] = val[globalIdx(x, y, z-1)];
+            else s_val[k][j][i] = CMPLX_ZERO;
+        }
 
         int zlen = min(sNZ, nz - zOffset);
         if (k == zlen-1) {
             if (zOffset + zlen < nz) s_val[k+2][j][i] = val[globalIdx(x, y, z+1)];
             else s_val[k+2][j][i] = CMPLX_ZERO;
         }
-
         __syncthreads();
 
         /* copy the corners, all eight of them */

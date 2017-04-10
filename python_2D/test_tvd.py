@@ -3,7 +3,7 @@ import afnumpy as afnp
 import numpy as np
 import sys
 #sys.path.append('/home/dkumar/tomocam')
-from tomocam.gnufft import tvd_update
+from gnufft import tvd_update
 import tomopy
 import pyqtgraph as pg 
 
