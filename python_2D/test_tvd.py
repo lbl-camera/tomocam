@@ -10,16 +10,14 @@ import pyqtgraph as pg
 
 nslice = 50
 im_size = 256
-obj = tomopy.shepp3d((nslice,im_size,im_size))
+obj = np.ones((nslice,im_size,im_size),dtype=np.float32) #tomopy.shepp3d((nslice,im_size,im_size))
 x=obj[::2]
 y=obj[1::2]
 print(x.shape)
 #x = np.ones((nslice,2000, 2000)).astype(np.float32)
 #y = np.ones((nslice, 2000, 2000)).astype(np.float32)
 vol = x + 1j * y
-vol=255*afnp.array(vol.astype(np.complex64))
-vol[0]=vol[0]*0
-vol[-1]=vol[-1]*0
+#vol=255*afnp.array(vol.astype(np.complex64))
 
 fcn = afnp.zeros((nslice/2, im_size, im_size), dtype=np.complex64)
 tvd_update(vol, fcn)
