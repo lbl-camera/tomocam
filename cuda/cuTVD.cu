@@ -32,17 +32,19 @@ __inline__ __device__ float deriv_potFCN(float delta) {
     float MRF_P = 1.2;
     float MRF_Q = 2;
     float MRF_SIGMA = 1;
+    float MRF_SIGMA_Q = pow(MRF_SIGMA,MRF_Q);
+    float MRF_SIGMA_Q_P = pow(MRF_SIGMA,MRF_Q - MRF_P);
 
-    float temp1 = pow(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA;
+    float temp1 = pow(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA_Q_P;
     float temp2 = pow(fabs(delta), MRF_Q - 1);
     float temp3 = MRF_C + temp1;
 
-    if(delta < 0) {
-        return ((-1*temp2/(temp3*MRF_SIGMA))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
-    } else if(delta > 0) {
-        return ((temp2/(temp3*MRF_SIGMA))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
+    if(delta < 0.0) {
+        return ((-1*temp2/(temp3*MRF_SIGMA_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
+    } else if(delta > 0.0) {
+        return ((temp2/(temp3*MRF_SIGMA_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
     } else {
-        return MRF_Q / (MRF_SIGMA*MRF_C);
+        return MRF_Q / (MRF_SIGMA_Q*MRF_C);
     }
 }
 
@@ -170,16 +172,16 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         for (int iy = 0; iy < 3; iy++)
             for (int ix = 0; ix  < 3; ix++) {
                 // same slice as current element
-                tvd[gid].x += wght(1, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].x - v.x);
-                tvd[gid].y += wght(1, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].y - v.y);
+                tvd[gid].x += wght(1, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].x);
+                tvd[gid].y += wght(1, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].y);
 
                 //  current slice - 1
-                tvd[gid].x += wght(0, iy, ix) * deriv_potFCN(s_val[k][j+iy][i+ix].y - v.x);
-                tvd[gid].y += wght(0, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].x - v.y);
+                tvd[gid].x += wght(0, iy, ix) * deriv_potFCN(v.x-s_val[k][j+iy][i+ix].y);
+                tvd[gid].y += wght(0, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].x);
 
                 //  current slice + 1
-                tvd[gid].x += wght(2, iy, ix) * deriv_potFCN(s_val[k+1][j+iy][i+ix].y - v.x);
-                tvd[gid].y += wght(2, iy, ix) * deriv_potFCN(s_val[k+2][j+iy][i+ix].x - v.y);
+                tvd[gid].x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y);
+                tvd[gid].y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x);
             }
     }
 }
