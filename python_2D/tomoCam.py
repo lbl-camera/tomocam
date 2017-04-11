@@ -200,6 +200,16 @@ def gpuMBIR(tomo,angles,center,input_params):
         z_recon = x_recon
         t_nes = 1
         L = 1#Compute lipschitz constant of derivative - AtA+\Hessian(R)(0)
+
+        #Compute Lipschitz of gradient
+        x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
+        temp_x[pad_idx,pad_idx]=x_ones
+        temp_proj=forward_project(temp_x,nufft_params) 
+        temp_backproj=back_project(temp_proj,nufft_params) 
+        #hessian_prior(x_ones,temp_backproj,det_row,im_size,im_size,rec_params['MRF_SIGMA'])
+        L = np.max([afnp.real(temp_backproj),afnp.imag(temp_backproj)])
+        print('Lipschitz constant = %f' %(L))
+        del x_ones,temp_proj,temp_backproj
         
         #loop over all slices
         for iter_num in range(num_iter):
