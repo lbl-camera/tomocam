@@ -6,13 +6,13 @@
 
 int main(int argc, char ** argv){
 
-    if (argc != 4){
-        printf("Usage: %s <nslice> <nrow> <ncol> \n", argv[0]);
+    if (argc != 3){
+        printf("Usage: %s <nslice>  <imsize> \n", argv[0]);
         exit(1);
     }
     int nslice = atoi(argv[1]);
     int nrow = atoi(argv[2]);
-    int ncol = atoi(argv[3]);
+    int ncol = nrow;
 
 
     size_t n = nslice * nrow * ncol;

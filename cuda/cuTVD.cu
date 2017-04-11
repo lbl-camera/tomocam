@@ -53,12 +53,9 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
     int i = threadIdx.x;
     int j = threadIdx.y;
     int k = threadIdx.z; 
-    int xOffset = blockDim.x * blockIdx.x;
-    int yOffset = blockDim.y * blockIdx.y;
-    int zOffset = blockDim.z * blockIdx.z;
-    int x = i + xOffset;
-    int y = j + yOffset;
-    int z = k + zOffset;
+    int x = i + blockDim.x * blockIdx.x;
+    int y = j + blockDim.y * blockIdx.y;
+    int z = k + blockDim.z * blockIdx.z;
        
     if ((x < nx) && (y < ny) && (z < nz)) {
 
@@ -75,114 +72,199 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         // copy from global memory
         s_val[k+1][j+1][i+1] = val[gid];
 
-        /* copy ghost cells, except corners */
+        /* copy ghost cells, on all 6 faces */
+
         if (i == 0){
-            if (x > 0) s_val[k][j][i] = val[globalIdx(x-1, y, z)];
-            else s_val[k][j][i] = CMPLX_ZERO;
+            if (x > 0) s_val[k+1][j+1][i] = val[globalIdx(x-1, y, z)];
+            else s_val[k+1][j+1][i] = CMPLX_ZERO;
         }
 
-
-        int xlen = min(sNX, nx - xOffset);
-        if (i == xlen-1) {
-            if (xOffset + xlen < nx) s_val[k][j][i+2] = val[gid+1];
-            else s_val[k][j][i+2] = CMPLX_ZERO;
+        if (i == blockDim.x-1) {
+            if (x < nx-1) s_val[k+1][j+1][i+2] = val[globalIdx(x+1, y, z)];
+            else s_val[k+1][j+1][i+2] = CMPLX_ZERO;
         }
         __syncthreads();
 
         if (j == 0){
-            if (y > 0) s_val[k][j][i] = val[globalIdx(x, y-1, z)];
-            else s_val[k][j][i] = CMPLX_ZERO;
+            if (y > 0) s_val[k+1][j][i+1] = val[globalIdx(x, y-1, z)];
+            else s_val[k+1][j][i+1] = CMPLX_ZERO;
         }
 
-        int ylen = min(sNY, ny - yOffset);
-        if (j == ylen-1) {
-            if (yOffset + ylen < ny) s_val[k][j+2][i] = val[globalIdx(x, y+1,z)];
-            else s_val[k][j+2][i] = CMPLX_ZERO;
+        if (j == blockDim.y-1) {
+            if (y < ny-1) s_val[k+1][j+2][i+1] = val[globalIdx(x, y+1,z)];
+            else s_val[k+1][j+2][i+1] = CMPLX_ZERO;
         }
         __syncthreads();
-        
+
         if (k == 0){
-            if (z > 0) s_val[k][j][i] = val[globalIdx(x, y, z-1)];
-            else s_val[k][j][i] = CMPLX_ZERO;
+            if (z > 0) s_val[k][j+1][i+1] = val[globalIdx(x, y, z-1)];
+            else s_val[k][j+1][i+1] = CMPLX_ZERO;
         }
 
-        int zlen = min(sNZ, nz - zOffset);
-        if (k == zlen-1) {
-            if (zOffset + zlen < nz) s_val[k+2][j][i] = val[globalIdx(x, y, z+1)];
-            else s_val[k+2][j][i] = CMPLX_ZERO;
+        if (k == blockDim.z-1) {
+            if (z < nz-1) s_val[k+2][j+1][i+1] = val[globalIdx(x, y, z+1)];
+            else s_val[k+2][j+1][i+1] = CMPLX_ZERO;
         }
         __syncthreads();
 
-        /* copy the corners, all eight of them */
+
+        /* copy ghost cells along 12 edges  */
+
+        // copy ghost-cells along x-direction
+        if (j == 0) {
+            if (k == 0) {
+                if ((y > 0) && (z > 0))
+                    s_val[k][j][i+1] = val[globalIdx(x, y-1, z-1)];
+                else s_val[k][j][i+1] = CMPLX_ZERO;
+            }
+            if (k == blockDim.z-1) {
+                if ((y > 0) && (z < nz-1))
+                    s_val[k+2][j][i+1] = val[globalIdx(x, y-1, z+1)];
+                else s_val[k+2][j][i+1] = CMPLX_ZERO;
+            }
+        }
+        if (j == blockDim.y-1) {
+            if (k == 0) {
+                if ((y < ny-1) && (z > 0))
+                    s_val[k][j+2][i+1] = val[globalIdx(x, y+1, z-1)];
+                else s_val[k][j+2][i+1] = CMPLX_ZERO;
+            }
+            if (k = blockDim.z-1) {
+                if ((y < ny-1) && (z < nz-1))
+                    s_val[k+2][j+2][i+1] = val[globalIdx(x, y+1, z+1)];
+                else s_val[k+2][j+2][i+1] = CMPLX_ZERO;
+            }
+        }
+        __syncthreads();
+
+        // copy ghost-cells along y-direction
+        if (k == 0) {
+            if (i == 0) {
+                if ((x > 0) && (z > 0))
+                    s_val[k][j+1][i] = val[globalIdx(x-1, y, z-1)];
+                else s_val[k][j+1][i] = CMPLX_ZERO;
+            } 
+            if (i == blockDim.x-1) {
+                if ((x < nx-1) && (z > 0))
+                    s_val[k][j+1][i+2] = val[globalIdx(x+1, y, z-1)];
+                else s_val[k][j+1][i+2] = CMPLX_ZERO;
+            } 
+        }
+        if (k == blockDim.z-1) {
+            if (i == 0) {
+                if ((x > 0) && (z < nz-1))
+                    s_val[k+2][j+1][i] = val[globalIdx(x-1, y, z+1)];
+                else s_val[k+2][j+1][i] = CMPLX_ZERO;
+            }
+            if (i == blockDim.x-1) {
+                if ((x < nx-1) && (z < nz-1)) 
+                    s_val[k+2][j+1][i+2] = val[globalIdx(x+1, y, z+1)];
+                else s_val[k+2][j+1][i+2] = CMPLX_ZERO;
+            }
+        }
+        __syncthreads();
+
+        if (i == 0) {
+            if (j == 0 ) {
+                if ((x>0) && (y>0)) 
+                    s_val[k+1][j][i] = val[globalIdx(x-1, y-1, z)];
+                else s_val[k+1][j][i] = CMPLX_ZERO;
+            }
+            if (j == blockDim.y-1) {
+                if ((x > 0) && (y < ny-1))  
+                    s_val[k+1][j+2][i] = val[globalIdx(x-1, y+1, z)];
+                else s_val[k+1][j+2][i] = CMPLX_ZERO;
+            }
+        }
+        if (i == blockDim.x-1) {
+            if (j == 0) {
+                if ((x < nx-1) && (y > 0))
+                    s_val[k+1][j][i+2] = val[globalIdx(x+1, y-1, z)];
+                else s_val[k+1][j][i+2] = CMPLX_ZERO;
+            }
+            if (j == blockDim.y-1) {
+                if ((x < nx-1) && (y < ny-1))
+                    s_val[k+1][j+2][i+2] = val[globalIdx(x+1, y+1, z)];
+                else s_val[k+1][j+2][i+2] = CMPLX_ZERO;
+            }
+        }
+        __syncthreads();
+
+
+        /*  copy  ghost cells along 16 corners */
         if (k == 0){
             if (j == 0){
                 if (i == 0){
                     if ((x > 0) && (y > 0) && (z > 0)) 
-                        s_val[k][j][i] = val[globalIdx(x-1,y-1,z-1)];
+                        s_val[k][j][i] = val[globalIdx(x-1, y-1, z-1)];
                     else s_val[k][j][i] = CMPLX_ZERO;
                 }
-                if (i == xlen-1) {
-                    if (xOffset + xlen < nx)
+                if (i == blockDim.x-1) {
+                    if ((x < nx-1) && (y > 0) && (z > 0))
                         s_val[k][j][i+2] = val[globalIdx(x+1, y-1, z-1)];
                     else s_val[k][j][i+2] = CMPLX_ZERO;
                 }
             }
-            if (j == ylen-1){
+            if (j == blockDim.y-1){
                 if (i == 0){
-                    if ((x > 0) && (yOffset + ylen < ny) && (z > 0))
+                    if ((x > 0) && (y < ny-1) && (z > 0))
                         s_val[k][j+2][i] = val[globalIdx(x-1, y+1, z-1)];
                     else s_val[k][j+2][i] = CMPLX_ZERO;
                 }
-                if (i == xlen-1){
-                    if ((xOffset + xlen < nx) && (yOffset + ylen < ny) && (z > 0))
+                if (i == blockDim.x-1){
+                    if ((x < nx-1) && (y < ny-1) && (z > 0))
                         s_val[k][j+2][i+2] = val[globalIdx(x+1, y+1, z-1)];
                     else s_val[k][j+2][i+2] = CMPLX_ZERO;
                 }
             }
         }
-        if (k == zlen-1){
+        if (k == blockDim.z-1){
             if (j == 0){
                 if (i == 0){
-                    if ((x > 0) && (y > 0) && (zOffset + zlen < nz)) 
-                        s_val[k+2][j][i] = val[globalIdx(x-1,y-1,z+1)];
+                    if ((x > 0) && (y > 0) && (z < nz-1)) 
+                        s_val[k+2][j][i] = val[globalIdx(x-1, y-1, z+1)];
                     else s_val[k+2][j][i] = CMPLX_ZERO;
                 }
-                if (i == xlen-1){
-                    if (xOffset + xlen < nx)
+                if (i == blockDim.x-1){
+                    if ((x < nx-1) && (y > 0) && (z < nz-1))
                         s_val[k+2][j][i+2] = val[globalIdx(x+1, y-1, z+1)];
                     else s_val[k+2][j][i+2] = CMPLX_ZERO;
                 }
             }
-            if (j == ylen-1){
+            if (j == blockDim.y-1){
                 if (i == 0){
-                    if ((x > 0) && (yOffset + ylen < ny) && (zOffset + zlen < nz))
+                    if ((x > 0) && (y < ny-1) && (z < nz-1))
                         s_val[k+2][j+2][i] = val[globalIdx(x-1, y+1, z+1)];
                     else s_val[k+2][j+2][i] = CMPLX_ZERO;
                 }
-                if (i == xlen-1){
-                    if ((xOffset + xlen < nx) && (yOffset + ylen < ny) && (zOffset + zlen < nz))
+                if (i == blockDim.x-1){
+                    if ((x < nx-1) && (y < ny-1) && (z < nz-1))
                         s_val[k+2][j+2][i+2] = val[globalIdx(x+1, y+1, z+1)];
                     else s_val[k+2][j+2][i+2] = CMPLX_ZERO;
                 }
             }
         }
         __syncthreads();
-    
+
         complex_t v = s_val[k+1][j+1][i+1];
+        complex_t temp = CMPLX_ZERO;
         for (int iy = 0; iy < 3; iy++)
             for (int ix = 0; ix  < 3; ix++) {
                 // same slice as current element
-                tvd[gid].x += wght(1, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].x);
-                tvd[gid].y += wght(1, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].y);
+                temp.x += wght(1, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].x);
+                temp.y += wght(1, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].y);
 
                 //  current slice - 1
-                tvd[gid].x += wght(0, iy, ix) * deriv_potFCN(v.x-s_val[k][j+iy][i+ix].y);
-                tvd[gid].y += wght(0, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].x);
+                temp.x += wght(0, iy, ix) * deriv_potFCN(v.x-s_val[k][j+iy][i+ix].y);
+                temp.y += wght(0, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].x);
 
                 //  current slice + 1
-                tvd[gid].x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y);
-                tvd[gid].y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x);
+                temp.x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y);
+                temp.y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x);
             }
+        //tvd[gid] = s_val[k+1][j][i];
+        tvd[gid].x += temp.x;
+        tvd[gid].y += temp.y;
     }
 }
 
@@ -213,11 +295,13 @@ void addTVD(int nslice, int nrow, int ncol, complex_t * objfn, complex_t * val) 
     error_handle();
 
 #ifdef DEBUG
-    complex_t * f = new complex_t[nrow * ncol];
-    cudaMemcpy(f, objfn, sizeof(complex_t) * nrow * ncol, cudaMemcpyDeviceToHost);
+    size_t IMG = nrow * ncol;
+    size_t SHFT = 0 * IMG;
+    complex_t * f = new complex_t[IMG];
+    cudaMemcpy(f, objfn + SHFT, sizeof(complex_t) * IMG, cudaMemcpyDeviceToHost);
     for (int j = 0; j < nrow; ++j){
         for (int i = 0; i < ncol; ++i){
-            printf("%f   ", f[j * nrow + i].x);
+            printf("%f   ", f[j * nrow + i].y);
         }
         printf("\n");
     }

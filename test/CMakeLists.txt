@@ -4,6 +4,8 @@ find_package(CUDA QUIET REQUIRED)
 
 INCLUDE(FindCUDA)
 
+ADD_DEFINITIONS(-DDEBUG)
+
 LINK_DIRECTORIES(/usr/local/lib /usr/local/cuda/lib64)
 
 CUDA_ADD_EXECUTABLE(polar polarsample.cc cuPolarsample.cu)
