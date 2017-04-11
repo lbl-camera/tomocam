@@ -179,9 +179,11 @@ def gpuMBIR(tomo,angles,center,input_params):
         
         #Initialize NUFFT parameters
         nufft_params = init_nufft_params(sino,geom)
+
         temp_y = afnp.zeros((sino['Ns'],num_angles),dtype=afnp.complex64)
         temp_x = afnp.zeros((sino['Ns'],sino['Ns']),dtype=afnp.complex64)
-        x_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64) 
+        x_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
+        
         pad_idx = slice(sino['Ns']/2-sino['Ns_orig']/2,sino['Ns']/2+sino['Ns_orig']/2)
 
         #allocate output array
@@ -193,6 +195,21 @@ def gpuMBIR(tomo,angles,center,input_params):
         gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
 
         gradient = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']), dtype=afnp.complex64)#temp array to store the derivative of cost func
+
+        z_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)#Nesterov method variables
+        z_recon = x_recon
+        t_nes = 1
+        L = 1#Compute lipschitz constant of derivative - AtA+\Hessian(R)(0)
+
+        #Compute Lipschitz of gradient
+        x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
+        temp_x[pad_idx,pad_idx]=x_ones
+        temp_proj=forward_project(temp_x,nufft_params) 
+        temp_backproj=back_project(temp_proj,nufft_params) 
+        #hessian_prior(x_ones,temp_backproj,det_row,im_size,im_size,rec_params['MRF_SIGMA'])
+        L = np.max([afnp.real(temp_backproj),afnp.imag(temp_backproj)])
+        print('Lipschitz constant = %f' %(L))
+        del x_ones,temp_proj,temp_backproj
         
         #loop over all slices
         for iter_num in range(num_iter):
@@ -204,8 +221,8 @@ def gpuMBIR(tomo,angles,center,input_params):
               gradient[i] =(back_project((temp_y-Ax),nufft_params))[pad_idx,pad_idx] #nufft_scaling
           #Derivative of regularization term           
           tvd_update(x_recon, gradient) #TODO : This shoud accumulate the answer into fcn
-          x_recon = x_recon - beta*gradient
-
+          #x_recon = x_recon - beta*gradient
+          x_recon,z_recon,t_nes=nesterovOGM1update(x_recon,z_recon,t_nes,gradient,L) 
 
         #Move to CPU
         #Rescale result to match tomopy
@@ -213,3 +230,18 @@ def gpuMBIR(tomo,angles,center,input_params):
         rec_mbir_final[slice_1]=np.array(rec_mbir.real,dtype=np.float32)
         rec_mbir_final[slice_2]=np.array(rec_mbir.imag,dtype=np.float32)
         return rec_mbir_final
+
+def nesterovOGM1update(x,z,t,grad,L):
+#L = Lipshcitz constant
+    zNew = x - grad/L
+    tNew = 0.5*(1+np.sqrt(1+4*(t**2)))
+    xNew = zNew + ((t-1)/tNew)*(zNew-z)
+    return xNew,zNew,tNew
+
+def nesterovOGM2update(x,z,t,grad,L):
+#L = Lipshcitz constant
+    zNew = x - grad/L
+    tNew = 0.5*(1+np.sqrt(1+4*(t**2)))
+    xNew =zNew + ((t -1)/tNew)*(zNew-z) + (t/tNew)*(zNew-x)
+    return xNew,zNew,tNew
+                                
