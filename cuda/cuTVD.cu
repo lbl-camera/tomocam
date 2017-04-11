@@ -44,7 +44,7 @@ __inline__ __device__ float deriv_potFCN(float delta) {
     } else if(delta > 0.0) {
         return ((temp2/(temp3*MRF_SIGMA_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
     } else {
-        return MRF_Q / (MRF_SIGMA_Q*MRF_C);
+        return MRF_Q/(MRF_SIGMA_Q*MRF_C);
     }
 }
 
