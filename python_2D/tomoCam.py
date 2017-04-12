@@ -199,8 +199,6 @@ def gpuMBIR(tomo,angles,center,input_params):
         z_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)#Nesterov method variables
         z_recon = x_recon
         t_nes = 1
-        L = 1#Compute lipschitz constant of derivative - AtA+\Hessian(R)(0)
-
         #Compute Lipschitz of gradient
         x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
         temp_x[pad_idx,pad_idx]=x_ones
