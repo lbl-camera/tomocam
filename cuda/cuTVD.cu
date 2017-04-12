@@ -56,7 +56,13 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
     int x = i + blockDim.x * blockIdx.x;
     int y = j + blockDim.y * blockIdx.y;
     int z = k + blockDim.z * blockIdx.z;
-       
+
+    // last thread in the block
+    int in = min(nx - blockIdx.x*blockDim.x-1, blockDim.x-1);
+    int jn = min(ny - blockIdx.y*blockDim.y-1, blockDim.y-1);
+    int kn = min(nz - blockIdx.z*blockDim.z-1, blockDim.z-1);
+
+
     if ((x < nx) && (y < ny) && (z < nz)) {
 
         int gid = globalIdx(x, y, z);
@@ -80,7 +86,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         }
 
         // x = Nx-1 face
-        if (i == blockDim.x-1) {
+        if (i == in) {
             if (x < nx-1) s_val[k+1][j+1][i+2] = val[globalIdx(x+1, y, z)];
             else s_val[k+1][j+1][i+2] = CMPLX_ZERO;
         }
@@ -91,7 +97,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
             else s_val[k+1][j][i+1] = CMPLX_ZERO;
         }
 
-        if (j == blockDim.y-1) {
+        if (j == jn) {
             if (y < ny-1) s_val[k+1][j+2][i+1] = val[globalIdx(x, y+1, z)];
             else s_val[k+1][j+2][i+1] = CMPLX_ZERO;
         }
@@ -102,7 +108,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
             else s_val[k][j+1][i+1] = CMPLX_ZERO;
         }
 
-        if (k == blockDim.z-1) {
+        if (k == kn) {
             if (z < nz-1) s_val[k+2][j+1][i+1] = val[globalIdx(x, y, z+1)];
             else s_val[k+2][j+1][i+1] = CMPLX_ZERO;
         }
@@ -117,19 +123,19 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                     s_val[k][j][i+1] = val[globalIdx(x, y-1, z-1)];
                 else s_val[k][j][i+1] = CMPLX_ZERO;
             }
-            if (k == blockDim.z-1) {
+            if (k == kn) {
                 if ((y > 0) && (z < nz-1))
                     s_val[k+2][j][i+1] = val[globalIdx(x, y-1, z+1)];
                 else s_val[k+2][j][i+1] = CMPLX_ZERO;
             }
         }
-        if (j == blockDim.y-1) {
+        if (j == jn) {
             if (k == 0) {
                 if ((y < ny-1) && (z > 0))
                     s_val[k][j+2][i+1] = val[globalIdx(x, y+1, z-1)];
                 else s_val[k][j+2][i+1] = CMPLX_ZERO;
             }
-            if (k == blockDim.z-1) {
+            if (k == kn) {
                 if ((y < ny-1) && (z < nz-1))
                     s_val[k+2][j+2][i+1] = val[globalIdx(x, y+1, z+1)];
                 else s_val[k+2][j+2][i+1] = CMPLX_ZERO;
@@ -144,19 +150,19 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                     s_val[k][j+1][i] = val[globalIdx(x-1, y, z-1)];
                 else s_val[k][j+1][i] = CMPLX_ZERO;
             } 
-            if (i == blockDim.x-1) {
+            if (i == in) {
                 if ((x < nx-1) && (z > 0))
                     s_val[k][j+1][i+2] = val[globalIdx(x+1, y, z-1)];
                 else s_val[k][j+1][i+2] = CMPLX_ZERO;
             } 
         }
-        if (k == blockDim.z-1) {
+        if (k == kn) {
             if (i == 0) {
                 if ((x > 0) && (z < nz-1))
                     s_val[k+2][j+1][i] = val[globalIdx(x-1, y, z+1)];
                 else s_val[k+2][j+1][i] = CMPLX_ZERO;
             }
-            if (i == blockDim.x-1) {
+            if (i == in) {
                 if ((x < nx-1) && (z < nz-1)) 
                     s_val[k+2][j+1][i+2] = val[globalIdx(x+1, y, z+1)];
                 else s_val[k+2][j+1][i+2] = CMPLX_ZERO;
@@ -170,19 +176,19 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                     s_val[k+1][j][i] = val[globalIdx(x-1, y-1, z)];
                 else s_val[k+1][j][i] = CMPLX_ZERO;
             }
-            if (j == blockDim.y-1) {
+            if (j == jn) {
                 if ((x > 0) && (y < ny-1))  
                     s_val[k+1][j+2][i] = val[globalIdx(x-1, y+1, z)];
                 else s_val[k+1][j+2][i] = CMPLX_ZERO;
             }
         }
-        if (i == blockDim.x-1) {
+        if (i == in) {
             if (j == 0) {
                 if ((x < nx-1) && (y > 0))
                     s_val[k+1][j][i+2] = val[globalIdx(x+1, y-1, z)];
                 else s_val[k+1][j][i+2] = CMPLX_ZERO;
             }
-            if (j == blockDim.y-1) {
+            if (j == jn) {
                 if ((x < nx-1) && (y < ny-1))
                     s_val[k+1][j+2][i+2] = val[globalIdx(x+1, y+1, z)];
                 else s_val[k+1][j+2][i+2] = CMPLX_ZERO;
@@ -199,45 +205,45 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                         s_val[k][j][i] = val[globalIdx(x-1, y-1, z-1)];
                     else s_val[k][j][i] = CMPLX_ZERO;
                 }
-                if (i == blockDim.x-1) {
+                if (i == in) {
                     if ((x < nx-1) && (y > 0) && (z > 0))
                         s_val[k][j][i+2] = val[globalIdx(x+1, y-1, z-1)];
                     else s_val[k][j][i+2] = CMPLX_ZERO;
                 }
             }
-            if (j == blockDim.y-1){
+            if (j == jn){
                 if (i == 0){
                     if ((x > 0) && (y < ny-1) && (z > 0))
                         s_val[k][j+2][i] = val[globalIdx(x-1, y+1, z-1)];
                     else s_val[k][j+2][i] = CMPLX_ZERO;
                 }
-                if (i == blockDim.x-1){
+                if (i == in){
                     if ((x < nx-1) && (y < ny-1) && (z > 0))
                         s_val[k][j+2][i+2] = val[globalIdx(x+1, y+1, z-1)];
                     else s_val[k][j+2][i+2] = CMPLX_ZERO;
                 }
             }
         }
-        if (k == blockDim.z-1){
+        if (k == kn){
             if (j == 0){
                 if (i == 0){
                     if ((x > 0) && (y > 0) && (z < nz-1)) 
                         s_val[k+2][j][i] = val[globalIdx(x-1, y-1, z+1)];
                     else s_val[k+2][j][i] = CMPLX_ZERO;
                 }
-                if (i == blockDim.x-1){
+                if (i == in){
                     if ((x < nx-1) && (y > 0) && (z < nz-1))
                         s_val[k+2][j][i+2] = val[globalIdx(x+1, y-1, z+1)];
                     else s_val[k+2][j][i+2] = CMPLX_ZERO;
                 }
             }
-            if (j == blockDim.y-1){
+            if (j == jn){
                 if (i == 0){
                     if ((x > 0) && (y < ny-1) && (z < nz-1))
                         s_val[k+2][j+2][i] = val[globalIdx(x-1, y+1, z+1)];
                     else s_val[k+2][j+2][i] = CMPLX_ZERO;
                 }
-                if (i == blockDim.x-1){
+                if (i == in){
                     if ((x < nx-1) && (y < ny-1) && (z < nz-1))
                         s_val[k+2][j+2][i+2] = val[globalIdx(x+1, y+1, z+1)];
                     else s_val[k+2][j+2][i+2] = CMPLX_ZERO;
@@ -295,7 +301,7 @@ void addTVD(int nslice, int nrow, int ncol, complex_t * objfn, complex_t * val) 
 
 #ifdef DEBUG
     size_t IMG = nrow * ncol;
-    size_t SHFT = 0 * IMG;
+    size_t SHFT = (nslice-1) * IMG;
     FILE * fp = fopen("slice.out", "w");
     complex_t * f = new complex_t[IMG];
     cudaMemcpy(f, objfn + SHFT, sizeof(complex_t) * IMG, cudaMemcpyDeviceToHost);
