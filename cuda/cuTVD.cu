@@ -44,7 +44,7 @@ __inline__ __device__ float deriv_potFCN(float delta) {
     } else if(delta > 0.0) {
         return ((temp2/(temp3*MRF_SIGMA_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
     } else {
-        return MRF_Q/(MRF_SIGMA_Q*MRF_C);
+        return MRF_Q / (MRF_SIGMA_Q*MRF_C);
     }
 }
 
@@ -73,12 +73,13 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         s_val[k+1][j+1][i+1] = val[gid];
 
         /* copy ghost cells, on all 6 faces */
-
+        // x = 0 face
         if (i == 0){
             if (x > 0) s_val[k+1][j+1][i] = val[globalIdx(x-1, y, z)];
             else s_val[k+1][j+1][i] = CMPLX_ZERO;
         }
 
+        // x = Nx-1 face
         if (i == blockDim.x-1) {
             if (x < nx-1) s_val[k+1][j+1][i+2] = val[globalIdx(x+1, y, z)];
             else s_val[k+1][j+1][i+2] = CMPLX_ZERO;
@@ -91,7 +92,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         }
 
         if (j == blockDim.y-1) {
-            if (y < ny-1) s_val[k+1][j+2][i+1] = val[globalIdx(x, y+1,z)];
+            if (y < ny-1) s_val[k+1][j+2][i+1] = val[globalIdx(x, y+1, z)];
             else s_val[k+1][j+2][i+1] = CMPLX_ZERO;
         }
         __syncthreads();
@@ -109,7 +110,6 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
 
 
         /* copy ghost cells along 12 edges  */
-
         // copy ghost-cells along x-direction
         if (j == 0) {
             if (k == 0) {
@@ -129,7 +129,7 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                     s_val[k][j+2][i+1] = val[globalIdx(x, y+1, z-1)];
                 else s_val[k][j+2][i+1] = CMPLX_ZERO;
             }
-            if (k = blockDim.z-1) {
+            if (k == blockDim.z-1) {
                 if ((y < ny-1) && (z < nz-1))
                     s_val[k+2][j+2][i+1] = val[globalIdx(x, y+1, z+1)];
                 else s_val[k+2][j+2][i+1] = CMPLX_ZERO;
@@ -262,7 +262,6 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
                 temp.x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y);
                 temp.y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x);
             }
-        //tvd[gid] = s_val[k+1][j][i];
         tvd[gid].x += temp.x;
         tvd[gid].y += temp.y;
     }
@@ -297,14 +296,16 @@ void addTVD(int nslice, int nrow, int ncol, complex_t * objfn, complex_t * val) 
 #ifdef DEBUG
     size_t IMG = nrow * ncol;
     size_t SHFT = 0 * IMG;
+    FILE * fp = fopen("slice.out", "w");
     complex_t * f = new complex_t[IMG];
     cudaMemcpy(f, objfn + SHFT, sizeof(complex_t) * IMG, cudaMemcpyDeviceToHost);
     for (int j = 0; j < nrow; ++j){
         for (int i = 0; i < ncol; ++i){
-            printf("%f   ", f[j * nrow + i].y);
+            fprintf(fp, "%f   ", f[j * nrow + i].y);
         }
-        printf("\n");
+        fprintf(fp, "\n");
     }
     delete [] f;
+    fclose(fp);
 #endif  // DEBUG
 }

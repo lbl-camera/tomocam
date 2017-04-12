@@ -20,7 +20,7 @@ int main(int argc, char ** argv){
     complex_t * v  = new complex_t[n];
 
     for (int i = 0; i < n; i++){
-        v[i] = make_cuFloatComplex(1.f, 0.f);
+        v[i] = make_cuFloatComplex(1.f, 1.f);
         f[i] = make_cuFloatComplex(0.f, 0.f);
     }
 
