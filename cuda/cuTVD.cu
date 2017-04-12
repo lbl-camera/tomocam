@@ -8,6 +8,8 @@ const int WORK = 8;
 const int sNX = DIMX + 2;
 const int sNY = DIMY + 2;
 const int sNZ = DIMZ + 2;
+const float MRF_C = .001;
+const float MRF_Q = 2;
 
 __device__ const float FILTER[3][3][3] = 
     { 
@@ -27,11 +29,12 @@ __inline__ __device__ int globalIdx(int x, int y, int z){
     return (nx * ny * z + nx * y + x);
 }
 
-__inline__ __device__ float deriv_potFCN(float delta) {
-    float MRF_C = .001;
-    float MRF_P = 1.2;
-    float MRF_Q = 2;
-    float MRF_SIGMA = 1;
+__inline__ __device__ float pot_func(float delta, float MRF_P, float MRF_SIGMA)
+{
+  return ((pow(fabs(delta)/MRF_SIGMA,MRF_Q))/(MRF_C + pow(fabs(delta)/MRF_SIGMA,MRF_Q - MRF_P)));
+}
+
+__inline__ __device__ float deriv_potFCN(float delta, float MRF_P, float MRF_SIGMA) {
     float MRF_SIGMA_Q = pow(MRF_SIGMA,MRF_Q);
     float MRF_SIGMA_Q_P = pow(MRF_SIGMA,MRF_Q - MRF_P);
 
@@ -48,8 +51,14 @@ __inline__ __device__ float deriv_potFCN(float delta) {
     }
 }
 
+/*Second Derivative of the potential function at zero */
+__inline__ __device__ float second_deriv_potFunc_zero(float MRF_SIGMA)
+{
+  float MRF_SIGMA_Q=pow(MRF_SIGMA,MRF_Q);
+  return MRF_Q/(MRF_SIGMA_Q*MRF_C);
+}
 
-__global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
+__global__ void tvd_update_kernel(complex_t * val, complex_t * tvd, float MRF_P, float MRF_SIGMA){
     int i = threadIdx.x;
     int j = threadIdx.y;
     int k = threadIdx.z; 
@@ -257,22 +266,50 @@ __global__ void tvd_update_kernel(complex_t * val, complex_t * tvd){
         for (int iy = 0; iy < 3; iy++)
             for (int ix = 0; ix  < 3; ix++) {
                 // same slice as current element
-                temp.x += wght(1, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].x);
-                temp.y += wght(1, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].y);
+	      temp.x += wght(1, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].x, MRF_P,MRF_SIGMA);
+	      temp.y += wght(1, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].y, MRF_P, MRF_SIGMA);
 
                 //  current slice - 1
-                temp.x += wght(0, iy, ix) * deriv_potFCN(v.x-s_val[k][j+iy][i+ix].y);
-                temp.y += wght(0, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].x);
+	      temp.x += wght(0, iy, ix) * deriv_potFCN(v.x-s_val[k][j+iy][i+ix].y, MRF_P, MRF_SIGMA);
+	      temp.y += wght(0, iy, ix) * deriv_potFCN(v.y-s_val[k+1][j+iy][i+ix].x,MRF_P, MRF_SIGMA);
 
                 //  current slice + 1
-                temp.x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y);
-                temp.y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x);
+	      temp.x += wght(2, iy, ix) * deriv_potFCN(v.x-s_val[k+1][j+iy][i+ix].y,MRF_P, MRF_SIGMA);
+	      temp.y += wght(2, iy, ix) * deriv_potFCN(v.y-s_val[k+2][j+iy][i+ix].x,MRF_P, MRF_SIGMA);
             }
         tvd[gid].x += temp.x;
         tvd[gid].y += temp.y;
     }
 }
 
+__global__ void tvd_hessian_zero_kernel(complex_t * val, complex_t * tvd, float MRF_SIGMA){
+    int i = threadIdx.x;
+    int j = threadIdx.y;
+    int k = threadIdx.z; 
+    int x = i + blockDim.x * blockIdx.x;
+    int y = j + blockDim.y * blockIdx.y;
+    int z = k + blockDim.z * blockIdx.z;
+    if ((x < nx) && (y < ny) && (z < nz)) {
+        int gid = globalIdx(x, y, z);
+	complex_t temp = CMPLX_ZERO;
+        for (int iy = 0; iy < 3; iy++)
+            for (int ix = 0; ix  < 3; ix++) {
+                // same slice as current element
+	        temp.x += wght(1, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+                temp.y += wght(1, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+
+                //  current slice - 1
+                temp.x += wght(0, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+                temp.y += wght(0, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+
+                //  current slice + 1
+                temp.x += wght(2, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+                temp.y += wght(2, iy, ix) * second_deriv_potFunc_zero(MRF_SIGMA);
+            }
+        tvd[gid].x += temp.x;
+        tvd[gid].y += temp.y;
+    }
+}
 
 void addTVD(int nslice, int nrow, int ncol, complex_t * objfn, complex_t * val) {
 
