@@ -7,6 +7,10 @@
 PyObject * cPolarSample (PyObject *, PyObject *);
 PyObject * cPolarSampleTranspose (PyObject *, PyObject *);
 PyObject * cTVDUpdate (PyObject *, PyObject *);
+PyObject * cHessian(PyObject *, PyObject *);
+
+
+
 
 #if DEBUG
 PyObject * cDebug(PyObject *, PyObject *);

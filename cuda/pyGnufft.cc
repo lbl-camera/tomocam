@@ -17,6 +17,12 @@ static PyObject * tvd_update(PyObject * self, PyObject * args){
     return cTVDUpdate(self, args);
 }
 
+
+static PyObject * hessian(PyObject * self, PyObject * args){
+    return cHessian(self, args);
+}
+
+
 /*
 static PyObject * debug(PyObject * self, PyObject * args){
 #if DEBUG
@@ -36,6 +42,7 @@ static PyMethodDef cGnufftMehods [] = {
     { "polarsample",           polarsample,           METH_VARARGS, fwd_doc },
 	{ "polarsample_transpose", polarsample_transpose, METH_VARARGS, rev_doc },
     { "tvd_update",            tvd_update,            METH_VARARGS, NULL},
+    { "hessian",               hessian,               METH_VARARGS, NULL},
 	{ NULL, NULL}
 };
 
