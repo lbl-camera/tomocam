@@ -35,12 +35,14 @@ PyObject * cTVDUpdate(PyObject *self, PyObject *prhs) {
 
 
 // calculated hessian
-PyObject * cCalcHessian(PyObject *self, PyObject *prhs) {
+PyObject * cHessian(PyObject *self, PyObject *prhs) {
     PyObject * pyVolume;
+    PyObject * pyFcn;
     float mrf_sigma;
-    if (!(PyArg_ParseTuple(prhs, "fO", 
+    if (!(PyArg_ParseTuple(prhs, "fOO", 
                     &mrf_sigma, 
-                    &pyVolume))){
+                    &pyVolume,
+                    &pyFcn))){
         return NULL;
     }
 
@@ -56,10 +58,5 @@ PyObject * cCalcHessian(PyObject *self, PyObject *prhs) {
 
     // compute on GPU
     calcHessian(n1, n2, n3, mrf_sigma, volume, hessian);
-   
-    // build return afnumpy array 
-    int nd = 3;
-    int dims[3] = {n1, n2, n3};
-    PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, hessian, true);
-    return out;
+    Py_RETURN_NONE;
 }
