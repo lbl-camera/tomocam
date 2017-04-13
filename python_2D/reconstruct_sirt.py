@@ -56,7 +56,7 @@ def main():
         print('Time for reconstucting using GPU-SIRT of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
 
         fig = plt.figure()
-        sirt_camTomo = rec_sirt_final[124]
+        sirt_camTomo = rec_sirt_final[0]
         plt.imshow(sirt_camTomo,cmap=plt.cm.Greys_r,vmin=0,vmax=0.00075)
         plt.colorbar()
         fig.suptitle('Tomopy GPU-SIRT Reconstruction')
