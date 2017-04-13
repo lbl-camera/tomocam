@@ -60,6 +60,9 @@ void polarsample_transpose(complex_t *, complex_t * , int , uint2 , float *, int
 
 
 // TODO document
-void addTVD(int , int, int, complex_t *, complex_t *);
+void addTVD(int , int, int, float, float, complex_t *, complex_t *);
+
+// TODO document
+void calcHessian(int , int, int, float, complex_t *, complex_t *);
 
 #endif

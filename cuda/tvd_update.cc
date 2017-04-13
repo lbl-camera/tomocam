@@ -48,13 +48,10 @@ PyObject * cHessian(PyObject *self, PyObject *prhs) {
 
     // get data
     complex_t * volume = (complex_t *) PyAfnumpy_DevicePtr(pyVolume);
+    complex_t * hessian = (complex_t *) PyAfnumpy_DevicePtr(pyFcn);
     int n1 = PyAfnumpy_Dims(pyVolume, 0);
     int n2 = PyAfnumpy_Dims(pyVolume, 1);
     int n3 = PyAfnumpy_Dims(pyVolume, 2);
-
-    // allocate memory for hessian
-    complex_t * hessian;
-    cudaMalloc((void **) &hessian, n1 * n2 * n3 * sizeof(complex_t));
 
     // compute on GPU
     calcHessian(n1, n2, n3, mrf_sigma, volume, hessian);

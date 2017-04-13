@@ -33,7 +33,8 @@ int main(int argc, char ** argv){
     cudaMemcpy(d_v, v, n * sizeof(complex_t), cudaMemcpyHostToDevice);
     cudaMemcpy(d_f, f, n * sizeof(complex_t), cudaMemcpyHostToDevice);
 
-    addTVD(nslice, nrow, ncol, d_f, d_v);
+    float mrf_sigma = 1.f;
+    calcHessian(nslice, nrow, ncol, mrf_sigma, d_v, d_f);
 
     delete []f;
     delete []v;

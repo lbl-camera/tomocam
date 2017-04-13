@@ -111,6 +111,7 @@ def customize_compiler_for_nvcc(self):
             # from the extra_compile_args in the Extension class
             #postargs = extra_postargs['nvcc']
             postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
+            postargs += [ '-std=c++11' ]
             #postargs += [ '-g', '-O0', '-DDEBUG' ]
         else:
             postargs = []

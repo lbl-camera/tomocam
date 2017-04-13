@@ -282,7 +282,8 @@ __global__ void tvd_update_kernel(float mrf_p, float mrf_sigma, complex_t * val,
     }
 }
 
-__global__ void hessian_zero_kernel(float mrf_sigma, complex_t * val, complex_t * hessian){
+__global__ void hessian_zero_kernel(int nc, int nr, int ns, float mrf_sigma, 
+                            complex_t * val, complex_t * hessian){
 
     int i = threadIdx.x;
     int j = threadIdx.y;
@@ -291,8 +292,8 @@ __global__ void hessian_zero_kernel(float mrf_sigma, complex_t * val, complex_t 
     int y = j + blockDim.y * blockIdx.y;
     int z = k + blockDim.z * blockIdx.z;
 
-    if ((x < nx) && (y < ny) && (z < nz)) {
-        int gid = globalIdx(x, y, z);
+    if ((x < nc) && (y < nr) && (z < ns)) {
+        int gid = nc * nr * z + nc * y + x;
     	complex_t temp = make_cuFloatComplex(0.f, 0.f);
         for (int iy = 0; iy < 3; iy++)
             for (int ix = 0; ix  < 3; ix++) {
@@ -368,13 +369,23 @@ void calcHessian(int nslice, int nrow, int ncol, float mrf_sigma,
     dim3 block(DIMX, DIMY, DIMZ);
     dim3 grid(GRIDX, GRIDY, GRIDZ);
 
-    /* copy the grid dimensions to constant memeory */
-    cudaError_t status;
-    status = cudaMemcpyToSymbol(nx, &ncol, sizeof(int));   error_handle();
-    status = cudaMemcpyToSymbol(ny, &nrow, sizeof(int));   error_handle();
-    status = cudaMemcpyToSymbol(nz, &nslice, sizeof(int)); error_handle();
-
-
-    hessian_zero_kernel <<<grid, block>>> (mrf_sigma, volume, hessian);
+    // update hessain inplace
+    hessian_zero_kernel <<<grid, block>>> (ncol, nrow, nslice, mrf_sigma, volume, hessian);
     error_handle();
+#ifdef DEBUG
+    size_t IMG = nrow * ncol;
+    size_t SHFT = 0 * IMG;
+    FILE * fp = fopen("hessian.out", "w");
+    complex_t * f = new complex_t[IMG];
+    cudaMemcpy(f, objfn + SHFT, sizeof(complex_t) * IMG, cudaMemcpyDeviceToHost);
+    for (int j = 0; j < nrow; ++j){
+        for (int i = 0; i < ncol; ++i){
+            fprintf(fp, "%f   ", f[j * nrow + i].x);
+        }
+        fprintf(fp, "\n");
+    }
+    delete [] f;
+    fclose(fp);
+#endif  // DEBUG
+
 }
