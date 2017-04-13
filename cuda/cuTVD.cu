@@ -282,7 +282,8 @@ __global__ void tvd_update_kernel(float mrf_p, float mrf_sigma, complex_t * val,
     }
 }
 
-__global__ void hessian_hessian_zero_kernel(float mrf_sigma, complex_t * val, complex_t * hessian){
+__global__ void hessian_zero_kernel(float mrf_sigma, complex_t * val, complex_t * hessian){
+
     int i = threadIdx.x;
     int j = threadIdx.y;
     int k = threadIdx.z; 
@@ -373,6 +374,7 @@ void calcHessian(int nslice, int nrow, int ncol, float mrf_sigma,
     status = cudaMemcpyToSymbol(ny, &nrow, sizeof(int));   error_handle();
     status = cudaMemcpyToSymbol(nz, &nslice, sizeof(int)); error_handle();
 
-    hessian_hessian_zero_kernel <<<grid, block>>> (mrf_sigma, volume, hessian);
+
+    hessian_zero_kernel <<<grid, block>>> (mrf_sigma, volume, hessian);
     error_handle();
 }
