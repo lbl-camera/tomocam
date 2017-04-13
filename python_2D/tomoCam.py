@@ -168,7 +168,8 @@ def gpuMBIR(tomo,angles,center,input_params):
         pad_size=np.int16(im_size*input_params['oversamp_factor'])
 #        nufft_scaling = (np.pi/pad_size)**2
         num_iter = input_params['num_iter']
-        beta = input_params['beta']
+        mrf_sigma = input_params['smoothness']
+        mrf_p = input_params['p']
         #Initialize structures for NUFFT
         sino={}
         geom={}
@@ -193,21 +194,20 @@ def gpuMBIR(tomo,angles,center,input_params):
         slice_1=slice(0,num_slice,2)
         slice_2=slice(1,num_slice,2)
         gdata=afnp.array(new_tomo[slice_1]+1j*new_tomo[slice_2],dtype=afnp.complex64)
-
         gradient = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']), dtype=afnp.complex64)#temp array to store the derivative of cost func
-
         z_recon  = afnp.zeros((num_slice/2,sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)#Nesterov method variables
         z_recon = x_recon
         t_nes = 1
+        
         #Compute Lipschitz of gradient
         x_ones= afnp.ones((sino['Ns_orig'],sino['Ns_orig']),dtype=afnp.complex64)
         temp_x[pad_idx,pad_idx]=x_ones
         temp_proj=forward_project(temp_x,nufft_params) 
-        temp_backproj=back_project(temp_proj,nufft_params) 
-        #hessian_prior(x_ones,temp_backproj,det_row,im_size,im_size,rec_params['MRF_SIGMA'])
-        L = np.max([afnp.real(temp_backproj),afnp.imag(temp_backproj)])
+        temp_backproj=back_project(temp_proj,nufft_params)[pad_idx,pad_idx] 
+        add_hessian(mrf_sigma,x_ones, temp_backproj)
+        L = afnp.max([afnp.real(temp_backproj),afnp.imag(temp_backproj)])
         print('Lipschitz constant = %f' %(L))
-        del x_ones,temp_proj,temp_backproj
+        del x_ones,temp_proj,temp_backproj,temp_x
         
         #loop over all slices
         for iter_num in range(num_iter):
@@ -217,10 +217,10 @@ def gpuMBIR(tomo,angles,center,input_params):
               Ax = forward_project(temp_x,nufft_params)
               temp_y[pad_idx]=gdata[i]
               gradient[i] =(back_project((temp_y-Ax),nufft_params))[pad_idx,pad_idx] #nufft_scaling
-          #Derivative of regularization term           
-          tvd_update(x_recon, gradient) #TODO : This shoud accumulate the answer into fcn
-          #x_recon = x_recon - beta*gradient
-          x_recon,z_recon,t_nes=nesterovOGM1update(x_recon,z_recon,t_nes,gradient,L) 
+          #Derivative of regularization term
+          tvd_update(mrf_p,mrf_sigma,x_recon, gradient) #TODO : This shoud accumulate the answer into fcn
+          x_recon = x_recon - gradient/L
+#          x_recon,z_recon,t_nes=nesterovOGM1update(x_recon,z_recon,t_nes,gradient,L) 
 
         #Move to CPU
         #Rescale result to match tomopy
