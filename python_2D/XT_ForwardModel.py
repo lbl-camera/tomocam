@@ -9,7 +9,6 @@ import scipy.special as sc_spl #For bessel functions
 import tomopy
 import matplotlib.pyplot as plt
 from XT_Common import padmat
-#import ipdb
 
 def forward_project(x,params):
     #inputs : x - afnumpy array containing the complex valued image
@@ -31,7 +30,8 @@ def back_project(y,params):
     qtXrt = params['giDq'].reshape((params['Ns'],1))*(params['fftshift1Dinv_center'](af_fft.fft((params['fftshift1D'](y)).T).T)) #Detector space rt to Fourier space qt
 
     #Polar to cartesian 
-    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r']) *(afnp.pi/(2*params['Ntheta']*params['Ns']**2))
+#    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r']) *(afnp.pi/(2*params['Ntheta']*params['Ns']**2))
+    qxyXqt = gnufft.polarsample_transpose(params['gxy'],qtXrt,params['grid'],params['gkblut'],params['scale'],params['k_r']) *(afnp.pi/(2*params['Ns']))
 
     rxyXqxy =params['fft2Dshift']*(af_fft.ifft2(qxyXqt*params['fft2Dshift']))*params['deapod_filt'] #Fourier to real space : qxy to rxy
 

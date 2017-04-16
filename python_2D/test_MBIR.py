@@ -6,14 +6,16 @@ import pyqtgraph as pg
 from tomoCam import gpuMBIR,gpuSIRT
 
 num_slice = 50
-im_size = 512 #2560 #A n X n X n volume
+im_size = 2560 #2560 #A n X n X n volume
 sino_center = im_size/2#1280
-num_angles = 256 #1024
+num_angles = 1024 #1024
 gpu_device = 2
 oversamp_factor=1.5
-num_iter = 50
+num_iter = 150
 p=1.2
-sigma=.01
+sigma=.1
+
+
 
 obj = tomopy.shepp3d((num_slice,im_size,im_size)) # Generate an object.
 theta = tomopy.angles(num_angles) # Generate uniformly spaced tilt angles.
@@ -34,4 +36,4 @@ t=time.time()
 rec_mbir = gpuMBIR(tomo,theta,sino_center,input_params)
 elapsed_time = (time.time()-t)
 print('Time for reconstucting using GPU-MBIR of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
-pg.image(rec_sirt);pg.QtGui.QApplication.exec_()
+pg.image(rec_mbir);pg.QtGui.QApplication.exec_()

@@ -12,7 +12,7 @@ xwidth=2560
 z_start=1080
 z_numElts=50
 curr_slice=0
-max_iter=15
+max_iter=100
 
 for gpu_device in 0 #0 1 2 3 #4 5 6 7 
 do
