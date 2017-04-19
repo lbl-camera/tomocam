@@ -64,6 +64,8 @@ def main():
         print('Time for NUFFT Gridrec of %d slices : %f' % (num_slice,elapsed_time))
         pg.image(rec_nufft_final);pg.QtGui.QApplication.exec_()
 
+#        np.save('/home/svvenkatakrishnan/results/gridrec_notch1080_70slice',rec_nufft_final)
+
         ##################TomoPy Recon#####################
 #        print('Recon - tomopy GridRec')
 #        t=time.time()

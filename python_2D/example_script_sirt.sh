@@ -1,22 +1,22 @@
 #!/bin/bash
 
-input_file="/home/svvenkatakrishnan/data/20130807_234356_OIM121R_SAXS_5x.h5"
-#20131106_074854_S45L3_notch_OP_10x.h5"
+input_file="/home/svvenkatakrishnan/data/20131106_074854_S45L3_notch_OP_10x.h5"
+#20130807_234356_OIM121R_SAXS_5x.h5"
 #20160717_164333_NASA_FiberInCell_TrajectoryD.h5"
-group_h5="20130807_234356_OIM121R_SAXS_5x"
-#"20131106_074854_S45L3_notch_OP_10x"
+group_h5="20131106_074854_S45L3_notch_OP_10x"
+#"20130807_234356_OIM121R_SAXS_5x"
 #"20160717_164333_NASA_FiberInCell_TrajectoryD"
-center=1294 #1328 #982.5 
+center=1328 #1294 #982.5 
 pix_size=1.3
 num_views=1024 #512 
-num_brt=30 #15 
-num_dark=30
+num_brt=15 #30
+num_dark=10 #30
 view_sub=1
 xwidth=2560 #2000 
 z_start=1080
-z_numElts=100 #132
+z_numElts=70 #132
 curr_slice=0
-max_iter=15
+max_iter=50
 
 for gpu_device in 0 #1 2 3 #4 5 6 7 
 do

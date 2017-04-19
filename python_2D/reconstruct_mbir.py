@@ -41,7 +41,6 @@ def main():
 
         print('Ring removal')
         tomo = tomopy.remove_stripe_fw(tomo)
-
         
         ################## GPU MBIR ######################
         input_params={}
@@ -56,6 +55,7 @@ def main():
         print('Time for reconstucting using GPU-MBIR of %d slices with %d iter : %f' % (num_slice,num_iter,elapsed_time))
 
         pg.image(rec_mbir_final);pg.QtGui.QApplication.exec_()
+#        np.save('/home/svvenkatakrishnan/results/mbir_notch1080_70slice',rec_mbir_final)
         
 #        fig = plt.figure()
 #        sirt_camTomo = rec_sirt_final[124]
