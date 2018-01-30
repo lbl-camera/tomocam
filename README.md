@@ -1,7 +1,4 @@
-gnuFFT
-==========
-gnuFFT stands for GPU Non-uniform Fast Fourier Transform. It has no relation to the GNU project.
-
+GPU reconstruction of synchrotron tomography data using non-uniform FFT.
 
 Dependencies:
 
