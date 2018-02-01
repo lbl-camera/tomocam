@@ -1,6 +1,7 @@
 GPU reconstruction of synchrotron tomography data using non-uniform FFT.
 
-Dependencies:
+**Dependencies**
+----------------
 
 1. [Arrayfire](https://github.com/arrayfire/arrayfire)
 2. [Arrayfire-python](https://github.com/arrayfire/arrayfire-python)
