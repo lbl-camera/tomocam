@@ -1,3 +1,3 @@
 #! /usr/bin/env python
 
-from tomoCam import gpuGridrec, gpuSIRT
+from tomocam import gpuGridrec, gpuSIRT, gpuMBIR
