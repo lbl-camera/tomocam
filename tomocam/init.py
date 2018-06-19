@@ -3,7 +3,7 @@
 import numpy as np
 import arrayfire as af
 from scipy.special import iv
-from .util import padmat, np2af
+from .utils import padmat, np2af
 
 def init_nufft_params(sino):
     """

@@ -1,11 +1,8 @@
 import  os
 from os.path import join
 
-#import numpy
-#from distutils.command.build_ext import build_ext
-#from numpy.distutils.core import Extension, setup
-from distutils.core import Extension, setup
-from distutils.command.build_ext import build_ext
+from setuptools import Extension, setup
+from setuptools.command.build_ext import build_ext
 
 def find_in_path(name, path):
     "Find a file in a search path"
@@ -133,7 +130,7 @@ class custom_build_ext(build_ext):
 setup(name='tomocam',
       # random metadata. there's more you can supploy
       author='LBL Camera',
-      version='1.0.0',
+      version='1.0.1',
       ext_modules = [ext],
       packages = [ 'tomocam' ],
       cmdclass={'build_ext': custom_build_ext}

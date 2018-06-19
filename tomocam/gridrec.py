@@ -1,6 +1,8 @@
-import tomopy
 import numpy as np
 import arrayfire as af
+
+from .kernels import _backward_project
+from .utils import np2af, af2np
 
 
 def gridrec(tomo, angles, center, gpu_device=0,
@@ -49,10 +51,10 @@ def gridrec(tomo, angles, center, gpu_device=0,
     # allocate arrays and move data to gpu
     Ax = af.constant(0, padded, d1=n_angles, dtype=af.Dtype.f32)
     idx = slice((padded - img_size)/2, (padded + img_size)/2)
-    Ax[:, idx, idx] = af.interop.from_ndarray(tomo)
+    Ax[:, idx, idx] = np2af(tomo)
 
     # reconstruct on device
-    recon = back_project(Ax, nufft_params)[:, idx, idx]
+    recon = _backward_project(Ax, nufft_params)[:, idx, idx]
 
     # return numpy array
-    return recon.__array__()
+    return af2np(recon)
