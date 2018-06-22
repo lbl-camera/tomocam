@@ -68,7 +68,7 @@ def af2np(af_arr):
  
     """
 
-    if not isinstance(af_arr, af.Array)
+    if not isinstance(af_arr, af.Array):
         raise TypeError('Input is not a arrayfire array')
 
     dims = range(af_arr.numdims())[::-1]
@@ -92,6 +92,7 @@ def multiply(arr, vec):
     af.Array,
         result of multiplication
     """
+
     if vec.numdims() == 1 and arr.shape[0] != vec.shape[0]:
         raise ValueError('Shape mismatch')
     elif vec.numdims() == 2 and arr.shape[:2] != vec.shape:
