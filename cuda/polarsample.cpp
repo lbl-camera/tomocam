@@ -1,10 +1,10 @@
+#include <Python.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <cuda.h>
-#include <Python.h>
 
 #include "pyGnufft.h"
-#include "afnumpyapi.h"
+#include "af_api.h"
 #include "polarsample.h"
 
 PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
@@ -22,19 +22,19 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
 
     // data POINTERS
     // point positions ( x = point_pos.x, y = point_pos.y )
-    complex_t * point_pos = (complex_t *) PyAfnumpy_DevicePtr(pyPtPos);
-    int npoints = PyAfnumpy_Size(pyPtPos);
+    complex_t * point_pos = (complex_t *) PyAF_DevicePtr(pyPtPos);
+    int npoints = PyAF_Size(pyPtPos);
 
     // grid values 
-    complex_t * grid_values = (complex_t *) PyAfnumpy_DevicePtr(pyGridVals);
+    complex_t * grid_values = (complex_t *) PyAF_DevicePtr(pyGridVals);
     int dims[2];
-    dims[0] = PyAfnumpy_Dims(pyGridVals, 0);
-    dims[1] = PyAfnumpy_Dims(pyGridVals, 1);
+    dims[0] = PyAF_Dims(pyGridVals, 0);
+    dims[1] = PyAF_Dims(pyGridVals, 1);
     uint2 grid_size = { (unsigned) dims[0], (unsigned) dims[1] };
 
     // Kaiser Bessel Lookup Table
-    float * kernel_lookup_table = (float *) PyAfnumpy_DevicePtr(pyKernelLUT);
-    int kernel_lookup_table_size = PyAfnumpy_Size(pyKernelLUT);
+    float * kernel_lookup_table = (float *) PyAF_DevicePtr(pyKernelLUT);
+    int kernel_lookup_table_size = PyAF_Size(pyKernelLUT);
 
 #ifdef DEBUG
     /* check the values */
@@ -67,8 +67,8 @@ PyObject *cPolarSample(PyObject *self, PyObject *prhs) {
 
     // GET OUTPUT
     int nd = 2;
-    dims[0] = PyAfnumpy_Dims(pyPtPos, 0);
-    dims[1] = PyAfnumpy_Dims(pyPtPos, 1);
-    PyObject * out = PyAfnumpy_FromData(nd, dims, CMPLX32, samples_values, true);
+    dims[0] = PyAF_Dims(pyPtPos, 0);
+    dims[1] = PyAF_Dims(pyPtPos, 1);
+    PyObject * out = PyAF_FromData(nd, dims, CMPLX32, samples_values);
     return out;
 }

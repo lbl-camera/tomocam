@@ -372,7 +372,7 @@ void calcHessian(int nslice, int nrow, int ncol, float mrf_sigma,
     // update hessain inplace
     hessian_zero_kernel <<<grid, block>>> (ncol, nrow, nslice, mrf_sigma, volume, hessian);
     error_handle();
-#ifdef DEBUG
+#ifdef DEBUG2
     size_t IMG = nrow * ncol;
     size_t SHFT = 0 * IMG;
     FILE * fp = fopen("hessian.out", "w");

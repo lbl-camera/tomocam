@@ -21,15 +21,10 @@ static PyObject *add_hessian(PyObject *self, PyObject *args) {
   return cHessian(self, args);
 }
 
-/*
 static PyObject * debug(PyObject * self, PyObject * args){
-#if DEBUG
     PyObject * res = cDebug(self, args);
-#else
-    return NULL;
-#endif
+    return res;
 }
-*/
 
 PyDoc_STRVAR(module_doc, "C++/CUDA extnsions for Radon/Iradon transforms.\n");
 PyDoc_STRVAR(fwd_doc, "C++/CUDA extension to map cartesian grid to polar grid\n");
@@ -41,6 +36,7 @@ static PyMethodDef cGnufftMehods[] = {
     {"polarsample_transpose", polarsample_transpose, METH_VARARGS, rev_doc},
     {"tvd_update", tvd_update, METH_VARARGS, NULL},
     {"add_hessian", add_hessian, METH_VARARGS, NULL},
+    {"debug", debug, METH_VARARGS, NULL},
     {NULL, NULL}};
 
 /* Initialize the module */

@@ -1,10 +1,10 @@
+#include <Python.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <cuda.h>
-#include <Python.h>
 
 #include "pyGnufft.h"
-#include "afnumpyapi.h"
+#include "af_api.h"
 #include "polarsample.h"
 
 PyObject * cTVDUpdate(PyObject *self, PyObject *prhs) {
@@ -20,12 +20,12 @@ PyObject * cTVDUpdate(PyObject *self, PyObject *prhs) {
     }
 
     // data POINTERS
-    complex_t * volume = (complex_t *) PyAfnumpy_DevicePtr(pyVolume);
-    complex_t * objfcn = (complex_t *) PyAfnumpy_DevicePtr(pyObjFunc);
+    complex_t * volume = (complex_t *) PyAF_DevicePtr(pyVolume);
+    complex_t * objfcn = (complex_t *) PyAF_DevicePtr(pyObjFunc);
 
-    int n1 = PyAfnumpy_Dims(pyVolume, 0);
-    int n2 = PyAfnumpy_Dims(pyVolume, 1);
-    int n3 = PyAfnumpy_Dims(pyVolume, 2);
+    int n1 = PyAF_Dims(pyVolume, 0);
+    int n2 = PyAF_Dims(pyVolume, 1);
+    int n3 = PyAF_Dims(pyVolume, 2);
 
     // calculate TVD and add it to objective function
     addTVD(n1, n2, n3, mrf_p, mrf_sigma, objfcn, volume);
@@ -47,11 +47,11 @@ PyObject * cHessian(PyObject *self, PyObject *prhs) {
     }
 
     // get data
-    complex_t * volume = (complex_t *) PyAfnumpy_DevicePtr(pyVolume);
-    complex_t * hessian = (complex_t *) PyAfnumpy_DevicePtr(pyFcn);
-    int n1 = PyAfnumpy_Dims(pyVolume, 0);
-    int n2 = PyAfnumpy_Dims(pyVolume, 1);
-    int n3 = PyAfnumpy_Dims(pyVolume, 2);
+    complex_t * volume = (complex_t *) PyAF_DevicePtr(pyVolume);
+    complex_t * hessian = (complex_t *) PyAF_DevicePtr(pyFcn);
+    int n1 = PyAF_Dims(pyVolume, 0);
+    int n2 = PyAF_Dims(pyVolume, 1);
+    int n3 = PyAF_Dims(pyVolume, 2);
 
     // compute on GPU
     calcHessian(n1, n2, n3, mrf_sigma, volume, hessian);

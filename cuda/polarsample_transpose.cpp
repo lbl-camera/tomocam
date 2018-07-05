@@ -1,11 +1,11 @@
+#include <Python.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <cuComplex.h>
 #include <cuda.h>
-#include <Python.h>
 
-#include "afnumpyapi.h"
 #include "pyGnufft.h"
+#include "af_api.h"
 #include "polarsample.h"
 
 PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
@@ -25,15 +25,15 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
 
     // data POINTERS
     // point positions ( x = point_pos.x, y = point_pos.y )
-    complex_t * point_pos = (complex_t *) PyAfnumpy_DevicePtr(pyPtPos);
-    int npoints = PyAfnumpy_Size(pyPtPos);
+    complex_t * point_pos = (complex_t *) PyAF_DevicePtr(pyPtPos);
+    int npoints = PyAF_Size(pyPtPos);
 
     // polar grid values
-    complex_t * sample_values = (complex_t *) PyAfnumpy_DevicePtr(pySampleVals);
+    complex_t * sample_values = (complex_t *) PyAF_DevicePtr(pySampleVals);
 
     // Kaiser-Bessel kernel 
-    float * kernel_lookup_table = (float *) PyAfnumpy_DevicePtr(pyKernelLUT);
-    int kernel_lookup_table_size = PyAfnumpy_Size(pyKernelLUT);
+    float * kernel_lookup_table = (float *) PyAF_DevicePtr(pyKernelLUT);
+    int kernel_lookup_table_size = PyAF_Size(pyKernelLUT);
 
     int dims[2]; 
     int ndims = 2;
@@ -71,6 +71,6 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
     printf("\n");    
 #endif
     // GET OUTPUT
-    PyObject * out = PyAfnumpy_FromData(ndims, dims, CMPLX32, grid_values, true);
+    PyObject * out = PyAF_FromData(ndims, dims, CMPLX32, grid_values);
     return out;
 }

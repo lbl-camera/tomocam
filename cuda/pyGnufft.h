@@ -9,11 +9,6 @@ PyObject * cPolarSampleTranspose (PyObject *, PyObject *);
 PyObject * cTVDUpdate (PyObject *, PyObject *);
 PyObject * cHessian(PyObject *, PyObject *);
 
-
-
-
-#if DEBUG
 PyObject * cDebug(PyObject *, PyObject *);
-#endif
 
 #endif // PY_GNUFFT__H

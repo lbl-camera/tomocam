@@ -59,26 +59,23 @@ def locate_cuda():
     return cudaconfig
 CUDA = locate_cuda()
 
+src = ['cuda/pyGnufft.cpp', 'cuda/af_api.cpp', 'cuda/polarsample.cpp', 'cuda/tvd_update.cpp',\
+    'cuda/polarsample_transpose.cpp', 'cuda/cuPolarsample.cu', 'cuda/cuPolarsampleTranspose.cu',\
+    'cuda/cuTVD.cu']
+
+src.append('cuda/debug.cu')
+inc = ['cuda/pyGnufft.h', 'cuda/af_api.h', 'cuda/polarsample.h' ]
 
 ext = Extension('tomocam.gnufft',
-                sources=[
-                    'cuda/pyGnufft.cc',
-                    'cuda/afnumpyapi.cc',
-                    'cuda/polarsample.cc',
-                    'cuda/tvd_update.cc',
-                    'cuda/polarsample_transpose.cc',
-                    'cuda/cuPolarsample.cu',
-                    'cuda/cuPolarsampleTranspose.cu',
-                    'cuda/cuTVD.cu'
-                ],
+                sources = src,
+                depends = inc,
                 library_dirs=[CUDA['lib64']],
                 libraries=['afcuda', 'cudart'],
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64']],
-                #extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
-                include_dirs = [CUDA['include'], 'src'])
-
-
+                extra_compile_args=[ '-g', '-O0', '-DDEBUG' ],
+                include_dirs = [CUDA['include']]
+                )
 
 def customize_compiler_for_nvcc(self):
     """inject deep into distutils to customize how the dispatch
@@ -109,7 +106,7 @@ def customize_compiler_for_nvcc(self):
             #postargs = extra_postargs['nvcc']
             postargs = ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-shared']
             postargs += [ '-std=c++11' ]
-            #postargs += [ '-g', '-O0', '-DDEBUG' ]
+            postargs += [ '-g', '-O0', '-DDEBUG' ]
         else:
             postargs = []
 
