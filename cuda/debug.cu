@@ -40,8 +40,8 @@ PyObject *cDebug(PyObject *self, PyObject *prhs) {
     float * d_imag = imag.device<float>();
    
     // allocate memory for complex
-    af::array cplx = af::constant(0, real.dims(), c32);
-    complex32_t * d_cplx = (complex32_t *) cplx.device<af::cfloat>();
+    complex32_t * d_cplx = NULL;
+    cudaMalloc((void **) &d_cplx, sizeof(complex32_t) * nreal);
 
     dim3 threads(256,1,1);
     if (nreal < 256)
@@ -52,13 +52,11 @@ PyObject *cDebug(PyObject *self, PyObject *prhs) {
     makeComplex<<< blocks, threads >>> (d_real, d_imag, nreal, d_cplx);
    
     // build pyObject
-    cplx.unlock();
     real.unlock();
     imag.unlock();
 
-    std::cout << "af_array: " << cplx.get() << std::endl;
-
-    PyObject * res = PyAF_FromArray(cplx);
+    int * dims = &nreal; 
+    PyObject * res = PyAF_FromData(1, &nreal, CMPLX32, (void *) d_cplx);
     if (res != NULL){
         return res;
     } else {
