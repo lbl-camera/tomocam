@@ -17,9 +17,9 @@ int PyAF_NumOfDims(PyObject *);
 int PyAF_Dims(PyObject *, int ); 
 DataType PyAF_Type(PyObject *); 
 void * PyAF_DevicePtr (PyObject *); 
-PyObject * PyAF_FromData(int, int *, DataType, void *);
     //def __init__(self, src=None, dims=None, dtype=None, is_device=False, offset=None, strides=None):
 
 PyObject * PyAF_FromArray(af::array &);
+PyObject * PyAF_FromData(int, int *, DataType, void *);
 af::array PyAF_GetArray(PyObject *);
 #endif // PYAFNUMPYAPI__H

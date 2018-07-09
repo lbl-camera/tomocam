@@ -25,35 +25,24 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
 
     // data POINTERS
     // point positions ( x = point_pos.x, y = point_pos.y )
-    complex_t * point_pos = (complex_t *) PyAF_DevicePtr(pyPtPos);
-    int npoints = PyAF_Size(pyPtPos);
+    af::array afPtPos = PyAF_GetArray(pyPtPos);
+    complex_t * point_pos = (complex_t *) afPtPos.device<af::cfloat>();
+    int npoints = afPtPos.elements();
 
     // polar grid values
-    complex_t * sample_values = (complex_t *) PyAF_DevicePtr(pySampleVals);
+    af::array afSampleVals = PyAF_GetArray(pySampleVals);
+    complex_t * sample_values = (complex_t *) afSampleVals.device<af::cfloat>();
 
     // Kaiser-Bessel kernel 
-    float * kernel_lookup_table = (float *) PyAF_DevicePtr(pyKernelLUT);
-    int kernel_lookup_table_size = PyAF_Size(pyKernelLUT);
-
-    int dims[2]; 
-    int ndims = 2;
-    /* Grid Dimension is a list of ints */
-    if (PyList_Check(pyGridDims)){
-        if (ndims != (int) PyList_Size(pyGridDims)) {
-            fprintf(stderr,"Error: incorrect number or dimensions for output grid.\n");
-            return NULL;
-        }
-        dims[0] = PyInt_AsLong(PyList_GetItem(pyGridDims, (Py_ssize_t) 0));
-        dims[1] = PyInt_AsLong(PyList_GetItem(pyGridDims, (Py_ssize_t) 1));
-    } else {
-        fprintf(stderr, "Error: datatype for grid-dims must be a list.\n");
-        return NULL;
-    }
-
+    af::array afKernelLUT = PyAF_GetArray(pyKernelLUT);
+    float * kernel_lookup_table = afKernelLUT.device<float>();
+    int kernel_lookup_table_size = afKernelLUT.elements();
+    int dims[2] = {(int) afSampleVals.dims(0), (int) afSampleVals.dims(1) };
+    uint2 grid_size = { (unsigned) dims[0], (unsigned) dims[1] };
+    
 #ifdef DEBUG
     printf("grid_size : { %d, %d }\n", dims[0], dims[1]);
 #endif
-    uint2 grid_size = { (unsigned) dims[0], (unsigned) dims[1] };
 
     // Output: Grid Values
     size_t len = dims[0] * dims[1];
@@ -71,6 +60,6 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
     printf("\n");    
 #endif
     // GET OUTPUT
-    PyObject * out = PyAF_FromData(ndims, dims, CMPLX32, grid_values);
-    return out;
+    int ndims = 2;
+    return PyAF_FromData(ndims, dims, CMPLX32, grid_values);
 }

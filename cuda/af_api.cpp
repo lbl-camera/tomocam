@@ -93,28 +93,7 @@ PyObject * PyAF_FromData(int ndims, int * dims, DataType dtype, void *buf){
         return out;
    }  else {
         Py_XDECREF(out);
-        return NULL;
-    }
-}
-
-PyObject * PyAF_FromArray(af::array & array){
-    /* import arrayfire and create arrayfire.Array object */
-    PyObject * af = PyImport_ImportModule("arrayfire");
-    PyObject * dict = PyModule_GetDict(af);
-    PyObject * object = PyDict_GetItemString(dict, "Array"); 
-    PyObject * out = PyObject_CallObject(object, NULL);
-
-    /* use ctype c_void_p to set Array.arr to af_array */
-    PyObject * ct = PyImport_ImportModule("ctypes");
-    PyObject * dict1 = PyModule_GetDict(ct);
-    PyObject * c_void_p = PyDict_GetItemString(dict1, "c_void_p");
-    PyObject * ptr = PyLong_FromVoidPtr(array.get());
-    PyObject * arr = PyObject_CallFunctionObjArgs(c_void_p, ptr, NULL);
-
-    if (PyObject_SetAttrString(out, "arr", arr) == 0){
-        return out;
-    } else {
-        Py_XDECREF(out);
+        std::cerr << "error: failed to create arrayfire.Array" << std::endl;
         return NULL;
     }
 }
