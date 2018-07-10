@@ -1,6 +1,6 @@
 #include <Python.h>
 
-#include <stdio.h>
+#include <stdlib.h>
 #include <iostream>
 #include <arrayfire.h>
 #include <cuda.h>
@@ -12,7 +12,7 @@ int PyAF_Size(PyObject *) { return 0; }
 int PyAF_NumOfDims(PyObject *) { return 0; }
 int PyAF_Dims(PyObject *, int ) { return 0; }
 DataType PyAF_Type(PyObject *) { return BOOL8; };
-void * PyAF_DevicePtr (PyObject *) { return nullptr; }
+void * PyAF_DevicePtr (PyObject *) { return NULL; }
 
 af::array PyAF_GetArray(PyObject * obj){
     if (!PyObject_HasAttrString(obj, "arr")){
