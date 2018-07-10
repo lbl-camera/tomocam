@@ -1,6 +1,6 @@
 #include <Python.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <arrayfire.h>
 #include <cuda.h>
