@@ -1,6 +1,7 @@
 import numpy as np
 import arrayfire as af
 
+from .init import init_nufft_params
 from .kernels import _backward_project
 from .utils import np2af, af2np
 

@@ -1,3 +1,3 @@
 #! /usr/bin/env python
 
-from tomocam import gridrec
+from .gridrec import gridrec
