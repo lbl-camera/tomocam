@@ -49,8 +49,12 @@ def np2af(arr):
     """
     if not isinstance(arr, np.ndarray):
         raise TypeError('Input is not a numpy array')
-    dims = range(arr.ndim)[::-1]
-    return af.reorder(af.np_to_af_array(arr), *dims)
+
+    if arr.ndim == 1:
+        return af.np_to_af_array(arr)
+    else:
+        dims = range(arr.ndim)[::-1]
+        return af.reorder(af.np_to_af_array(arr), *dims)
 
 def af2np(af_arr):
     """
@@ -71,8 +75,11 @@ def af2np(af_arr):
     if not isinstance(af_arr, af.Array):
         raise TypeError('Input is not a arrayfire array')
 
-    dims = range(af_arr.numdims())[::-1]
-    return af_arr.__array__().transpose(*dims)
+    if af_arr.numdims() == 1:
+        return af_arr.__array__()
+    else:
+        dims = range(af_arr.numdims())[::-1]
+        return af_arr.__array__().transpose(*dims)
 
 
 @af.broadcast
@@ -92,11 +99,4 @@ def multiply(arr, vec):
     af.Array,
         result of multiplication
     """
-
-    if vec.numdims() == 1 and arr.shape[0] != vec.shape[0]:
-        raise ValueError('Shape mismatch')
-    elif vec.numdims() == 2 and arr.shape[:2] != vec.shape:
-        raise ValueError('Shape mismatch')
-    else:
-        raise ValueError('Unsupported rhs shape')
     return arr * vec

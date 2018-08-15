@@ -33,14 +33,14 @@ def gridrec(tomo, angles, center, gpu_device=0,
     af.set_device(gpu_device)
 
     # dimensions
-    n_slice, img_size, n_angles = tomo.shape
+    n_slice, n_angles, img_size = tomo.shape
 
     # padding size
     padded = np.int16(img_size * (1 + oversamp_factor))
 
     # Initialize structures for NUFFT
     sino = {}
-    sino['nPadded'] = img_size + padded
+    sino['nPadded'] = padded
     sino['nImage'] = img_size  
     sino['Center'] = center + (padded - img_size)//2
     sino['Angles'] = angles
@@ -50,9 +50,10 @@ def gridrec(tomo, angles, center, gpu_device=0,
     nufft_params = init_nufft_params(sino)
 
     # allocate arrays and move data to gpu
-    Ax = af.constant(0, padded, d1=n_angles, dtype=af.Dtype.f32)
+    
+    Ax = af.constant(0, padded, d1=n_angles, d2=n_slice, dtype=af.Dtype.f32)
     idx = slice((padded - img_size)/2, (padded + img_size)/2)
-    Ax[:, idx, idx] = np2af(tomo)
+    Ax[idx,:,:] = np2af(tomo)
 
     # reconstruct on device
     recon = _backward_project(Ax, nufft_params)[:, idx, idx]
