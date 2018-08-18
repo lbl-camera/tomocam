@@ -23,4 +23,4 @@ def fftshift(arr, center = None):
 def ifftshift(arr, center):
     N = arr.shape[0]
     t = -1j * 2 * cmath.pi * center / N
-    return arr * (cmath.exp(t) * af.range(N)) 
+    return multiply(arr, (cmath.exp(t) * af.range(N)))

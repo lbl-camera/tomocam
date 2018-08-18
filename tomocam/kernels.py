@@ -49,11 +49,11 @@ def _backward_project(sino, params):
     """
 
     # Fourier transform the sinogram
-    qt = multiply(params['giDq'], fftshift(af.fft(sino), center=params['Center']))
+    qt = multiply(fftshift(af.fft(sino), center=params['Center']), params['giDq'])
 
     # Resample on a polar-grid
     qt = gnufft.polarsample_transpose(params['Gxy'], qt, params['Grid'], params['gKBLUT'],\
              params['Scale'], params['KR'])
-
+  
     # Inverse Fourier transform of the polar grid
-    return multiply(fftshift(af.ifft2(qt)).real(),  params['ApodFilter'])
+    return multiply(af.real(fftshift(af.ifft2(qt))),  params['ApodFilter'])

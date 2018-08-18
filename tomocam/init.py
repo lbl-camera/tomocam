@@ -74,7 +74,7 @@ def init_nufft_params(sino):
         temp_pos = (1-sino['Filter'])/2
         temp_mask[0:np.int16(temp_pos*Ns)] = 0
         temp_mask[np.int16((1-temp_pos)*Ns):] = 0
-    params['giDq'] = np2af(kernel*temp_mask)
+    params['giDq'] = np2af(kernel*temp_mask).T
     return params
 
 

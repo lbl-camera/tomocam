@@ -14,7 +14,7 @@ def gridrec(tomo, angles, center, gpu_device=0,
     Parameters:
     ----------
     tomo: np.ndarray, 
-        sinogram, format := (slice, cols, angles)
+        sinogram, format := (angles, slice, cols)
     angles: np.ndarray, radians
         array of angles
     center: float
@@ -33,7 +33,7 @@ def gridrec(tomo, angles, center, gpu_device=0,
     af.set_device(gpu_device)
 
     # dimensions
-    n_slice, n_angles, img_size = tomo.shape
+    n_angles, n_slice, img_size  = tomo.shape
 
     # padding size
     padded = np.int16(img_size * (1 + oversamp_factor))
@@ -51,12 +51,20 @@ def gridrec(tomo, angles, center, gpu_device=0,
 
     # allocate arrays and move data to gpu
     
-    Ax = af.constant(0, padded, d1=n_angles, d2=n_slice, dtype=af.Dtype.f32)
+    #I think the interface should by default take an stack of radiographs.
+    #Inside here, the most efficient way to allocate the memory structures should be an stack of sinograms like: (n_slice, n_angles, padded) 
+    Ax = af.constant(0, n_slice, d1=n_angles, d2=padded, dtype=af.Dtype.f32)
     idx = slice((padded - img_size)/2, (padded + img_size)/2)
-    Ax[idx,:,:] = np2af(tomo)
+    #Transform tomo into slice, padded, angles
+    Ax[:,:,idx] = af.reorder(np2af(tomo), 1,2,0)
 
-    # reconstruct on device
-    recon = _backward_project(Ax, nufft_params)[:, idx, idx]
+    tomogram = af.constant(0, n_slice, d1=img_size, d2=img_size, dtype=af.Dtype.f32)
+    for i in range(n_slice):
+
+        a = _backward_project(af.moddims(Ax[i], Ax.shape[1], Ax.shape[2]), nufft_params)[idx, idx]
+        print(a.shape)
+        print(tomogram[i].shape)
+        tomogram[i] = af.moddims(a, 1, img_size, img_size)
 
     # return numpy array
-    return af2np(recon)
+    return af2np(tomogram)

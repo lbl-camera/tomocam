@@ -37,7 +37,7 @@ PyObject *cPolarSampleTranspose(PyObject *self, PyObject *prhs) {
     af::array afKernelLUT = PyAF_GetArray(pyKernelLUT);
     float * kernel_lookup_table = afKernelLUT.device<float>();
     int kernel_lookup_table_size = afKernelLUT.elements();
-    int dims[2] = {(int) afSampleVals.dims(0), (int) afSampleVals.dims(1) };
+    int dims[2] = {(int) afSampleVals.dims(1), (int) afSampleVals.dims(1) }; //This guy should be image_x * image_x, square shape
     uint2 grid_size = { (unsigned) dims[0], (unsigned) dims[1] };
     
 #ifdef DEBUG
