@@ -60,10 +60,7 @@ def gridrec(tomo, angles, center, gpu_device=0,
 
     tomogram = af.constant(0, n_slice, d1=img_size, d2=img_size, dtype=af.Dtype.f32)
     for i in range(n_slice):
-
         a = _backward_project(af.moddims(Ax[i], Ax.shape[1], Ax.shape[2]), nufft_params)[idx, idx]
-        print(a.shape)
-        print(tomogram[i].shape)
         tomogram[i] = af.moddims(a, 1, img_size, img_size)
 
     # return numpy array
