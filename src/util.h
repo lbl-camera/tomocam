@@ -20,9 +20,11 @@
 #ifndef TOMOCAM_UTIL__H
 #define TOMOCAM_UTIL__H
 
+#include <vector>
+
 namespace tomocam {
-    std::vecotr<unsigned> distribute(unsigned work, unsigned workers) {
-        std::vecotr<unsigned> share;
+    std::vector<unsigned> distribute(unsigned work, unsigned workers) {
+        std::vector<unsigned> share;
         unsigned work_per_worker = work / workers;
         unsigned extra = work % workers;
         for (int i = 0; i < workers; i++)

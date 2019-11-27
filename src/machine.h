@@ -19,6 +19,7 @@
 
 
 #include <cuda_runtime.h>
+#include <vector>
 
 #ifndef TOMOCAM_MACINE__H
 #define TOMOCAM_MACINE__H
@@ -30,23 +31,23 @@ namespace tomocam {
         int  ndevice_;
         bool unified_;
         int nStreams_;
-        unsigned slcsPerStream_;
+        int slcsPerStream_;
         MachineConfig() {
             cudaGetDeviceCount(&ndevice_);
             //    check avilable GPU for managed memory access
-            std::vector<unsigned> devices;
-            for (unsigned i = 0; i < ndevice_; i++) {
+            std::vector<int> devices;
+            for (int i = 0; i < ndevice_; i++) {
                 int result = -1;
                 cudaDeviceGetAttribute(&result,
                                        cudaDevAttrConcurrentManagedAccess, i);
-                if (result != 0) device_id_.push_back(i);
+                if (result != 0) devices.push_back(i);
             }
-            if (device_id_.empty())
+            if (devices.empty())
                 unified_ = true;
             else
                 unified_ = false;
             nStreams_ = 3;
-            workPerStream_ = 10; // slices 
+            slcsPerStream_ = 10; // slices 
         }
 
       public:
@@ -56,8 +57,15 @@ namespace tomocam {
             static MachineConfig instance;
             return instance;
         }
+        //setters
+        void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
+        void setStreamsPerGPU(int strms) { nStreams_ = strms; }
+
+        //getters
         int num_of_gpus() const { return ndevice_; }
         int is_unified() const { return unified_; }
+        int slicesPerStream() const { return slcsPerStream_; }
+        int streamsPerGPU() const { return nStreams_; }
     };
 #endif // TOMOCAM_MACINE__H
 } // namespace
