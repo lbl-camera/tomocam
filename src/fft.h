@@ -24,6 +24,8 @@
 
 #include "dist_array.h"
 
+typedef cufftComplex complex_t;
+
 namespace tomocam {
     template <class T1, class T2>
     void fft1d(DArray<T1> &, DArray<T2> &);

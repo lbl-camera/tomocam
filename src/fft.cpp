@@ -43,7 +43,7 @@ namespace tomocam {
         if (cufftPlanMany(&plan, rank, n, NULL, istride, idist, NULL, ostride,
                           odist, CUFFT_C2C, batches) != CUFFT_SUCCESS) {
             fprintf(stderr, "Failed to create a 1-d plan :-(.\n");
-            return NULL;
+            throw -1;
         }
         return plan;
     }
@@ -53,7 +53,7 @@ namespace tomocam {
         int rank      = 2;
         int n[]       = {dims[1], dims[2]};
         int inembed[] = {dims[1], dims[2]};
-        in  onembed[] = {dims[1], dims[2]};
+        int  onembed[] = {dims[1], dims[2]};
         int istride   = 1;
         int ostride   = 1;
         int idist     = dims[1] * dims[2];
@@ -65,7 +65,7 @@ namespace tomocam {
                           ostride, odist, CUFFT_C2C,
                           batches) != CUFFT_SUCCESS) {
             fprintf(stderr, "Failed to create a 1-d plan :-(.\n");
-            return NULL;
+            throw -1;
         }
         return plan;
     }
@@ -74,8 +74,9 @@ namespace tomocam {
     void DArrayFFT(Partition<complex_t> &input, Partition<complex_t> &output,
                     int FFT_DIRECTION, bool is_1D) {
 
-        std::vecotr<cufftHandle> plans;
-        std::vecotr<cudaStream_t> streams;
+        std::vector<cufftHandle> plans;
+        std::vector<cufftHandle> planB;
+        std::vector<cudaStream_t> streams;
 
         dim3_t pDims = input.dims();
         int dims[] = { slcsPerStream, pDims.y, pDims.z };
@@ -92,14 +93,14 @@ namespace tomocam {
 
         if (is_1D) {
             for (int i = 0; i < nStreams; i++) {
-                auto p = fftPlan1D(3, dims);
-                cudaSetStream(p, streams[i]);
+                auto p = fftPlan1D(dims);
+                cufftSetStream(p, streams[i]);
                 plans.push_back(p);
             }
         } else {
             for (int i = 0; i < nStreams; i++) {
-                auto p = fftPlan2D(3, dims);
-                cudaSetStream(p, streams[i]);
+                auto p = fftPlan2D(dims);
+                cufftSetStream(p, streams[i]);
                 plans.push_back(p);
             }
         }
@@ -108,7 +109,8 @@ namespace tomocam {
         complex_t * h_data = input.begin();
 
         // device data buffer
-        complex_t * d_data = cudaMalloc((void **) &d_data, nStreams * streamBytes);
+        complex_t * d_data = NULL; 
+        cudaMalloc((void **) &d_data, nStreams * streamBytes);
 
         unsigned nIters = pDims.x / (nStreams * slcsPerStream);
         for (int it = 0; it < nIters; it++) {
@@ -119,15 +121,15 @@ namespace tomocam {
     	    // FFT of a signal
     	    for (int i = 0; i < nStreams; ++i) {
         	    int offset = i * streamSize;
-        	    status = cufftExecC2C(plans[i], d_data + offset, d_data + offset, FFT_DIRECTION);
+        	    auto status = cufftExecC2C(plans[i], d_data + offset, d_data + offset, FFT_DIRECTION);
         	    if (status != CUFFT_SUCCESS) {
-            	    cout << "Cufft FFT work error: " << status << endl;
+            	    std::cout << "Cufft FFT work error: " << status << std::endl;
         	    }
     	    }
 		    // copy data back to host
 		    for (int i = 0; i < nStreams; i++) {
         	    int offset = i * streamSize;
-        	    cudaMemcpyAsync(h_data + offset, d_Data + offset, streamBytes, cudaMemcpyDeviceToHost, streams[i]);
+        	    cudaMemcpyAsync(h_data + offset, d_data + offset, streamBytes, cudaMemcpyDeviceToHost, streams[i]);
     	    }
             h_data += nStreams * streamSize;
         }
@@ -136,34 +138,43 @@ namespace tomocam {
 
         // do the remaing work
         unsigned nExtra = pDims.x % (nStreams * slcsPerStream);
-        std::vecotr<unsigned> ranks = distribute(nExtra, nStreams);
-        for (int i = 0; i < nStreams; i++) {
-            dims[0] = ranks[i];
-            p = fftPlan1D(3, dims);
-            cudaSetStream(p, streams[i]);
-            plans.push_back(p);
+        std::vector<unsigned> extra_slcs = distribute(nExtra, nStreams);
+        if (is_1D) {
+            for (int i = 0; i < nStreams; i++) {
+                dims[0] = extra_slcs[i];
+                auto p = fftPlan1D(dims);
+                cufftSetStream(p, streams[i]);
+                planB.push_back(p);
+            }
+        } else { 
+            for (int i = 0; i < nStreams; i++) {
+                dims[0] = extra_slcs[i];
+                auto p = fftPlan2D(dims);
+                cufftSetStream(p, streams[i]);
+                planB.push_back(p);
+            }
         }
         // copy remaining data to device
         int offset = 0;
         for (int i = 0; i < nStreams; i++) {
-            streamSize = ranks[i] * dims[1] * dims[2];
+            streamSize = extra_slcs[i] * dims[1] * dims[2];
         	cudaMemcpyAsync(d_data + offset, h_data + offset, streamSize * sizeof(complex_t), cudaMemcpyHostToDevice, streams[i]);
             offset += streamSize;
     	}
         // do the transform
         offset = 0;
     	for (int i = 0; i < nStreams; ++i) {
-        	status = cufftExecC2C(plans[i], d_data + offset, d_data + offset, CUFFT_FORWARD);
+        	auto status = cufftExecC2C(plans[i], d_data + offset, d_data + offset, CUFFT_FORWARD);
         	if (status != CUFFT_SUCCESS) {
-                std::cout << "Cufft FFT work error: " << status << endl;
+                std::cout << "Cufft FFT work error: " << status << std::endl;
         	}
-            offset += ranks[i] * dims[1] * dims[2];
+            offset += extra_slcs[i] * dims[1] * dims[2];
     	}
 		// copy data back to host
         offset = 0;
 		for (int i = 0; i < nStreams; i++) {
-            streamSize = ranks[i] * dims[1] * dims[2];
-            cudaMemcpyAsync(h_data + offset, d_Data + offset, streamSize * sizeof(complex_t), cudaMemcpyDeviceToHost, streams[i]);
+            streamSize = extra_slcs[i] * dims[1] * dims[2];
+            cudaMemcpyAsync(h_data + offset, d_data + offset, streamSize * sizeof(complex_t), cudaMemcpyDeviceToHost, streams[i]);
             offset += streamSize;
     	}
           
@@ -174,7 +185,7 @@ namespace tomocam {
         cudaFree(d_data);
     }
 
-    void fft1d (DArray<complex_t> & input, DArray<float> & output) {
+    void fft1d (DArray<complex_t> & input, DArray<complex_t> & output) {
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<complex_t>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<complex_t>> p2 = output.create_partitions(nDevice);
@@ -188,7 +199,7 @@ namespace tomocam {
         cudaDeviceSynchronize();
     }
 
-    void ifft1d (DArray<complex_t> & input, DArray<float> & output) {
+    void ifft1d (DArray<complex_t> & input, DArray<complex_t> & output) {
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<complex_t>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<complex_t>> p2 = output.create_partitions(nDevice);
@@ -202,7 +213,7 @@ namespace tomocam {
         cudaDeviceSynchronize();
     }
 
-    void fft2d (DArray<complex_t> & input, DArray<float> & output) {
+    void fft2d (DArray<complex_t> & input, DArray<complex_t> & output) {
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<complex_t>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<complex_t>> p2 = output.create_partitions(nDevice);
@@ -216,7 +227,7 @@ namespace tomocam {
         cudaDeviceSynchronize();
     }
 
-    void ifft2d (DArray<complex_t> & input, DArray<float> & output) {
+    void ifft2d (DArray<complex_t> & input, DArray<complex_t> & output) {
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<complex_t>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<complex_t>> p2 = output.create_partitions(nDevice);
