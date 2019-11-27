@@ -23,10 +23,16 @@ namespace py = pybind11;
 #include "dist_array.h"
 
 /* setup methods table */
-PYBIND11_MODULE(cuTomocam, m)  {
+PYBIND11_MODULE(cuTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
     // DArray class
-    m.class_< DArray<float>>(m, "dArrayf")
-        .def(py::init<unsigned, unsigned, unsigned>());
+    m.class_<tomocam::DArray<float>>(m, "DArrayf")
+        .def(py::init<int, int, int>());
+
+    // machine config
+    m.def("fft1d",  &fft1d,  "One-dimensional FFT of DArray type");
+    m.def("ifft1d", &ifft1d, "One-dimensional IFFT of DArray type");
+    m.def("fft2d",  &fft2d,  "Two-dimensional FFT of DArray type");
+    m.def("ifft2d", &ifft2d, "Two-dimensional IFFT of DArray type");
 }
