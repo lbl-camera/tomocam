@@ -1,21 +1,22 @@
 /* -------------------------------------------------------------------------------
-* Tomocam Copyright (c) 2018
-*
-* The Regents of the University of California, through Lawrence Berkeley National
-* Laboratory (subject to receipt of any required approvals from the U.S. Dept. of
-*  Energy). All rights reserved.
-*
-* If you have questions about your rights to use or distribute this software,
-* please contact Berkeley Lab's Innovation & Partnerships Office at IPO@lbl.gov.
-*
-* NOTICE. This Software was developed under funding from the U.S. Department of
-* Energy and the U.S. Government consequently retains certain rights. As such, the
-* U.S. Government has been granted for itself and others acting on its behalf a
-* paid-up, nonexclusive, irrevocable, worldwide license in the Software to
-* reproduce, distribute copies to the public, prepare derivative works, and
-* perform publicly and display publicly, and to permit other to do so.
-*---------------------------------------------------------------------------------
-*/
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ *National Laboratory (subject to receipt of any required approvals from the
+ *U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ *IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ *the U.S. Government has been granted for itself and others acting on its
+ *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ *to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -31,10 +32,10 @@ namespace tomocam {
 
         // allocate memory for the array
         size_t buffersize = sizeof(T) * size_;
-        if (unified_) 
-            cudaMallocManaged((void **) &buffer_, buffersize);
-        else 
-            cudaMallocHost((void **) &buffer_, buffersize);
+        if (unified_)
+            cudaMallocManaged((void **)&buffer_, buffersize);
+        else
+            cudaMallocHost((void **)&buffer_, buffersize);
     }
 
     template <typename T>
@@ -44,18 +45,22 @@ namespace tomocam {
         if (buffer_) cudaFree(buffer_);
     }
 
-    template <typename T> 
-    std::vector<Partition> DArray<T>::create_partitions(int n_partitions, bool with_halo) {
-        int n_slices = dims_.x / n_partitions;
-        int n_extra = dims_.x % n_partitions;
-        std::vector<Partition> table;
+    template <typename T>
+    std::vector<Partition<T>> DArray<T>::create_partitions(int n_partitions) {
+        dim3_t d        = dims_;
+        int    n_slices = dims_.x / n_partitions;
+        int    n_extra  = dims_.x % n_partitions;
 
-        dim3_t d = dims_;
+        // vector to hold the partitions
+        std::vector<Partition<T>> table;
+
         int offset = 0;
         for (int i = 0; i < n_partitions; i++) {
-            if (i < n_extra) d.x = n_slices+1;
-            else d.x = n_slices;
-            table.push_back(new Partition(d, buffer_ + offset));
+            if (i < n_extra)
+                d.x = n_slices + 1;
+            else
+                d.x = n_slices;
+            table.push_back(Partition<T>(d, buffer_ + offset));
             offset += d.x;
         }
         return table;
