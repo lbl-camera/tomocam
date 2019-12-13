@@ -23,10 +23,10 @@
 #include <vector>
 
 namespace tomocam {
-    std::vector<unsigned> distribute(unsigned work, unsigned workers) {
-        std::vector<unsigned> share;
-        unsigned work_per_worker = work / workers;
-        unsigned extra = work % workers;
+    std::vector<int> distribute(int work, int workers) {
+        std::vector<int> share;
+        int work_per_worker = work / workers;
+        int extra = work % workers;
         for (int i = 0; i < workers; i++)
             if (i < extra ) share.push_back(work_per_worker+1);
             else share.push_back(work_per_worker);

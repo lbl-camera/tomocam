@@ -32,15 +32,25 @@ namespace tomocam {
 
         // allocate memory for the array
         size_t buffersize = sizeof(T) * size_;
-        if (unified_)
-            cudaMallocManaged((void **)&buffer_, buffersize);
-        else
-            cudaMallocHost((void **)&buffer_, buffersize);
+        cudaMallocHost((void **)&buffer_, buffersize);
+    }
+
+    // for calling from python
+    template<typename T>
+    DArray<T>::DArray(int nx, int ny, int nz) {
+        // limit ndims to 3
+        int ndims = 3;
+        dims_     = dim3_t(nx, ny, nz);
+        size_     = dims_.x * dims_.y * dims_.z;
+
+        // allocate memory for the array
+        size_t buffersize = sizeof(T) * size_;
+        cudaMallocHost((void **)&buffer_, buffersize);
     }
 
     template <typename T>
     DArray<T>::~DArray() {
-        std::cerr << "Destroying d_array ... " << std::endl;
+        std::cerr << "Destroying DAarray ... " << std::endl;
         cudaDeviceSynchronize();
         if (buffer_) cudaFree(buffer_);
     }
@@ -60,7 +70,7 @@ namespace tomocam {
                 d.x = n_slices + 1;
             else
                 d.x = n_slices;
-            table.push_back(Partition<T>(d, buffer_ + offset));
+            table.push_back(Partition<T>(d, slice(offset)));
             offset += d.x;
         }
         return table;

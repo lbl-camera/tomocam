@@ -46,8 +46,8 @@ namespace tomocam {
                 unified_ = true;
             else
                 unified_ = false;
-            nStreams_ = 3;
-            slcsPerStream_ = 10; // slices 
+            nStreams_ = 10;
+            slcsPerStream_ = 20; // slices 
         }
 
       public:

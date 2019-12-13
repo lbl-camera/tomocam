@@ -27,8 +27,9 @@ namespace tomocam {
 
     struct dim3_t {
         int x, y, z;
-        dim3_t(const int *d) : x(d[0]), y(d[1]), z(d[2]) {}
-        dim3_t(const int d0, const int d1, const int d2)
+        dim3_t()
+            : x(0), y(0), z(0) {}
+        dim3_t(int d0, int d1, int d2)
             : x(d0), y(d1), z(d2) {}
     };
 
@@ -37,17 +38,11 @@ namespace tomocam {
       private:
         dim3_t dims_;
         T *    first_;
-        int    size_;
 
       public:
-        Partition() : dims_({0, 0, 0}), first_(nullptr), size_(0) {}
-
-        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
-            size_ = dims_.x * dims_.y * dims_.z;
-        }
-
+        Partition() : dims_({0, 0, 0}), first_(nullptr) {}
+        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {} 
         dim3_t dims() const { return dims_; }
-        int    size() const { return size_; }
         T *    begin() { return first_; }
     };
 
@@ -57,7 +52,6 @@ namespace tomocam {
         dim3_t dims_;    ///< [Slices, Rows, Colums]
         int    size_;    ///< Size of the alloated array
         T *    buffer_;  ///< Pointer to data buffer
-        bool   unified_; ///< Flag for unified memory support
 
         // return global index
         int idx_(int i, int j) { return (i * dims_.y + j); }
@@ -66,15 +60,15 @@ namespace tomocam {
         }
 
       public:
-        DArray(int *);
+        DArray() = delete;
         DArray(int, int, int);
         DArray(dim3_t);
         ~DArray();
 
         // Forbid copy and move
         DArray(const DArray &) = delete;
-        DArray(DArray &&)      = delete;
         DArray operator=(const DArray &) = delete;
+        DArray(DArray &&)      = delete;
         DArray operator=(DArray &&) = delete;
 
         // setup partitioning of array along slowest axis
@@ -86,6 +80,7 @@ namespace tomocam {
         int slices() const { return dims_.x; }
         int rows() const { return dims_.y; }
         int cols() const { return dims_.z; }
+        int size() const { return size_; }
 
         // indexing
         T &operator()(int);

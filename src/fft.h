@@ -20,23 +20,23 @@
 #ifndef TOMOCAM_FFT__H
 #define TOMOCAM_FFT__H
 
+#include <complex>
+typedef std::complex<float> complex_t;
+
 #include <cufft.h>
 
 #include "dist_array.h"
 
-typedef cufftComplex complex_t;
-
 namespace tomocam {
-    template <class T1, class T2>
-    void fft1d(DArray<T1> &, DArray<T2> &);
+    void fft1d(DArray<complex_t> &, DArray<complex_t> &);
 
-    template <class T1, class T2>
-    void fft2d(DArray<T1> &, DArray<T2> &);
+    template <class T>
+    void fft2d(DArray<T> &, DArray<T> &);
 
-    template <class T1, class T2>
-    void ifft1d(DArray<T1> &, DArray<T2> &);
+    template <class T>
+    void ifft1d(DArray<T> &, DArray<T> &);
 
-    template <class T1, class T2>
-    void ifft2d(DArray<T1> &, DArray<T2> &);
+    template <class T>
+    void ifft2d(DArray<T> &, DArray<T> &);
 } // namespace tomocam
 #endif // TOMOCAM_FFT__H
