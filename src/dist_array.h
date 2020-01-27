@@ -23,41 +23,38 @@
 
 #include <vector>
 
+
 namespace tomocam {
 
     struct dim3_t {
         int x, y, z;
-        dim3_t()
-            : x(0), y(0), z(0) {}
-        dim3_t(int d0, int d1, int d2)
-            : x(d0), y(d1), z(d2) {}
+        dim3_t() : x(0), y(0), z(0) {}
+        dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
     };
 
     template <typename T>
     class Partition {
       private:
         dim3_t dims_;
-        T *    first_;
+        T *first_;
 
       public:
         Partition() : dims_({0, 0, 0}), first_(nullptr) {}
-        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {} 
+        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {}
         dim3_t dims() const { return dims_; }
-        T *    begin() { return first_; }
+        T *begin() { return first_; }
     };
 
     template <typename T>
     class DArray {
       private:
-        dim3_t dims_;    ///< [Slices, Rows, Colums]
-        int    size_;    ///< Size of the alloated array
-        T *    buffer_;  ///< Pointer to data buffer
+        dim3_t dims_; ///< [Slices, Rows, Colums]
+        int size_;    ///< Size of the alloated array
+        T *buffer_;   ///< Pointer to data buffer
 
         // return global index
         int idx_(int i, int j) { return (i * dims_.y + j); }
-        int idx_(int i, int j, int k) {
-            return (i * dims_.y * dims_.z + j * dims_.z + k);
-        }
+        int idx_(int i, int j, int k) { return (i * dims_.y * dims_.z + j * dims_.z + k); }
 
       public:
         DArray() = delete;
@@ -68,11 +65,14 @@ namespace tomocam {
         // Forbid copy and move
         DArray(const DArray &) = delete;
         DArray operator=(const DArray &) = delete;
-        DArray(DArray &&)      = delete;
+        DArray(DArray &&)                = delete;
         DArray operator=(DArray &&) = delete;
 
         // setup partitioning of array along slowest axis
         std::vector<Partition<T>> create_partitions(int);
+
+        // copy data,
+        void copy(T *data) { std::copy(data, data + size_, buffer_); }
 
         // getters
         /// dimensions of the array

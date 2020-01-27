@@ -1,113 +1,101 @@
 /* -------------------------------------------------------------------------------
-* Tomocam Copyright (c) 2018
-*
-* The Regents of the University of California, through Lawrence Berkeley National
-* Laboratory (subject to receipt of any required approvals from the U.S. Dept. of
-*  Energy). All rights reserved.
-*
-* If you have questions about your rights to use or distribute this software,
-* please contact Berkeley Lab's Innovation & Partnerships Office at IPO@lbl.gov.
-*
-* NOTICE. This Software was developed under funding from the U.S. Department of
-* Energy and the U.S. Government consequently retains certain rights. As such, the
-* U.S. Government has been granted for itself and others acting on its behalf a
-* paid-up, nonexclusive, irrevocable, worldwide license in the Software to
-* reproduce, distribute copies to the public, prepare derivative works, and
-* perform publicly and display publicly, and to permit other to do so.
-*---------------------------------------------------------------------------------
-*/
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley National
+ * Laboratory (subject to receipt of any required approvals from the U.S. Dept. of
+ *  Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such, the
+ * U.S. Government has been granted for itself and others acting on its behalf a
+ * paid-up, nonexclusive, irrevocable, worldwide license in the Software to
+ * reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <cuda_runtime.h>
 
-#include "polarsample.h"
+#include "dev_array.h"
+#include "dist_array.h"
+#include "types.h"
 
-texture<float, 1, cudaReadModeElementType> texRef;
+namespace tomocam {
 
-__inline__ __device__ void atomicAdd(complex_t & arr,  complex_t  val) {
-  atomicAdd(&(arr.x), val.x);
-  atomicAdd(&(arr.y), val.y);
-}
+    __global__ 
+    void polar2cart_nufft(int3 idims, int3 odims, cuComplex_t *input, float *angles,
+        kernel_t kernel, cuComplex_t *output) {
 
-__device__ float kb_weight(float grid_pos, float point_pos,
-				    int kb_table_size, float kb_table_scale){
-    float dist_x = fabs(grid_pos - point_pos)*kb_table_scale;
-    int ix = (int) dist_x;
-    float fx = dist_x - ix;
-    if(ix+1 < kb_table_size){
-        return (tex1Dfetch(texRef, ix)*(1.0f-fx) + tex1Dfetch(texRef,ix+1)*(fx));     
-    }
-    return 0.0f;
-}
+        // get global index
+        int gid = blockDim.x * blockIdx.x + threadIdx.x;
+ 
+        int IMAX = idims.x * idims.y * idims.z;
+        if (gid <  IMAX ) {
+            int islc = gid / idims. y / idims.z;
+            int iloc = gid % (idims.y * idims.z);
+            int iang = iloc / idims.z;
+            int ipos = iloc % idims.z;
 
-__global__ void polarsample_transpose_kernel(const complex_t * point_pos,
-					     const complex_t * sample_value, 
-					     int npoints, uint2 grid_size,
-					     int kb_table_size,
-					     float kb_table_scale,
-					     float kernel_radius,
-					     complex_t * grid_value){
-    int i = threadIdx.x + blockIdx.x*blockDim.x;
-    if(i < npoints){
-        complex_t sv = sample_value[i] ;
-        complex_t pp = point_pos[i];
-        float sx = pp.x;
-        float sy = pp.y;
+            // copy kernel to shared memory
+            extern __shared__ float shamem_kfunc[];
+            int niters = kernel.size() / blockDim.x;
+            int nextra = kernel.size() % blockDim.x;
 
-        int y = max(0, (int) ceil(sy - kernel_radius));
-        int ymax = min((int) floor(sy + kernel_radius), grid_size.y - 1);
-        for( ; y < ymax; y++ ) {
-            if(y < 0 || y > grid_size.y-1) continue; 
-            complex_t svy = sv * kb_weight((float) y, sy, kb_table_size, kb_table_scale);
-            int x = max(0, (int) ceil(sx - kernel_radius));
-            int xmax = min((int) floor(sx + kernel_radius), grid_size.x - 1);
-            for( ; x < xmax; x++ ) {
-                if(x < 0 || x > grid_size.x-1) continue; 
-                complex_t temp_svy = svy * kb_weight((float) x, sx, kb_table_size, kb_table_scale);
-                int idx = y * grid_size.x + x;
-	            atomicAdd(&grid_value[idx].x,  temp_svy.x);
-	            atomicAdd(&grid_value[idx].y,  temp_svy.y);
+            size_t offset = 0;
+            for (int j = 0; j < niters; j++) {
+                offset = j * blockDim.x;
+                shamem_kfunc[threadIdx.x + offset] = kernel.d_array()[threadIdx.x + offset];
+            }
+            if ((nextra > 0) && (threadIdx.x < nextra))
+                shamem_kfunc[threadIdx.x + offset] = kernel.d_array()[threadIdx.x + offset];
+
+            // polar coordinates
+            float c = (float) (idims.z) / 2;
+            float a = angles[iang];
+            float x = (ipos - c) * cosf(a) + c;
+            float y = (ipos - c) * sinf(a) + c;
+
+            // value at (x, y)
+            cuComplex_t pValue = input[gid];
+
+            int iy    = max(kernel.imin(y), 0);
+            int iymax = min(kernel.imax(y), odims.y - 1);
+            int ixmin = max(kernel.imin(x), 0);
+            int ixmax = min(kernel.imax(x), odims.z - 1);
+
+            for (; iy < iymax; iy++) {
+                cuComplex_t temp = pValue * kernel.weight(y, iy, shamem_kfunc);
+                for (int ix = ixmin; ix < ixmax; ix++) {
+                    cuComplex_t v = temp * kernel.weight(x, ix, shamem_kfunc);
+                    int idx = islc * odims.y * odims.z + iy * odims.z + ix;
+                    atomicAdd(&output[idx].x, v.x);
+                    atomicAdd(&output[idx].y, v.y);
+                }
             }
         }
     }
-}
 
-void polarsample_transpose(
-        complex_t * point_pos, 
-        complex_t * sample_value, 
-        int npoints, uint2 grid_size, 
-        float * kb_table, 
-        int kb_table_size, 
-        float kb_table_scale, 
-        float kernel_radius,
-        complex_t * grid_value){
+    void polarsample_transpose(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims,
+        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
-    size_t offset;
-    cudaBindTexture(&offset, texRef, kb_table, sizeof(float)*kb_table_size);
-    if(offset != 0){
-        fprintf(stderr, "Error: Texture offset different than zero. Table not allocated with cudaMalloc!\n");
-        return;
+        // polar-coordinates
+        float *d_angles = angles.d_array();
+
+        // input and output dimensions
+        int3 d_idims = make_int3(idims.x, idims.y, idims.z);
+        int3 d_odims = make_int3(odims.z, odims.y, odims.z);
+        int kdims     = kernel.size();
+
+        // cuda kernel params
+        int nmax = idims.x * idims.y * idims.z;
+        int nthread = 256;
+        int tblocks  = nmax / nthread + 1;
+
+        // launch CUDA kernel
+        polar2cart_nufft <<<tblocks, nthread, kdims * sizeof(float), stream>>> (
+            d_idims, d_odims, input, d_angles, kernel, output);
     }
-
-    // allocate memory to grid_value 
-    size_t len = grid_size.x * grid_size.y;
-    cudaMemset(grid_value, 0, sizeof(complex_t) * len);
-
-    // kernel params
-    int block_size = BLOCKSIZE;
-    int grid = (npoints+block_size-1)/block_size;
-
-    clock_t t_i = clock();
-
-    // launch CUDA kernel
-    polarsample_transpose_kernel <<<grid,block_size>>>(
-          point_pos,
-		  sample_value, 
-          npoints, grid_size,
-		  kb_table_size,
-		  kb_table_scale,
-		  kernel_radius,
-		  grid_value);
-    clock_t t_e = clock();
-    error_handle();
-}
+} // namespace tomocam

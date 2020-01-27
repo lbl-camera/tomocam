@@ -21,6 +21,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <thread>
 
 namespace tomocam {
     template <typename T>
@@ -36,7 +37,7 @@ namespace tomocam {
     }
 
     // for calling from python
-    template<typename T>
+    template <typename T>
     DArray<T>::DArray(int nx, int ny, int nz) {
         // limit ndims to 3
         int ndims = 3;
@@ -50,24 +51,22 @@ namespace tomocam {
 
     template <typename T>
     DArray<T>::~DArray() {
-        std::cerr << "Destroying DAarray ... " << std::endl;
         cudaDeviceSynchronize();
         if (buffer_) cudaFree(buffer_);
     }
 
     template <typename T>
     std::vector<Partition<T>> DArray<T>::create_partitions(int n_partitions) {
-        dim3_t d        = dims_;
-        int    n_slices = dims_.x / n_partitions;
-        int    n_extra  = dims_.x % n_partitions;
+        dim3_t d     = dims_;
+        int n_slices = dims_.x / n_partitions;
+        int n_extra  = dims_.x % n_partitions;
 
         // vector to hold the partitions
         std::vector<Partition<T>> table;
 
         int offset = 0;
         for (int i = 0; i < n_partitions; i++) {
-            if (i < n_extra)
-                d.x = n_slices + 1;
+            if (i < n_extra) d.x = n_slices + 1;
             else
                 d.x = n_slices;
             table.push_back(Partition<T>(d, slice(offset)));
