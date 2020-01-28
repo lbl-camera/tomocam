@@ -22,19 +22,19 @@
 #include "dev_array.h"
 #include "dist_array.h"
 #include "fft.h"
-#include "internals.h"
+#include "tomocam.h"
 #include "types.h"
 
 namespace tomocam {
 
-    void backProject(float *input, float *output, dim3_t idims, dim3_t odims, float over_sampling, float center,
+    void forwardSim(float *input, float *output, dim3_t idims, dim3_t odims, float over_sampling, float center,
         DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
         // working dimensions
         size_t nelems = idims.x * idims.y * idims.z;
         size_t padded = (size_t)((float)idims.z * over_sampling);
-        dim3_t pad_idims(idims.x, idims.y, padded);
-        dim3_t pad_odims(odims.x, padded, padded);
+        dim3_t pad_idims(idims.x, padded, padded);
+        dim3_t pad_odims(odims.x, odims.y, padded);
 
         // data sizes
         size_t istreamSize = pad_idims.x * pad_idims.y * pad_idims.z;
@@ -74,25 +74,27 @@ namespace tomocam {
         }
 
         // pad data for oversampling
-        int nrows = idims.x * idims.y;
-        for (int i = 0; i < nrows; i++) {
-            size_t offset1 = i * idims.z;
-            size_t offset2 = i * padded;
-            status         = cudaMemcpyAsync(
-                d_input + offset2, temp + offset1, sizeof(cuComplex_t) * idims.z, cudaMemcpyDeviceToDevice, stream);
-            if (status != cudaSuccess) {
-                std::cerr << "Error! failed to copy data to device. " << status << std::endl;
-                throw status;
+        int ipad = (padded - idims.z) / 2;
+        for (int i = 0; i < idims.x; i++)
+            for (int j = 0; j < idims.y; j++ {
+                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z + ipad;
+                size_t offset2 = i * idims.y * idims.z + j * idims.z;
+
+                status = cudaMemcpyAsync(
+                    d_input + offset1, temp + offset2, sizeof(cuComplex_t) * idims.z, cudaMemcpyDeviceToDevice, stream);
+                if (status != cudaSuccess) {
+                    std::cerr << "Error! failed to copy data to device. " << status << std::endl;
+                    throw status;
+                }
             }
-        }
         cudaStreamSynchronize(stream);
 
         // fftshift
-        fftshift1D(d_input, pad_idims, stream);
+        fftshift2D(d_input, pad_idims, stream);
         cudaStreamSynchronize(stream);
 
-        // 1-D fft
-        cufftHandle p1 = fftPlan1D(pad_idims);
+        // 2-D forward fft
+        cufftHandle p1 = fftPlan2D(pad_idims);
         cufftSetStream(p1, stream);
         cufftResult error = cufftExecC2C(p1, d_input, d_input, CUFFT_FORWARD);
         if (error != CUFFT_SUCCESS) {
@@ -101,21 +103,26 @@ namespace tomocam {
         }
         cudaStreamSynchronize(stream);
         cufftDestroy(p1);
+   
+        // fftshift
+        fftshift2D(d_input, pad_idims, stream);
+        cudaStreamSynchronize(stream);
 
-        // center shift
-        ifftshift_center(d_input, pad_idims, center, stream);
+        // rescale FFT(X) / N 
+        float scale = 1.f / ((float) pad_idims.y * pad_idims.z);
+        rescale(d_input, pad_idims, scale, stream);
         cudaStreamSynchronize(stream);
 
         // covolution with kernel
-        polarsample_transpose(d_input, d_output, pad_idims, pad_odims, angles, kernel, stream);
-        cudaStreamSynchronize(stream);
-   
-        // fftshift
-        fftshift2D(d_output, pad_odims, stream);
+        polarsample(d_input, d_output, pad_idims, pad_odims, angles, kernel, stream);
         cudaStreamSynchronize(stream);
 
-        // 2-D ifft
-        cufftHandle p2 = fftPlan2D(pad_odims);
+        // redo the center shift
+        fftshift_center(d_output, pad_odims, center, stream);
+        cudaStreamSynchronize(stream);
+
+        // 1-D ifft
+        cufftHandle p2 = fftPlan1D(pad_odims);
         cufftSetStream(p2, stream);
         error = cufftExecC2C(p2, d_output, d_output, CUFFT_INVERSE);
         if (error != CUFFT_SUCCESS) {
@@ -124,36 +131,15 @@ namespace tomocam {
         }
         cudaStreamSynchronize(stream);
         cufftDestroy(p2);
-
-        /*////// DEBUG
-        size_t IMG = pad_odims.y * pad_odims.z;
-        cuComplex_t * ff = new cuComplex_t[IMG];
-        status = cudaMemcpyAsync(ff, d_output, IMG * sizeof(cuComplex_t), cudaMemcpyDeviceToHost, stream);
-        cudaStreamSynchronize(stream);
-        std::ofstream real("real.out", std::ios::out);
-        std::ofstream imag("imag.out", std::ios::out);
-        for (int i = 0; i < IMG; i++) {
-            real << ff[i].x << " ";
-            imag << ff[i].x << " ";
-        }
-        real.close();
-        imag.close();
-        exit(1);
-        /////// */
    
         // fftshift
-        fftshift2D(d_output, pad_odims, stream);
+        fftshift1D(d_output, pad_odims, stream);
         cudaStreamSynchronize(stream);
 
-        // rescale FFT(X) / N
-        float scale = 1.f / ((float) (pad_odims.y * pad_odims.z));
-        rescale(d_output, pad_odims, scale, stream);
-        cudaStreamSynchronize(stream);
-        
         // de-apodizing factor
         float W = 2 * kernel.radius() + 1;
         float beta = kernel.beta();
-        deapodize(d_output, pad_odims, W, beta, stream);
+        deapodize1(d_output, pad_odims, W, beta, stream);
         cudaStreamSynchronize(stream);
 
         // remove padding
@@ -164,13 +150,11 @@ namespace tomocam {
             std::cerr << "Error! failed to allocate memory on device " << status << std::endl;
             throw status;
         }
-        size_t ipad = (pad_odims.z - odims.z)/2;
-        for (int i = 0; i < odims.x; i++)
-            for (int j = 0; j < odims.y; j++) {
-                size_t offset1 = i * odims.y * odims.z + j * odims.z;
-                size_t offset2 = i * pad_odims.y * pad_odims.z + (j + ipad) * pad_odims.z + ipad;
+        for (int i = 0; i < odims.x * odims.y; i++)
+            size_t offset1 = i * odims.y * odims.z;
+            size_t offset2 = i * pad_odims.y * pad_odims.z;
 
-                status = cudaMemcpyAsync(
+            status = cudaMemcpyAsync(
                     temp2 + offset1, d_output + offset2, sizeof(cuComplex_t) * odims.z, cudaMemcpyDeviceToDevice, stream);
             }
 

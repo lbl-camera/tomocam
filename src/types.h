@@ -24,26 +24,10 @@
 #include <cmath>
 #include <complex>
 #include <cuComplex.h>
-#include <cuda.h>
 
 namespace {
     typedef std::complex<float> complex_t;
     typedef cuFloatComplex cuComplex_t;
-
-    __device__ __host__  cuComplex_t operator*(cuComplex_t a, float b) {
-        return make_cuFloatComplex(a.x * b, a.y * b);
-    }
-    __device__ __host__  cuComplex_t operator*(float b, cuComplex_t a) {
-        return make_cuFloatComplex(a.x * b, a.y * b);
-    }
-
-    __device__ __host__  cuComplex_t operator*(cuComplex_t a, cuComplex_t b) { return cuCmulf(a, b); }
-
-    __device__ __host__  cuComplex_t expf_j(const float arg) {
-        float sin, cos;
-        sincosf(arg, &sin, &cos);
-        return make_cuFloatComplex(cos, sin);
-    }
 
 } // namespace
 

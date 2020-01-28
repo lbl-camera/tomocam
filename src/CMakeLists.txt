@@ -12,10 +12,12 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/fft.cpp 
     ${PROJECT_SOURCE_DIR}/backward.cpp 
     ${PROJECT_SOURCE_DIR}/iradon.cpp
+    ${PROJECT_SOURCE_DIR}/radon.cpp
     )
 
 set(CUSRC 
     ${PROJECT_SOURCE_DIR}/cuPolarsampleTranspose.cu 
+    ${PROJECT_SOURCE_DIR}/cuPolarsample.cu 
     ${PROJECT_SOURCE_DIR}/fftshift.cu
     ${PROJECT_SOURCE_DIR}/kaiser.cu
     ${PROJECT_SOURCE_DIR}/deapod.cu

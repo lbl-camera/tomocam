@@ -10,23 +10,12 @@
 
 namespace tomocam {
 
-    //TODO rescal
-    void rescale(cuComplex_t *, dim3_t, float, cudaStream_t);
-
-    // TODO document
-    void deapodize(cuComplex_t *, dim3_t, float, float, cudaStream_t);
-
-    // TODO document (find appropriate place for function declaration 
-    void kaiser_window(kernel_t &, float, float, size_t, int);
-
-    // TODO document
-    void backProject(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
-
-    // TODO document
-    void polarsample_transpose(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
-
     // TODO document
     void iradon(DArray<float> &, DArray<float> &, float *, float, float);
+
+
+    // TODO document
+    void radon(DArray<float> &, DArray<float> &, float *, float, float);
 
 
 } // namespace tomocam

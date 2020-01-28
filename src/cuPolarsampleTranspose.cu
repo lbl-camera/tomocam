@@ -22,6 +22,7 @@
 #include "dev_array.h"
 #include "dist_array.h"
 #include "types.h"
+#include "utils.cuh"
 
 namespace tomocam {
 
@@ -53,7 +54,7 @@ namespace tomocam {
                 shamem_kfunc[threadIdx.x + offset] = kernel.d_array()[threadIdx.x + offset];
 
             // polar coordinates
-            float c = (float) (idims.z) / 2;
+            float c = (float) (idims.z) * 0.5;
             float a = angles[iang];
             float x = (ipos - c) * cosf(a) + c;
             float y = (ipos - c) * sinf(a) + c;

@@ -27,7 +27,7 @@
 
 namespace tomocam {
 
-    void iradon_(Partition<float> sino, Partition<float> output, float center, float over_sample,
+    void radon_(Partition<float> input, Partition<float> sino, float center, float over_sample,
         DeviceArray<float> angles, kernel_t kernel, int device) {
 
         // initalize the device
@@ -40,12 +40,12 @@ namespace tomocam {
         int NumStreams     = cfg.streamsPerGPU();
 
         // input
-        dim3_t idims  = sino.dims();
-        float *h_data = sino.begin();
+        dim3_t idims  = input.dims();
+        float *h_data = input.begin();
 
         // output
-        dim3_t odims  = output.dims();
-        float *f_data = output.begin();
+        dim3_t odims  = sino.dims();
+        float *f_data = sino.begin();
 
         int nStreams = 0, slcs = 0;
         if (idims.x < NumStreams) {
@@ -80,7 +80,7 @@ namespace tomocam {
             for (int i = 0; i < nStreams; i++) {
                 offset1 = i * istreamSize;
                 offset2 = i * ostreamSize;
-                backProject(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                forwardSim(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
                     angles, kernel, streams[i]);
             }
         }
@@ -102,7 +102,7 @@ namespace tomocam {
             for (int i = 0; i < nStreams; i++) {
                 stream_idims.x = resSlcs[i];
                 stream_odims.x = resSlcs[i];
-                backProject(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                forwardSim(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
                     angles, kernel, streams[i]);
                 offset1 += resSlcs[i] * idims.y * idims.z;
                 offset2 += resSlcs[i] * odims.y * odims.z;
@@ -115,10 +115,11 @@ namespace tomocam {
     }
 
     // inverse radon (Multi-GPU call)
-    void iradon(DArray<float> &input, DArray<float> &output, float * angles,
+    void radon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
 
-        int nDevice                      = MachineConfig::getInstance().num_of_gpus();
+        //int nDevice                      = MachineConfig::getInstance().num_of_gpus();
+        int nDevice                      = 1;
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
 
@@ -152,7 +153,7 @@ namespace tomocam {
         std::vector<std::thread> threads;
         for (int i = 0; i < p1.size(); i++) {
             unsigned device = i % nDevice;
-            threads.push_back(std::thread(iradon_, p1[i], p2[i], center, over_sample, dAngles[i], kernels[i], device));
+            threads.push_back(std::thread(radon_, p1[i], p2[i], center, over_sample, dAngles[i], kernels[i], device));
         }
 
         // wait for devices to finish
