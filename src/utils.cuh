@@ -20,6 +20,9 @@
 #ifndef TOMOCAM_UTILS__CUH
 #define TOMOCAM_UTILS__CUH
 
+#include <cuda.h>
+#include "common.h"
+
 #define CUDAFY __forceinline__ __device__ __host__
 namespace tomocam {
 
@@ -28,7 +31,7 @@ namespace tomocam {
         else return (a / b);
     }
 
-    inline dim3 calcBlocks(dim3 dims, dim3 thrds) {
+    inline dim3 calcBlocks(dim3_t dims, dim3 thrds) {
         return dim3(idiv(dims.x, thrds.x), idiv(dims.y, thrds.y), idiv(dims.z, thrds.z));
     }
 

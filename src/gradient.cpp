@@ -20,6 +20,7 @@
 #include <fstream>
 
 #include "dev_array.h"
+#include "kernel.h"
 #include "dist_array.h"
 #include "fft.h"
 #include "tomocam.h"

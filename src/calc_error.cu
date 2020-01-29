@@ -48,8 +48,7 @@ namespace tomocam {
 
     void calc_error(cuComplex_t *model,  float *data, dim3_t d1, dim3_t d2, cudaStream_t stream) {
         dim3 threads(1, 16, 16);
-        dim3 dims(d1.x, d1.y, d1.z);
-        dim3 tblocks = calcBlocks(dims, threads);
+        dim3 tblocks = calcBlocks(d1, threads);
         calc_error_kernel <<< tblocks, threads, 0, stream >>> (model, data, d1, d2);
     }
 } // namespace tomocam

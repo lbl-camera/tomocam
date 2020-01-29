@@ -19,6 +19,7 @@
  */
 
 #include "dev_array.h"
+#include "kernel.h"
 #include "dist_array.h"
 #include "machine.h"
 #include "internals.h"

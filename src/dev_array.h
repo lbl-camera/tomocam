@@ -23,7 +23,8 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <iostream>
+
+#include "common.h"
 
 namespace tomocam {
 
@@ -37,6 +38,7 @@ namespace tomocam {
          */
       protected:
         int device_id_;
+        dim3_t dims_;
         size_t size_;
         T *ptr_;
 
@@ -69,69 +71,6 @@ namespace tomocam {
         int device_id() const { return device_id_; }
     };
 
-    // kernel type
-    class kernel_t : public DeviceArray<float> {
-        /*
-         * once again, shallow copies by design
-         */
-      protected:
-        float radius_;
-        float beta_;
-
-      public:
-        // constructor
-        __host__ 
-        kernel_t(): radius_(2.f) {}
-
-        // set radius
-        __host__ 
-        void set_radius(float r) { radius_ = r; }
-
-        // set beta
-        __host__ 
-        void set_beta(float b) { beta_ = b; }
-
-        // get radius
-        __host__ __device__ 
-        float radius() const { return radius_; }
-
-        __host__ __device__
-        float beta() const { return beta_; }
-       
-        // farthest index in negative direction
-        __device__ 
-        int imin(float d) { return (int) (d - radius_) - 1; }
-
-        // farthest index in positive direction 
-        __device__ 
-        int imax(float d) { return (int) (d + radius_) + 1; }
-
-        // calculate weight at the distane using shared memory
-        __device__ __forceinline__
-        float weight(float r, int k, float * shamem) {
-            float tt = (r - k);
-            if (tt < 0.f)  tt = -tt;
-            float x = tt * (size_ - 1)/radius_; 
-            int i = (int) x;
-            float dx = x - i;
-            if ((i+1) < size_) return (shamem[i] * (1.f - dx) + shamem[i+1] * dx);
-            else 
-                return 0;
-        }
- 
-        // calculate weight at the distane using global memory
-        __device__ __forceinline__
-        float weight(float r, int k) {
-            float tt = (r - k);
-            if (tt < 0.f)  tt = -tt;
-            float x = tt * (size_ - 1)/radius_; 
-            int i = (int) x;
-            float dx = x - i;
-            if ((i+1) < size_) return (ptr_[i] * (1.f - dx) + ptr_[i+1] * dx);
-            else 
-                return 0;
-        }
-    };
 } // namespace tomocam
 
-#endif // TOMOCAM_TYPES__H
+#endif // TOMOCAM_DEV_ARRAY__H

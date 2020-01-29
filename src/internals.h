@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 
 #include "dev_array.h"
+#include "kernel.h"
 #include "dist_array.h"
 #include "types.h"
 

@@ -17,9 +17,13 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
+
+#ifdef TOMOCAM_DEBUG
 #include <fstream>
+#endif
 
 #include "dev_array.h"
+#include "kernel.h"
 #include "dist_array.h"
 #include "fft.h"
 #include "internals.h"

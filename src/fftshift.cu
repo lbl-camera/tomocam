@@ -80,10 +80,7 @@ namespace tomocam {
     // multiply by 2-D chessboard pattern
     void fftshift2D(cuComplex_t *arr, dim3_t dims, cudaStream_t stream) {
         dim3 threads(1, 16, 16);
-        dim3 tblocks;
-        tblocks.x = idiv(dims.x, threads.x);
-        tblocks.y = idiv(dims.y, threads.y);
-        tblocks.z = idiv(dims.z, threads.z);
+        dim3 tblocks = calcBlocks(dims, threads);
         fftshift2D_kernel<<< tblocks, threads, 0, stream>>>(arr, dims.y, dims.z, dims.x);
     }
 

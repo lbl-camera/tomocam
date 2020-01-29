@@ -1,5 +1,6 @@
 
 #include "dev_array.h"
+#include "kernel.h"
 
 namespace tomocam {
     __global__ void kaiser(float *window, float W, float beta, size_t len) {
