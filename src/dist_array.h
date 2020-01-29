@@ -32,17 +32,25 @@ namespace tomocam {
         dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
     };
 
+
     template <typename T>
     class Partition {
       private:
         dim3_t dims_;
+        int size_;
         T *first_;
 
       public:
         Partition() : dims_({0, 0, 0}), first_(nullptr) {}
-        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {}
+        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
+            size_ = dims_.x * dims_.y * dims_.z; 
+        }
         dim3_t dims() const { return dims_; }
+        int size() const { return size_; }
         T *begin() { return first_; }
+
+        // create sub-partions 
+        std::vector<Partition<T>> create_partitions(int);
     };
 
     template <typename T>

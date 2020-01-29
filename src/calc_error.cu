@@ -24,47 +24,32 @@
 #include "dist_array.h"
 #include "types.h"
 
+#include "utils.cuh"
+
 namespace tomocam {
-
-    __device__ float kaiser_fourier_trans(float x, float W, float beta) {
-        const float PI = 3.14159265359f;
-        float t1 = powf(beta, 2) - powf(x * W * PI, 2);
-
-        if (t1 > 0 ) { 
-            t1 = sqrtf(t1);
-            float t2 = W / cyl_bessel_i0(beta);
-            return (t2 * sinhf(t1)/t1);
-        } 
-        else return 1.f;
-    }
-        
-    __global__ void deapodize_kernel(cuComplex_t * arr, float W, float beta, int2 grid, int slcs) {
+    __global__ void calc_error_kernel(cuComplex_t * model, float * data, dim3_t d1, dim3_t d2) {
         int i = blockDim.x * blockIdx.x + threadIdx.x;
         int j = blockDim.y * blockIdx.y + threadIdx.y;
         int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-        int nrows  = grid.x;
-        int ncols  = grid.y;
-        float nmax = (float) ncols;
-        float cen =  0.5 * nmax;
-
-        if ((i < slcs) && (j < nrows) && (k < ncols)) {
-            float y = (j - cen) / nmax; 
-            float x = (k - cen) / nmax;
-            float wx = kaiser_fourier_trans(x, W, beta);
-            float wy = kaiser_fourier_trans(y, W, beta);
-            int gid = i * nrows * ncols + j * ncols + k;
-            arr[gid].x = arr[gid].x / wx / wy;
+        if ((i < d1.x) && (j < d1.y) && (k < d1.z)) {
+            int m_id = i * d1.y * d1.z + j * d1.z + k;
+            int ipad = (d1.z - d2.z)/2;
+            if ((k < ipad) || (k > ipad + d2.z - 1)) {
+                model[m_id].x = 0.f;
+                model[m_id].y = 0.f;
+            } else {
+                int d_id = i * d2.y * d2.z + j * d2.z + k - ipad;
+                model[m_id].x = data[d_id] - model[m_id].x;
+                model[m_id].y = 0.f;
+            }
         }
     }
 
-    void deapodize(cuComplex_t * arr, dim3_t dims, float W, float beta, cudaStream_t stream) {
-        int slcs  = dims.x;
-        int2 grid = make_int2(dims.y, dims.z);
+    void calc_error(cuComplex_t *model,  float *data, dim3_t d1, dim3_t d2, cudaStream_t stream) {
         dim3 threads(1, 16, 16);
-   
-        dim3 tblocks(dims.x / threads.x + 1, dims.y / threads.y + 1, dims.z / threads.z + 1);
-        deapodize_kernel <<< tblocks, threads, 0, stream >>> (arr, W, beta, grid, slcs);
+        dim3 dims(d1.x, d1.y, d1.z);
+        dim3 tblocks = calcBlocks(dims, threads);
+        calc_error_kernel <<< tblocks, threads, 0, stream >>> (model, data, d1, d2);
     }
-
 } // namespace tomocam

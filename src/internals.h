@@ -1,5 +1,5 @@
-#ifndef TOMOCAM_COVOLUTION__H
-#define TOMOCAM_COVOLUTION__H
+#ifndef TOMOCAM_INTERNALS__H
+#define TOMOCAM_INTERNALS__H
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -10,7 +10,10 @@
 
 namespace tomocam {
 
-    //TODO rescal
+    // TODO document
+    void calc_error(cuComplex_t *, float *, dim3_t , dim3_t, cudaStream_t);
+
+    //TODO rescale
     void rescale(cuComplex_t *, dim3_t, float, cudaStream_t);
 
     // TODO document
@@ -20,17 +23,23 @@ namespace tomocam {
     void kaiser_window(kernel_t &, float, float, size_t, int);
 
     // TODO document
-    void backProject(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void back_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
+
+    // TODO document
+    void stage_back_project(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void polarsample_transpose(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
-    void forwardSim(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void fwd_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
+
+    // TODO document
+    void stage_fwd_project(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void polarsample(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
 
 } // namespace tomocam
 
-#endif // TOMOCAM_COVOLUTION__H
+#endif // TOMOCAM_INTERNALS__H

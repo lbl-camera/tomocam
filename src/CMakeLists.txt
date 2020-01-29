@@ -7,12 +7,18 @@ set(tomocam_VERSION_MINOR 0)
 #C++ 11 Stuff
 set(CMAKE_CXX_STANDARD 11) 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
 set(SRC 
     ${PROJECT_SOURCE_DIR}/fft.cpp 
     ${PROJECT_SOURCE_DIR}/backward.cpp 
+    ${PROJECT_SOURCE_DIR}/forward.cpp 
+    ${PROJECT_SOURCE_DIR}/gradient.cpp
+    ${PROJECT_SOURCE_DIR}/stage_backward.cpp
+    ${PROJECT_SOURCE_DIR}/stage_forward.cpp
     ${PROJECT_SOURCE_DIR}/iradon.cpp
     ${PROJECT_SOURCE_DIR}/radon.cpp
+    ${PROJECT_SOURCE_DIR}/total_var.cpp
     )
 
 set(CUSRC 
@@ -22,6 +28,7 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/kaiser.cu
     ${PROJECT_SOURCE_DIR}/deapod.cu
     ${PROJECT_SOURCE_DIR}/rescale.cu
+    ${PROJECT_SOURCE_DIR}/calc_error.cu
     )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)

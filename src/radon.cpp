@@ -80,7 +80,7 @@ namespace tomocam {
             for (int i = 0; i < nStreams; i++) {
                 offset1 = i * istreamSize;
                 offset2 = i * ostreamSize;
-                forwardSim(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
                     angles, kernel, streams[i]);
             }
         }
@@ -102,7 +102,7 @@ namespace tomocam {
             for (int i = 0; i < nStreams; i++) {
                 stream_idims.x = resSlcs[i];
                 stream_odims.x = resSlcs[i];
-                forwardSim(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
                     angles, kernel, streams[i]);
                 offset1 += resSlcs[i] * idims.y * idims.z;
                 offset2 += resSlcs[i] * odims.y * odims.z;

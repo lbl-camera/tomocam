@@ -1,5 +1,5 @@
-#ifndef TOMOCAM_COVOLUTION__H
-#define TOMOCAM_COVOLUTION__H
+#ifndef TOMOCAM__H
+#define TOMOCAM__H
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -20,4 +20,4 @@ namespace tomocam {
 
 } // namespace tomocam
 
-#endif // TOMOCAM_COVOLUTION__H
+#endif // TOMOCAM__H
