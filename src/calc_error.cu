@@ -21,9 +21,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dist_array.h"
-#include "types.h"
-
+#include "dev_array.h"
 #include "utils.cuh"
 
 namespace tomocam {

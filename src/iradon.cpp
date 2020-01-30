@@ -18,6 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+#include <thread>
+
 #include "dev_array.h"
 #include "kernel.h"
 #include "dist_array.h"

@@ -45,18 +45,20 @@ namespace tomocam {
       public:
         DeviceArray() : ptr_(NULL) {}
 
+        // does not check if the pointer is a valid device memory
+        DeviceArray(dim3_t d, T * ptr): dims_(d), ptr_(ptr) {
+            size_ = dims_.x * dims_.y * dims_.z;
+        } 
+
         // explicit destructor
         void free() { if (ptr_) cudaFree(ptr_); }
 
         // set device id
-        __host__
         void set_device_id(int id){ device_id_= id; }
 
         // set size of the window
-        __host__ 
         void set_size(size_t len) { size_ = len; }
 
-        __host__
         void set_d_array(T * arr) { ptr_ = arr; }
 
         // at some point we'll need access to the pointer
@@ -67,8 +69,20 @@ namespace tomocam {
         __host__ __device__
         size_t size() const { return size_; }
 
+        // get device id
         __host__ __device__
         int device_id() const { return device_id_; }
+
+
+        // get array dims
+        __host__ __device__ 
+        dim3_t dims() const { return dims_; }
+
+        // get reference to a location in the array
+        __device__ 
+        T & operator() (int i, int j, int k) {
+            return ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
     };
 
 } // namespace tomocam

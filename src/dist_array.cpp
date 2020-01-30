@@ -18,12 +18,64 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <cuda.h>
 #include <cuda_runtime.h>
-#include <iostream>
-#include <thread>
 
 namespace tomocam {
+
+
+    // partition type can create sub_partitions
+    template <typename T>
+    std::vector<Partition<T>> Partition<T>::sub_partitions(int nmax) {
+        std::vector<Partition<T>> table;
+
+        int offset = 0;
+        int n_partitions = dims_.x / nmax;
+        dim3_t d(nmax, dims_.y, dims_.z);
+        for (int i = 0; i < n_partitions; i++) {
+            table.push_back(Partition<T>(d, slice(offset)));
+            offset += nmax;
+        }
+        int n_extra = dims_.x % nmax;
+        if (n_extra > 0) {
+            d.x = n_extra;
+            table.push_back(Partition<T>(d, slice(offset)));
+        }
+        return table;
+    }
+
+    // and with halo, as well
+    template <typename T>
+    std::vector<Partition<T>> Partition<T>::sub_partitions(int nmax, int halo) {
+        std::vector<Partition<T>> table;    
+
+        int n_partitions = dims_.x / nmax;
+        int n_extra = dims_.x % nmax;
+        std::vector<int> locations;
+
+        for (int i = 0; i < n_partitions; i++)
+            locations.push_back(i * nmax);
+        locations.push_back(n_partitions * nmax);
+        if (n_extra > 0)
+            locations.push_back(dims_.x);
+
+        if (n_extra > 0) n_partitions += 1;
+        for (int i = 0; i < n_partitions; i++) {
+            int imin = std::max(locations[i] - halo, 0);
+            int imax = std::min(locations[i+1] + halo, dims_.x);
+            dim3_t d(imax-imin, dims_.y, dims_.z);
+            table.push_back(Partition<T>(d, slice(imin)));
+        }
+    }
+            
+
+    /*
+     *
+     *
+     * DistArray<T> definitions
+     *
+     *
+     *
+     */
     template <typename T>
     DArray<T>::DArray(dim3_t dim) {
         // limit ndims to 3
@@ -73,6 +125,32 @@ namespace tomocam {
             offset += d.x;
         }
         return table;
+    }
+
+    template <typename T>
+    std::vector<Partition<T>> DArray<T>::create_partitions(int n_partitions, int halo) {
+        int n_slices = dims_.x / n_partitions;
+        int n_extra  = dims_.x % n_partitions;
+  
+        // vector to hold the partitions
+        std::vector<Partition<T>> table;
+        std::vector<int> locations;
+
+        int offset = 0;
+        locations.push_back(offset);
+        for (int i = 0; i < n_partitions; i++) {
+            if (i < n_extra)
+                offset += n_slices + 1;
+            else 
+                offset += n_slices;
+            locations.push_back(offset);
+        }
+        for (int i = 0; i < n_partitions; i++) {
+            int imin = std::max(locations[i] - halo, 0);
+            int imax = std::min(locations[i+1] + halo, dims_.x);
+            dim3_t d(imax-imin, dims_.y, dims_.z);
+            table.push_back(Partition<T>(d, slice(imin)));
+        } 
     }
 
     template <typename T>

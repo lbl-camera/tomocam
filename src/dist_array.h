@@ -42,9 +42,11 @@ namespace tomocam {
         dim3_t dims() const { return dims_; }
         int size() const { return size_; }
         T *begin() { return first_; }
+        T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
 
         // create sub-partions 
-        std::vector<Partition<T>> create_partitions(int);
+        std::vector<Partition<T>> sub_partitions(int);
+        std::vector<Partition<T>> sub_partitions(int, int);
     };
 
     template <typename T>
@@ -70,8 +72,11 @@ namespace tomocam {
         DArray(DArray &&)                = delete;
         DArray operator=(DArray &&) = delete;
 
-        // setup partitioning of array along slowest axis
+        // setup partitioning of array along slowest dimension
         std::vector<Partition<T>> create_partitions(int);
+
+        // create partitionng along slowest dimension with halo
+        std::vector<Partition<T>> create_partitions(int, int);
 
         // copy data,
         void copy(T *data) { std::copy(data, data + size_, buffer_); }

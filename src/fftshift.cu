@@ -21,7 +21,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dist_array.h"
+#include "dev_array.h"
 #include "fft.h"
 #include "utils.cuh"
 

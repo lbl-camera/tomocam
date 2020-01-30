@@ -21,10 +21,10 @@
 #ifdef TOMOCAM_DEBUG
 #include <fstream>
 #endif
+#include <iostream>
 
 #include "dev_array.h"
 #include "kernel.h"
-#include "dist_array.h"
 #include "fft.h"
 #include "internals.h"
 #include "types.h"

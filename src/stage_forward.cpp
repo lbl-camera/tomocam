@@ -18,11 +18,11 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+
 #include "dev_array.h"
 #include "kernel.h"
-#include "dist_array.h"
 #include "fft.h"
-#include "tomocam.h"
 #include "internals.h"
 #include "types.h"
 
