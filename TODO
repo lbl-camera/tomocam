@@ -1,0 +1,4 @@
+
+1. Allocate memroy only once per run (static DeviceMemroy should help)
+2. Compare time to calculate weights vs stored weights
+3. Replace all the pointers with DeviceArray and Partition types
