@@ -17,128 +17,131 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
+
 #include <iostream>
+#include <thread>
 
 #include "dev_array.h"
 #include "kernel.h"
-#include "fft.h"
-#include "tomocam.h"
+#include "dist_array.h"
+#include "machine.h"
 #include "internals.h"
 #include "types.h"
+#include "util.h"
 
 namespace tomocam {
 
-    void cal_gradient(float *model, float *data, dim3_t idims, dim3_t odims, float over_sampling, float center,
-        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
+    void gradient_(Partition<float> input, Partition<float> output, float center, float over_sample,
+        DeviceArray<float> angles, kernel_t kernel, int device) {
 
-        // working dimensions
-        size_t nelems = idims.x * idims.y * idims.z;
-        size_t padded = (size_t)((float)idims.z * over_sampling);
-        dim3_t pad_idims(idims.x, padded, padded);
-        dim3_t pad_odims(odims.x, odims.y, padded);
+        // initalize the device
+        cudaSetDevice(device);
+        cudaError_t status;
 
-        // data sizes
-        size_t istreamSize = pad_idims.x * pad_idims.y * pad_idims.z;
-        size_t ostreamSize = pad_odims.x * pad_odims.y * pad_odims.z;
+        // streams and work-per-stream
+        MachineConfig &cfg = MachineConfig::getInstance();
+        int StreamSlices   = cfg.slicesPerStream();
+        int NumStreams     = cfg.streamsPerGPU();
 
-        // buffers for forward and backward projections
-        cuComplex_t *temp     = NULL;
-        cuComplex_t *d_model  = NULL;
-        cuComplex_t *d_sino = NULL;
+        // input
+        dim3_t idims  = input.dims();
+        float *h_data = input.begin();
 
-        cudaError_t status = cudaMalloc((void **)&temp, nelems * sizeof(cuComplex_t));
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to allocate memory device. " << status << std::endl;
-            throw status;
-        }
-        status = cudaMalloc((void **)&d_model, istreamSize * sizeof(cuComplex_t));
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to allocate memory device. " << status << std::endl;
-            throw status;
-        }
-        status = cudaMalloc((void **)&d_sino, ostreamSize * sizeof(cuComplex_t));
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to allocate memory device. " << status << std::endl;
-            throw status;
+        // output
+        dim3_t odims  = output.dims();
+        float *f_data = output.begin();
+
+        int nStreams = 0, slcs = 0;
+        if (idims.x < NumStreams) {
+            slcs     = 1;
+            nStreams = idims.x;
+        } else if (idims.x < NumStreams * StreamSlices) {
+            slcs     = idims.x / NumStreams;
+            nStreams = NumStreams;
+        } else {
+            slcs     = StreamSlices;
+            nStreams = NumStreams;
         }
 
-        // set everything to zero, for padding. Don't expect this to throw exceptions
-        cudaMemsetAsync(d_model, 0, istreamSize * sizeof(cuComplex_t), stream);
-        cudaMemsetAsync(d_sino, 0, ostreamSize * sizeof(cuComplex_t), stream);
+        size_t istreamSize = slcs * idims.y * idims.z;
+        size_t ostreamSize = slcs * odims.y * odims.z;
+        dim3_t stream_idims(slcs, idims.y, idims.z);
+        dim3_t stream_odims(slcs, odims.y, odims.z);
 
-        // copy data to streams (real -> complex)
-        status = cudaMemcpy2DAsync(temp, sizeof(cuComplex_t), model, sizeof(float), sizeof(float),
-            nelems, cudaMemcpyHostToDevice, stream);
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to copy F2C data to device. " << status << std::endl;
-            throw status;
+        // create cudaStreams
+        std::vector<cudaStream_t> streams;
+        for (int i = 0; i < nStreams; i++) {
+            cudaStream_t temp;
+            cudaStreamCreate(&temp);
+            streams.push_back(temp);
         }
 
-        // pad data for oversampling
-        int ipad = (padded - idims.z) / 2;
-        for (int i = 0; i < idims.x; i++)
-            for (int j = 0; j < idims.y; j++) {
-                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z + ipad;
-                size_t offset2 = i * idims.y * idims.z + j * idims.z;
-
-                status = cudaMemcpyAsync(
-                    d_model + offset1, temp + offset2, sizeof(cuComplex_t) * idims.z, cudaMemcpyDeviceToDevice, stream);
-                if (status != cudaSuccess) {
-                    std::cerr << "Error! failed to copy data to device. " << status << std::endl;
-                    throw status;
-                }
+        size_t offset1 = 0;
+        size_t offset2 = 0;
+        int nIters     = idims.x / (nStreams * slcs);
+        for (int i = 0; i < nIters; i++) {
+            // launch concurrent kernels
+            for (int i = 0; i < nStreams; i++) {
+                offset1 = i * istreamSize;
+                offset2 = i * ostreamSize;
+                calc_gradient(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                    angles, kernel, streams[i]);
             }
-
-        // do the actual forward projection
-        cudaStreamSynchronize(stream);
-        fwd_project(d_model, d_sino, pad_idims, pad_odims, center, angles, kernel, stream);
-
-        // overwrite d_sino with error and redo the zero-padding
-        cudaStreamSynchronize(stream);
-        float * d_sino_data = NULL;
-        size_t data_size = odims.x * odims.y * odims.z;
-        cudaMalloc((void **) &d_sino_data, data_size * sizeof(float));
-        cudaMemcpyAsync(d_sino_data, data, data_size * sizeof(float), cudaMemcpyHostToDevice, stream);
-        calc_error(d_sino, d_sino_data, pad_odims, odims, stream);
-
-        // set d_model to zero
-        cudaStreamSynchronize(stream);
-        cudaMemsetAsync(d_model, 0, istreamSize * sizeof(cuComplex_t), stream);
-
-        // backproject the error
-        cudaStreamSynchronize(stream);
-        back_project(d_sino, d_model, pad_odims, pad_idims, center, angles, kernel, stream);
-        cudaStreamSynchronize(stream);
-
-        // remove padding
-        nelems = idims.x * idims.y * idims.z;
-        cuComplex_t * temp2 = NULL;
-        status = cudaMalloc((void **)&temp2, sizeof(cuComplex_t) * nelems);
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to allocate memory on device " << status << std::endl;
-            throw status;
-        }
-        for (int i = 0; i < odims.x * odims.y; i++) {
-            size_t offset1 = i * idims.y * idims.z;
-            size_t offset2 = i * pad_idims.y * pad_odims.z;
-            status = cudaMemcpyAsync(
-                    temp2 + offset1, d_model + offset2, sizeof(cuComplex_t) * odims.z, cudaMemcpyDeviceToDevice, stream);
         }
 
-        // copy data back to host
-        status = cudaMemcpy2DAsync(
-            model, sizeof(float), temp2, sizeof(cuComplex_t), sizeof(float), nelems, cudaMemcpyDeviceToHost, stream);
-        if (status != cudaSuccess) {
-            std::cerr << "Error! failed to copy C2F data from device. " << status << std::endl;
-            throw status;
-        }
+        // left-over data that didn't fit into equal-sized chunks
+        int nResidual = idims.x % (slcs * nStreams);
+        if (nResidual > 0) {
+            std::vector<int> resSlcs;
 
-        // clean up
-        cudaStreamSynchronize(stream);
-        cudaFree(temp);
-        cudaFree(temp2);
-        cudaFree(d_model);
-        cudaFree(d_sino);
-        cudaFree(d_sino_data);
+            if (nResidual < nStreams) {
+                resSlcs.assign(nResidual, 1);
+                nStreams = nResidual;
+            } else
+                resSlcs = distribute(nResidual, nStreams);
+
+            // lauch kernels on rest of the data
+            offset1 = 0;
+            offset2 = 0;
+            for (int i = 0; i < nStreams; i++) {
+                stream_idims.x = resSlcs[i];
+                stream_odims.x = resSlcs[i];
+                calc_gradient(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
+                    angles, kernel, streams[i]);
+                offset1 += resSlcs[i] * idims.y * idims.z;
+                offset2 += resSlcs[i] * odims.y * odims.z;
+            }
+            for (auto s : streams) {
+                cudaStreamSynchronize(s);
+                cudaStreamDestroy(s);
+            }
+        }
     }
+
+    // Multi-GPU calll 
+    void gradient(DArray<float> &input, DArray<float> &output, float center, float over_sample, 
+                DeviceArray<float> * angles, kernel_t * kernels) {
+              
+
+        #ifdef TOMOCAM_DEBUG
+        int nDevice = 1;
+        #else
+        int nDevice = MachineConfig::getInstance().num_of_gpus();
+        #endif
+        std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
+        std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
+
+        // launch all the available devices
+        std::vector<std::thread> threads;
+        for (int i = 0; i < nDevice; i++) 
+            threads.push_back(std::thread(gradient_, p1[i], p2[i], center, over_sample, angles[i], kernels[i], i));
+
+        // wait for devices to finish
+        for (int i = 0; i < nDevice; i++) {
+            cudaSetDevice(i);
+            cudaDeviceSynchronize();
+            threads[i].join();
+        }
+    }
+
 } // namespace tomocam
