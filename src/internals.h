@@ -18,10 +18,13 @@ namespace tomocam {
     void rescale(cuComplex_t *, dim3_t, float, cudaStream_t);
 
     // TODO document
-    void deapodize(cuComplex_t *, dim3_t, float, float, cudaStream_t);
+    void deApodize1D(cuComplex_t *, dim3_t, float, float, cudaStream_t);
+
+    // TODO document
+    void deApodize2D(cuComplex_t *, dim3_t, float, float, cudaStream_t);
 
     // TODO document (find appropriate place for function declaration 
-    void kaiser_window(kernel_t &, float, float, size_t, int);
+    kernel_t kaiser_window(float, float, size_t);
 
     // TODO document
     void back_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
@@ -40,6 +43,12 @@ namespace tomocam {
 
     // TODO document
     void polarsample(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
+
+    // TODO document
+    void calc_gradient(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+
+    // TODO document
+    void add_total_var(DeviceArray<float>, DeviceArray<float>, float, float, cudaStream_t);
 
 } // namespace tomocam
 

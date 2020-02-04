@@ -82,7 +82,7 @@ namespace tomocam {
         // de-apodizing factor
         float W = 2 * kernel.radius() + 1;
         float beta = kernel.beta();
-        deapodize(output, odims, W, beta, stream);
+        deApodize1D(output, odims, W, beta, stream);
         cudaStreamSynchronize(stream);
 
     }

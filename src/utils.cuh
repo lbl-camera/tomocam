@@ -22,8 +22,10 @@
 
 #include <cuda.h>
 #include "common.h"
+#include "types.h"
 
-#define CUDAFY __forceinline__ __device__ __host__
+#define __deviceI__ __forceinline__ __device__ 
+#define __devhstI__ __forceinline__ __device__ __host__
 namespace tomocam {
 
     inline int idiv (int a, int b) {
@@ -36,22 +38,28 @@ namespace tomocam {
     }
 
     /* add complex to a complex */
-    CUDAFY cuComplex_t operator+(cuComplex_t a, cuComplex_t b) {
+    __devhstI__ 
+    cuComplex_t operator+(cuComplex_t a, cuComplex_t b) {
         return make_cuFloatComplex(a.x + b.x, a.y + b.y);
     }
 
     /* multiply complex with a float */
-    CUDAFY cuComplex_t operator*(cuComplex_t a, float b) {
+    __devhstI__
+    cuComplex_t operator*(cuComplex_t a, float b) {
         return make_cuFloatComplex(a.x * b, a.y * b);
     }
-    CUDAFY cuComplex_t operator*(float b, cuComplex_t a) {
+
+    __devhstI__
+    cuComplex_t operator*(float b, cuComplex_t a) {
         return make_cuFloatComplex(a.x * b, a.y * b);
     }
 
     /* multiply complex with a complex */
-    CUDAFY cuComplex_t operator*(cuComplex_t a, cuComplex_t b) { return cuCmulf(a, b); }
+    __devhstI__
+    cuComplex_t operator*(cuComplex_t a, cuComplex_t b) { return cuCmulf(a, b); }
 
-    CUDAFY cuComplex_t expf_j(const float arg) {
+    __devhstI__
+    cuComplex_t expf_j(const float arg) {
         float sin, cos;
         sincosf(arg, &sin, &cos);
         return make_cuFloatComplex(cos, sin);

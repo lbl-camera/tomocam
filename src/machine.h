@@ -32,7 +32,13 @@ namespace tomocam {
         int nStreams_;
         int slcsPerStream_;
         MachineConfig() {
+
+            #ifndef DNDEBUG
+            ndevice_ = 1;
+            #else
             cudaGetDeviceCount(&ndevice_);
+            #endif
+
             //    check avilable GPU for managed memory access
             std::vector<int> devices;
             for (int i = 0; i < ndevice_; i++) {
@@ -44,7 +50,7 @@ namespace tomocam {
             else
                 unified_ = false;
             nStreams_      = 12;
-            slcsPerStream_ = 10; // slices
+            slcsPerStream_ = 4; // slices
         }
 
       public:
@@ -63,6 +69,20 @@ namespace tomocam {
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
         int streamsPerGPU() const { return nStreams_; }
+
+        void update_work(int work, int & slices, int & n_streams) {
+            if (work < nStreams_) {
+                slices = 1; 
+                n_streams = work;
+            } else if ( work < slcsPerStream_ * nStreams_) {
+                slices = work / nStreams_;
+                n_streams = nStreams_;
+            } else {
+                slices = slcsPerStream_;
+                n_streams = nStreams_;
+            }
+            return;
+        } 
     };
 } // namespace tomocam
 

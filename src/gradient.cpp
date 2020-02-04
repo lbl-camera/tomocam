@@ -32,7 +32,7 @@
 namespace tomocam {
 
     void gradient_(Partition<float> input, Partition<float> output, float center, float over_sample,
-        DeviceArray<float> angles, kernel_t kernel, int device) {
+        float *h_angles, int device) {
 
         // initalize the device
         cudaSetDevice(device);
@@ -50,6 +50,14 @@ namespace tomocam {
         // output
         dim3_t odims  = output.dims();
         float *f_data = output.begin();
+
+        // copy angles to the device
+        static DeviceArray<float> angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
+
+        // interpolation kernel
+        float beta = 12.566370614359172f;
+        const float W = 5.f;
+        static kernel_t kernel = kaiser_window(W, beta, 256);
 
         int nStreams = 0, slcs = 0;
         if (idims.x < NumStreams) {
@@ -119,22 +127,18 @@ namespace tomocam {
     }
 
     // Multi-GPU calll 
-    void gradient(DArray<float> &input, DArray<float> &output, float center, float over_sample, 
-                DeviceArray<float> * angles, kernel_t * kernels) {
+    void gradient(DArray<float> &input, DArray<float> &output, float *angles, 
+        float center, float over_sample) {
               
 
-        #ifdef TOMOCAM_DEBUG
-        int nDevice = 1;
-        #else
         int nDevice = MachineConfig::getInstance().num_of_gpus();
-        #endif
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
 
         // launch all the available devices
         std::vector<std::thread> threads;
         for (int i = 0; i < nDevice; i++) 
-            threads.push_back(std::thread(gradient_, p1[i], p2[i], center, over_sample, angles[i], kernels[i], i));
+            threads.push_back(std::thread(gradient_, p1[i], p2[i], center, over_sample, angles, i));
 
         // wait for devices to finish
         for (int i = 0; i < nDevice; i++) {

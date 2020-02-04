@@ -32,36 +32,31 @@
 namespace tomocam {
 
     void iradon_(Partition<float> sino, Partition<float> output, float center, float over_sample,
-        DeviceArray<float> angles, kernel_t kernel, int device) {
+        float *angles, int device) {
 
         // initalize the device
         cudaSetDevice(device);
         cudaError_t status;
 
-        // streams and work-per-stream
-        MachineConfig &cfg = MachineConfig::getInstance();
-        int StreamSlices   = cfg.slicesPerStream();
-        int NumStreams     = cfg.streamsPerGPU();
-
         // input
         dim3_t idims  = sino.dims();
         float *h_data = sino.begin();
+
+        // copy angles to device memory
+        DeviceArray<float> d_angles = DeviceArray_fromHost(dim3_t(1, 1, idims.y), angles, 0);
+
+        // create kernel array
+        float beta = 12.566370614359172f;
+        float W    = 5.f;
+        static kernel_t kernel = kaiser_window(W, beta, 256);
 
         // output
         dim3_t odims  = output.dims();
         float *f_data = output.begin();
 
         int nStreams = 0, slcs = 0;
-        if (idims.x < NumStreams) {
-            slcs     = 1;
-            nStreams = idims.x;
-        } else if (idims.x < NumStreams * StreamSlices) {
-            slcs     = idims.x / NumStreams;
-            nStreams = NumStreams;
-        } else {
-            slcs     = StreamSlices;
-            nStreams = NumStreams;
-        }
+        MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
+
 
         size_t istreamSize = slcs * idims.y * idims.z;
         size_t ostreamSize = slcs * odims.y * odims.z;
@@ -72,9 +67,9 @@ namespace tomocam {
         std::vector<cudaStream_t> streams;
         for (int i = 0; i < nStreams; i++) {
             cudaStream_t temp;
+            cudaStreamCreate(&temp);
             streams.push_back(temp);
         }
-        for (auto &s : streams) cudaStreamCreate(&s);
 
         size_t offset1 = 0;
         size_t offset2 = 0;
@@ -85,7 +80,7 @@ namespace tomocam {
                 offset1 = i * istreamSize;
                 offset2 = i * ostreamSize;
                 stage_back_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    angles, kernel, streams[i]);
+                    d_angles, kernel, streams[i]);
             }
         }
 
@@ -107,7 +102,7 @@ namespace tomocam {
                 stream_idims.x = resSlcs[i];
                 stream_odims.x = resSlcs[i];
                 stage_back_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    angles, kernel, streams[i]);
+                    d_angles, kernel, streams[i]);
                 offset1 += resSlcs[i] * idims.y * idims.z;
                 offset2 += resSlcs[i] * odims.y * odims.z;
             }
@@ -122,52 +117,18 @@ namespace tomocam {
     void iradon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
 
-        #ifdef TOMOCAM_DEUB
-        int nDevice = 1;
-        #else
         int nDevice = MachineConfig::getInstance().num_of_gpus();
-        #endif
-        
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
 
-        // convolution kernel
-        kernel_t *kernels = new kernel_t[nDevice];
-        for (int i = 0; i < nDevice; i++) {
-            float beta = 12.566370614359172f;
-            float W    = 5.f;
-            kaiser_window(kernels[i], W, beta, 256, i);
-        }
-
-        // projection angles
-        DeviceArray<float> *dAngles = new DeviceArray<float>[nDevice];
-        dim3_t dims = input.dims();
-       
-        // copy to the available devices
-        for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            float *d_arr = NULL;
-            cudaMalloc((void **)&d_arr, sizeof(float) * dims.y);
-            cudaError_t e = cudaMemcpy(d_arr, angles, sizeof(float) * dims.y, cudaMemcpyHostToDevice);
-            if (e != cudaSuccess) {
-                std::cerr << "error! failed to copy data to device: " << i << std::endl;
-                throw e;
-            }
-            dAngles[i].set_size(dims.y);
-            dAngles[i].set_d_array(d_arr);
-        }
-
         // launch all the available devices
         std::vector<std::thread> threads;
-        for (int i = 0; i < p1.size(); i++) {
-            unsigned device = i % nDevice;
-            threads.push_back(std::thread(iradon_, p1[i], p2[i], center, over_sample, dAngles[i], kernels[i], device));
-        }
+        for (int i = 0; i < nDevice; i++)
+            threads.push_back(std::thread(iradon_, p1[i], p2[i], center, over_sample, angles, i));
 
         // wait for devices to finish
-        for (int i = 0; i < p1.size(); i++) {
-            int device = i % nDevice;
-            cudaSetDevice(device);
+        for (int i = 0; i < nDevice; i++) {
+            cudaSetDevice(i);
             cudaDeviceSynchronize();
             threads[i].join();
         }

@@ -85,16 +85,7 @@ namespace tomocam {
 
         int slcs     = 0;
         int nStreams = 0;
-        if (pDims.x < NumStreams) {
-            slcs     = 1;
-            nStreams = pDims.x;
-        } else if (pDims.x < NumStreams * StreamSlices) {
-            slcs     = pDims.x / NumStreams;
-            nStreams = NumStreams;
-        } else {
-            slcs     = StreamSlices;
-            nStreams = NumStreams;
-        }
+        MachineConfig::getInstance().update_work(pDims.x, slcs, nStreams);
 
         dim3_t dims(slcs, pDims.y, pDims.z);
         size_t streamSize  = slcs * dims.y * dims.z;

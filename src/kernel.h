@@ -23,7 +23,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-
+#include <math.h>
 #include "dev_array.h"
 
 namespace tomocam {
@@ -40,7 +40,7 @@ namespace tomocam {
       public:
         // constructor
         __host__ 
-        kernel_t(): radius_(2.f) {}
+        kernel_t(): radius_(0), beta_(1) {}
 
         // set radius
         __host__ 
@@ -65,6 +65,22 @@ namespace tomocam {
         __device__ 
         int imax(float d) { return (int) (d + radius_) + 1; }
 
+        #ifdef __NVCC__
+        // kaiser-bessel window
+        __device__ __forceinline__
+        float weight(float x) {
+            float M = 2 * radius_ + 1;
+            float w = 0.f;
+            if (fabsf(x) < radius_) {
+                float r = 2 * x / M;
+                float a = cyl_bessel_i0f(beta_ * sqrtf(1.f - r * r));
+                float b = cyl_bessel_i0f(beta_);
+                w = a/b;
+            }
+            return w;
+        }
+        #endif 
+ 
         // calculate weight at the distane using shared memory
         __device__ __forceinline__
         float weight(float r, int k, float * shamem) {

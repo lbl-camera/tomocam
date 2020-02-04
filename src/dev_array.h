@@ -25,6 +25,7 @@
 #include <cuda_runtime.h>
 
 #include "common.h"
+#include "dist_array.h"
 
 namespace tomocam {
 
@@ -37,7 +38,6 @@ namespace tomocam {
          * is responsible for calling the destructor.
          */
       protected:
-        int device_id_;
         dim3_t dims_;
         size_t size_;
         T *ptr_;
@@ -53,13 +53,15 @@ namespace tomocam {
         // explicit destructor
         void free() { if (ptr_) cudaFree(ptr_); }
 
-        // set device id
-        void set_device_id(int id){ device_id_= id; }
-
         // set size of the window
         void set_size(size_t len) { size_ = len; }
 
         void set_d_array(T * arr) { ptr_ = arr; }
+
+        void set_dims(dim3_t d) { 
+            dims_ = d;
+            size_ = d.x * d.y * d.z;
+        }
 
         // at some point we'll need access to the pointer
         __host__ __device__ 
@@ -69,22 +71,50 @@ namespace tomocam {
         __host__ __device__
         size_t size() const { return size_; }
 
-        // get device id
-        __host__ __device__
-        int device_id() const { return device_id_; }
-
-
         // get array dims
         __host__ __device__ 
         dim3_t dims() const { return dims_; }
 
-        // get reference to a location in the array
+        // indexing 1-D
+        __device__ 
+        T & operator[](int i) {
+            return ptr_[i];
+        }
+
+        // indexing 3-D
         __device__ 
         T & operator() (int i, int j, int k) {
             return ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
         }
     };
 
+
+    // convenience fuctions
+    template <typename T>
+    DeviceArray<T> DeviceArray_fromHost(Partition<T> p, cudaStream_t stream) {
+        T * ptr = NULL;
+        cudaMalloc((void **) &ptr, sizeof(T) * p.size());
+        cudaMemcpyAsync(ptr, p.begin(), sizeof(T) * p.size(), cudaMemcpyHostToDevice, stream);
+        DeviceArray<T> d_arr(p.dims(), ptr);
+        return d_arr;
+    }
+   
+    template <typename T>
+    DeviceArray<T> DeviceArray_fromHost(dim3_t dims, T *h_ptr, cudaStream_t stream) {
+        T * ptr = NULL;
+        size_t size = dims.x * dims.y * dims.z;
+        cudaMalloc((void **) &ptr, sizeof(T) * size);
+        cudaMemcpyAsync(ptr, h_ptr, sizeof(T) * size, cudaMemcpyHostToDevice, stream);
+        DeviceArray<T> d_arr(dims, ptr);
+        return d_arr;
+    }
+
+    template <typename T>
+    void copy_fromDeviceArray(Partition<T> dst, DeviceArray<T> src, cudaStream_t stream) {
+        cudaMemcpyAsync(dst.begin(), src.d_array(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+        src.free();
+    }
 } // namespace tomocam
 
 #endif // TOMOCAM_DEV_ARRAY__H

@@ -65,6 +65,7 @@ namespace tomocam {
             dim3_t d(imax-imin, dims_.y, dims_.z);
             table.push_back(Partition<T>(d, slice(imin)));
         }
+        return table;
     }
             
 
@@ -151,6 +152,7 @@ namespace tomocam {
             dim3_t d(imax-imin, dims_.y, dims_.z);
             table.push_back(Partition<T>(d, slice(imin)));
         } 
+        return table;
     }
 
     template <typename T>

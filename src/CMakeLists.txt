@@ -16,9 +16,10 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/gradient.cpp
     ${PROJECT_SOURCE_DIR}/stage_backward.cpp
     ${PROJECT_SOURCE_DIR}/stage_forward.cpp
+    ${PROJECT_SOURCE_DIR}/stage_gradient.cpp
     ${PROJECT_SOURCE_DIR}/iradon.cpp
     ${PROJECT_SOURCE_DIR}/radon.cpp
-    ${PROJECT_SOURCE_DIR}/total_var.cpp
+    ${PROJECT_SOURCE_DIR}/tvd_update.cpp
     )
 
 set(CUSRC 
@@ -29,6 +30,7 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/deapod.cu
     ${PROJECT_SOURCE_DIR}/rescale.cu
     ${PROJECT_SOURCE_DIR}/calc_error.cu
+    ${PROJECT_SOURCE_DIR}/cuTVD.cu
     )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
@@ -37,7 +39,7 @@ find_package(CUDA REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(LIBS ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES})
-set(CMAKE_CUDA_FLAGS_DEBUG "-G ${CMAKE_CUDA_FLAGS_DEBUG}")
+set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #python d
 find_package(PythonLibs REQUIRED) 
@@ -70,5 +72,8 @@ target_link_libraries(cTomocam PRIVATE dummy)
 
 add_executable(gridrec "test_gridrec.cpp")
 target_link_libraries(gridrec cTomocam)
+
+add_executable(tvd "test_tvd.cpp")
+target_link_libraries(tvd cTomocam)
 
 install(TARGETS cTomocam LIBRARY DESTINATION tomocam)

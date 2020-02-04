@@ -13,21 +13,20 @@ namespace tomocam {
         }
     }
 
-    void kaiser_window(kernel_t &kernel, float width, float beta, size_t len, int device) {
-        cudaSetDevice(device);
-
-        kernel.set_size(len);
-        kernel.set_device_id(device);
-        kernel.set_radius(0.5 * (width - 1));
-        kernel.set_beta(beta);
+    kernel_t kaiser_window(float width, float beta, size_t len) {
 
         dim3 threads(256);
         dim3 tblocks(len / threads.x + 1);
 
         float *d_window = NULL;
         cudaMalloc((void **) &d_window, len * sizeof(float));
-        kaiser <<< tblocks, threads >>> (d_window, width, beta, len);
-        kernel.set_d_array(d_window);
-    }
 
+        kaiser <<< tblocks, threads >>> (d_window, width, beta, len);
+        kernel_t kernel;
+        kernel.set_radius((width-1)/2);
+        kernel.set_beta(beta);
+        kernel.set_dims(dim3_t(1, 1, len));
+        kernel.set_d_array(d_window);
+        return kernel;
+    }
 } // namespace tomocam

@@ -13,10 +13,17 @@ namespace tomocam {
     // TODO document
     void iradon(DArray<float> &, DArray<float> &, float *, float, float);
 
-
     // TODO document
     void radon(DArray<float> &, DArray<float> &, float *, float, float);
 
+    // TODO document
+    void gradient(DArray<float> &, DArray<float> &, float *, float, float);
+
+    // TODO document
+    void add_total_var(DArray<float> &, DArray<float> &, float , float);
+
+    // TODO document
+    float lipschitz();
 
 } // namespace tomocam
 

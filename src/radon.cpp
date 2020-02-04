@@ -32,7 +32,7 @@
 namespace tomocam {
 
     void radon_(Partition<float> input, Partition<float> sino, float center, float over_sample,
-        DeviceArray<float> angles, kernel_t kernel, int device) {
+        float *angles, int device) {
 
         // initalize the device
         cudaSetDevice(device);
@@ -50,6 +50,14 @@ namespace tomocam {
         // output
         dim3_t odims  = sino.dims();
         float *f_data = sino.begin();
+
+        // convolution kernel
+        float beta = 12.566370614359172f;
+        float W    = 5.f;
+        kernel_t kernel = kaiser_window(W, beta, 256);
+
+        // projection angles
+        DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
 
         int nStreams = 0, slcs = 0;
         if (idims.x < NumStreams) {
@@ -85,7 +93,7 @@ namespace tomocam {
                 offset1 = i * istreamSize;
                 offset2 = i * ostreamSize;
                 stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    angles, kernel, streams[i]);
+                    d_angles, kernel, streams[i]);
             }
         }
 
@@ -107,7 +115,7 @@ namespace tomocam {
                 stream_idims.x = resSlcs[i];
                 stream_odims.x = resSlcs[i];
                 stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    angles, kernel, streams[i]);
+                    d_angles, kernel, streams[i]);
                 offset1 += resSlcs[i] * idims.y * idims.z;
                 offset2 += resSlcs[i] * odims.y * odims.z;
             }
@@ -122,48 +130,18 @@ namespace tomocam {
     void radon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
 
-        //int nDevice                      = MachineConfig::getInstance().num_of_gpus();
-        int nDevice                      = 1;
+        int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
-
-        // convolution kernel
-        kernel_t *kernels = new kernel_t[nDevice];
-        for (int i = 0; i < nDevice; i++) {
-            float beta = 12.566370614359172f;
-            float W    = 5.f;
-            kaiser_window(kernels[i], W, beta, 256, i);
-        }
-
-        // projection angles
-        DeviceArray<float> *dAngles = new DeviceArray<float>[nDevice];
-        dim3_t dims = input.dims();
-       
-        // copy to the available devices
-        for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            float *d_arr = NULL;
-            cudaMalloc((void **)&d_arr, sizeof(float) * dims.y);
-            cudaError_t e = cudaMemcpy(d_arr, angles, sizeof(float) * dims.y, cudaMemcpyHostToDevice);
-            if (e != cudaSuccess) {
-                std::cerr << "error! failed to copy data to device: " << i << std::endl;
-                throw e;
-            }
-            dAngles[i].set_size(dims.y);
-            dAngles[i].set_d_array(d_arr);
-        }
-
+        //
         // launch all the available devices
         std::vector<std::thread> threads;
-        for (int i = 0; i < p1.size(); i++) {
-            unsigned device = i % nDevice;
-            threads.push_back(std::thread(radon_, p1[i], p2[i], center, over_sample, dAngles[i], kernels[i], device));
-        }
+        for (int i = 0; i < nDevice; i++) 
+            threads.push_back(std::thread(radon_, p1[i], p2[i], center, over_sample, angles, i));
 
         // wait for devices to finish
-        for (int i = 0; i < p1.size(); i++) {
-            int device = i % nDevice;
-            cudaSetDevice(device);
+        for (int i = 0; i < nDevice; i++) {
+            cudaSetDevice(i);
             cudaDeviceSynchronize();
             threads[i].join();
         }
