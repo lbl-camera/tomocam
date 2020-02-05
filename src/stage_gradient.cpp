@@ -19,6 +19,7 @@
  */
 #include <iostream>
 
+#include "dist_array.h"
 #include "dev_array.h"
 #include "kernel.h"
 #include "fft.h"
@@ -27,10 +28,13 @@
 
 namespace tomocam {
 
-    void calc_gradient(float *model, float *data, dim3_t idims, dim3_t odims, float over_sampling, float center,
-        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
+    void calc_gradient(Partition<float> model, Partition<float> data, 
+            float over_sampling, float center,
+            DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
         // working dimensions
+        dim3_t idims = model.dims();
+        dim3_t odims = data.dims();
         size_t nelems = idims.x * idims.y * idims.z;
         size_t padded = (size_t)((float)idims.z * over_sampling);
         dim3_t pad_idims(idims.x, padded, padded);
@@ -66,7 +70,7 @@ namespace tomocam {
         cudaMemsetAsync(d_sino, 0, ostreamSize * sizeof(cuComplex_t), stream);
 
         // copy data to streams (real -> complex)
-        status = cudaMemcpy2DAsync(temp, sizeof(cuComplex_t), model, sizeof(float), sizeof(float),
+        status = cudaMemcpy2DAsync(temp, sizeof(cuComplex_t), model.begin(), sizeof(float), sizeof(float),
             nelems, cudaMemcpyHostToDevice, stream);
         if (status != cudaSuccess) {
             std::cerr << "Error! failed to copy F2C data to device. " << status << std::endl;
@@ -97,7 +101,7 @@ namespace tomocam {
         float * d_sino_data = NULL;
         size_t data_size = odims.x * odims.y * odims.z;
         cudaMalloc((void **) &d_sino_data, data_size * sizeof(float));
-        cudaMemcpyAsync(d_sino_data, data, data_size * sizeof(float), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_sino_data, data.begin(), data_size * sizeof(float), cudaMemcpyHostToDevice, stream);
         calc_error(d_sino, d_sino_data, pad_odims, odims, stream);
 
         // set d_model to zero
@@ -126,7 +130,7 @@ namespace tomocam {
 
         // copy data back to host
         status = cudaMemcpy2DAsync(
-            model, sizeof(float), temp2, sizeof(cuComplex_t), sizeof(float), nelems, cudaMemcpyDeviceToHost, stream);
+            model.begin(), sizeof(float), temp2, sizeof(cuComplex_t), sizeof(float), nelems, cudaMemcpyDeviceToHost, stream);
         if (status != cudaSuccess) {
             std::cerr << "Error! failed to copy C2F data from device. " << status << std::endl;
             throw status;

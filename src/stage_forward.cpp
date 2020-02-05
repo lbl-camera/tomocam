@@ -20,6 +20,7 @@
 
 #include <iostream>
 
+#include "dist_array.h"
 #include "dev_array.h"
 #include "kernel.h"
 #include "fft.h"
@@ -28,10 +29,13 @@
 
 namespace tomocam {
 
-    void stage_fwd_project(float *input, float *output, dim3_t idims, dim3_t odims, float over_sampling, float center,
-        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
+    void stage_fwd_project(Partition<float> input, Partition<float> output, 
+            float over_sampling, float center,
+            DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
         // working dimensions
+        dim3_t idims = input.dims();
+        dim3_t odims = output.dims();
         size_t nelems = idims.x * idims.y * idims.z;
         size_t padded = (size_t)((float)idims.z * over_sampling);
         dim3_t pad_idims(idims.x, padded, padded);
@@ -67,7 +71,7 @@ namespace tomocam {
         cudaMemsetAsync(d_output, 0, ostreamSize * sizeof(cuComplex_t), stream);
 
         // copy data to streams (real -> complex)
-        status = cudaMemcpy2DAsync(temp, sizeof(cuComplex_t), input, sizeof(float), sizeof(float),
+        status = cudaMemcpy2DAsync(temp, sizeof(cuComplex_t), input.begin(), sizeof(float), sizeof(float),
             nelems, cudaMemcpyHostToDevice, stream);
         if (status != cudaSuccess) {
             std::cerr << "Error! failed to copy F2C data to device. " << status << std::endl;
@@ -111,7 +115,7 @@ namespace tomocam {
 
         // copy data back to host
         status = cudaMemcpy2DAsync(
-            output, sizeof(float), temp2, sizeof(cuComplex_t), sizeof(float), nelems, cudaMemcpyDeviceToHost, stream);
+            output.begin(), sizeof(float), temp2, sizeof(cuComplex_t), sizeof(float), nelems, cudaMemcpyDeviceToHost, stream);
         if (status != cudaSuccess) {
             std::cerr << "Error! failed to copy C2F data from device. " << status << std::endl;
             throw status;

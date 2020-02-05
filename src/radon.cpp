@@ -64,8 +64,7 @@ namespace tomocam {
 
         for (int i = 0; i < sub_inputs.size(); i++) {
             int i_stream = i % nStreams; 
-                stage_fwd_project(sub_inputs[i].begin(), sub_sinos[i].begin(),
-                    sub_inputs[i].dims(), sub_sinos[i].dims(), over_sample, center,
+                stage_fwd_project(sub_inputs[i], sub_sinos[i], over_sample, center,
                     d_angles, kernel, streams[i_stream]);
             }
 

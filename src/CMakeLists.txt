@@ -60,13 +60,13 @@ set_target_properties(dummy PROPERTIES
                       CUDA_VISIBILITY_PRESET "hidden"
                      )
 
-#add_library(cTomocam MODULE ${SRC})
+                 #add_library(cTomocam MODULE ${SRC})
 add_library(cTomocam ${SRC})
 
-#set_target_properties(cTomocam PROPERTIES 
-#                      CXX_VISIBILITY_PRESET "hidden" 
-#                      PREFIX "${PYTHON_MODULE_PREFIX}" 
-#                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
+set_target_properties(cTomocam PROPERTIES 
+                      CXX_VISIBILITY_PRESET "hidden" 
+                      PREFIX "${PYTHON_MODULE_PREFIX}" 
+                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
 target_link_libraries(cTomocam PRIVATE ${LIBS})
 target_link_libraries(cTomocam PRIVATE dummy)
 
@@ -76,4 +76,6 @@ target_link_libraries(gridrec cTomocam)
 add_executable(tvd "test_tvd.cpp")
 target_link_libraries(tvd cTomocam)
 
-install(TARGETS cTomocam LIBRARY DESTINATION tomocam)
+install(TARGETS cTomocam 
+        ARCHIVE DESTINATION tomocam
+        LIBRARY DESTINATION tomocam)

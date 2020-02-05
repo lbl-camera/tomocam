@@ -30,7 +30,7 @@ namespace tomocam {
     void back_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
-    void stage_back_project(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void stage_back_project(Partition<float> , Partition<float> , float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void polarsample_transpose(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
@@ -39,13 +39,13 @@ namespace tomocam {
     void fwd_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
-    void stage_fwd_project(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void stage_fwd_project(Partition<float>, Partition<float>, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void polarsample(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
-    void calc_gradient(float *, float *, dim3_t, dim3_t, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void calc_gradient(Partition<float>, Partition<float>, float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void add_total_var(DeviceArray<float>, DeviceArray<float>, float, float, cudaStream_t);
