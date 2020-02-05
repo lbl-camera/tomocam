@@ -27,7 +27,6 @@
 #include "machine.h"
 #include "internals.h"
 #include "types.h"
-#include "util.h"
 
 namespace tomocam {
 
@@ -36,11 +35,10 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
-        cudaError_t status;
 
-        // input
+        // input and output dimensions
         dim3_t idims  = sino.dims();
-        float *h_data = sino.begin();
+        dim3_t odims  = output.dims();
 
         // copy angles to device memory
         DeviceArray<float> d_angles = DeviceArray_fromHost(dim3_t(1, 1, idims.y), angles, 0);
@@ -50,18 +48,11 @@ namespace tomocam {
         float W    = 5.f;
         static kernel_t kernel = kaiser_window(W, beta, 256);
 
-        // output
-        dim3_t odims  = output.dims();
-        float *f_data = output.begin();
-
+        // create smaller partitions
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
-
-
-        size_t istreamSize = slcs * idims.y * idims.z;
-        size_t ostreamSize = slcs * odims.y * odims.z;
-        dim3_t stream_idims(slcs, idims.y, idims.z);
-        dim3_t stream_odims(slcs, odims.y, odims.z);
+        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(slcs);
+        std::vector<Partition<float>> sub_outputs = output.sub_partitions(slcs);
 
         // create cudaStreams
         std::vector<cudaStream_t> streams;
@@ -71,45 +62,16 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
-        size_t offset1 = 0;
-        size_t offset2 = 0;
-        int nIters     = idims.x / (nStreams * slcs);
-        for (int i = 0; i < nIters; i++) {
-            // launch concurrent kernels
-            for (int i = 0; i < nStreams; i++) {
-                offset1 = i * istreamSize;
-                offset2 = i * ostreamSize;
-                stage_back_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    d_angles, kernel, streams[i]);
-            }
+        for (int i = 0; i < sub_sinos.size(); i++) {
+            int i_stream = i % nStreams;
+            stage_back_project(sub_sinos[i].begin(), sub_outputs[i].begin(), 
+                    sub_sinos[i].dims(), sub_outputs[i].dims(), over_sample, center,
+                    d_angles, kernel, streams[i_stream]);
         }
 
-        // left-over data that didn't fit into equal-sized chunks
-        int nResidual = idims.x % (slcs * nStreams);
-        if (nResidual > 0) {
-            std::vector<int> resSlcs;
-
-            if (nResidual < nStreams) {
-                resSlcs.assign(nResidual, 1);
-                nStreams = nResidual;
-            } else
-                resSlcs = distribute(nResidual, nStreams);
-
-            // lauch kernels on rest of the data
-            offset1 = 0;
-            offset2 = 0;
-            for (int i = 0; i < nStreams; i++) {
-                stream_idims.x = resSlcs[i];
-                stream_odims.x = resSlcs[i];
-                stage_back_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    d_angles, kernel, streams[i]);
-                offset1 += resSlcs[i] * idims.y * idims.z;
-                offset2 += resSlcs[i] * odims.y * odims.z;
-            }
-            for (auto s : streams) {
-                cudaStreamSynchronize(s);
-                cudaStreamDestroy(s);
-            }
+        for (auto s : streams) {
+            cudaStreamSynchronize(s);
+            cudaStreamDestroy(s);
         }
     }
 

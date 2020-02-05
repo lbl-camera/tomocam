@@ -27,7 +27,6 @@
 #include "machine.h"
 #include "internals.h"
 #include "types.h"
-#include "util.h"
 
 namespace tomocam {
 
@@ -36,21 +35,12 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
-        cudaError_t status;
 
-        // streams and work-per-stream
-        MachineConfig &cfg = MachineConfig::getInstance();
-        int StreamSlices   = cfg.slicesPerStream();
-        int NumStreams     = cfg.streamsPerGPU();
+        // size of input and output partitions
+        dim3_t idims = input.dims();
+        dim3_t odims = sino.dims();
 
-        // input
-        dim3_t idims  = input.dims();
-        float *h_data = input.begin();
-
-        // output
-        dim3_t odims  = sino.dims();
-        float *f_data = sino.begin();
-
+        // TODO this is ugly
         // convolution kernel
         float beta = 12.566370614359172f;
         float W    = 5.f;
@@ -60,69 +50,28 @@ namespace tomocam {
         DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
 
         int nStreams = 0, slcs = 0;
-        if (idims.x < NumStreams) {
-            slcs     = 1;
-            nStreams = idims.x;
-        } else if (idims.x < NumStreams * StreamSlices) {
-            slcs     = idims.x / NumStreams;
-            nStreams = NumStreams;
-        } else {
-            slcs     = StreamSlices;
-            nStreams = NumStreams;
-        }
-
-        size_t istreamSize = slcs * idims.y * idims.z;
-        size_t ostreamSize = slcs * odims.y * odims.z;
-        dim3_t stream_idims(slcs, idims.y, idims.z);
-        dim3_t stream_odims(slcs, odims.y, odims.z);
+        MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
+        std::vector<Partition<float>> sub_inputs = input.sub_partitions(slcs);
+        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(slcs);
 
         // create cudaStreams
         std::vector<cudaStream_t> streams;
         for (int i = 0; i < nStreams; i++) {
             cudaStream_t temp;
+            cudaStreamCreate(&temp);
             streams.push_back(temp);
         }
-        for (auto &s : streams) cudaStreamCreate(&s);
 
-        size_t offset1 = 0;
-        size_t offset2 = 0;
-        int nIters     = idims.x / (nStreams * slcs);
-        for (int i = 0; i < nIters; i++) {
-            // launch concurrent kernels
-            for (int i = 0; i < nStreams; i++) {
-                offset1 = i * istreamSize;
-                offset2 = i * ostreamSize;
-                stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    d_angles, kernel, streams[i]);
+        for (int i = 0; i < sub_inputs.size(); i++) {
+            int i_stream = i % nStreams; 
+                stage_fwd_project(sub_inputs[i].begin(), sub_sinos[i].begin(),
+                    sub_inputs[i].dims(), sub_sinos[i].dims(), over_sample, center,
+                    d_angles, kernel, streams[i_stream]);
             }
-        }
 
-        // left-over data that didn't fit into equal-sized chunks
-        int nResidual = idims.x % (slcs * nStreams);
-        if (nResidual > 0) {
-            std::vector<int> resSlcs;
-
-            if (nResidual < nStreams) {
-                resSlcs.assign(nResidual, 1);
-                nStreams = nResidual;
-            } else
-                resSlcs = distribute(nResidual, nStreams);
-
-            // lauch kernels on rest of the data
-            offset1 = 0;
-            offset2 = 0;
-            for (int i = 0; i < nStreams; i++) {
-                stream_idims.x = resSlcs[i];
-                stream_odims.x = resSlcs[i];
-                stage_fwd_project(h_data + offset1, f_data + offset2, stream_idims, stream_odims, over_sample, center,
-                    d_angles, kernel, streams[i]);
-                offset1 += resSlcs[i] * idims.y * idims.z;
-                offset2 += resSlcs[i] * odims.y * odims.z;
-            }
-            for (auto s : streams) {
-                cudaStreamSynchronize(s);
-                cudaStreamDestroy(s);
-            }
+        for (auto s : streams) {
+            cudaStreamSynchronize(s);
+            cudaStreamDestroy(s);
         }
     }
 
@@ -146,5 +95,4 @@ namespace tomocam {
             threads[i].join();
         }
     }
-
 } // namespace tomocam
