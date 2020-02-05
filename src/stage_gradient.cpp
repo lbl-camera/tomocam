@@ -122,8 +122,8 @@ namespace tomocam {
             throw status;
         }
         for (int i = 0; i < odims.x * odims.y; i++) {
-            size_t offset1 = i * idims.y * idims.z;
-            size_t offset2 = i * pad_idims.y * pad_odims.z;
+            size_t offset1 = i * idims.z;
+            size_t offset2 = i * pad_odims.z;
             status = cudaMemcpyAsync(
                     temp2 + offset1, d_model + offset2, sizeof(cuComplex_t) * odims.z, cudaMemcpyDeviceToDevice, stream);
         }
