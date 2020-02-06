@@ -43,6 +43,8 @@ namespace tomocam {
         size_t padded = (size_t)((float)idims.z * over_sampling);
         dim3_t pad_idims(idims.x, idims.y, padded);
         dim3_t pad_odims(odims.x, padded, padded);
+        size_t ipad = (pad_odims.z - odims.z)/2;
+        center += ipad;
 
         // data sizes
         size_t istreamSize = pad_idims.x * pad_idims.y * pad_idims.z;
@@ -84,12 +86,13 @@ namespace tomocam {
         // pad data for oversampling
         int nrows = idims.x * idims.y;
         for (int i = 0; i < nrows; i++) {
-            size_t offset1 = i * idims.z;
-            size_t offset2 = i * padded;
-            status         = cudaMemcpyAsync(
-                d_input + offset2, temp + offset1, sizeof(cuComplex_t) * idims.z, cudaMemcpyDeviceToDevice, stream);
+            size_t offset1 = i * padded + ipad;
+            size_t offset2 = i * idims.z;
+
+            status = cudaMemcpyAsync(
+                d_input + offset1, temp + offset2, sizeof(cuComplex_t) * idims.z, cudaMemcpyDeviceToDevice, stream);
             if (status != cudaSuccess) {
-                std::cerr << "Error! failed to copy data to device. " << status << std::endl;
+                std::cerr << "Error! failed to copy data to device (paddig). " << status << std::endl;
                 throw status;
             }
         }
@@ -106,7 +109,6 @@ namespace tomocam {
             std::cerr << "Error! failed to allocate memory on device " << status << std::endl;
             throw status;
         }
-        size_t ipad = (pad_odims.z - odims.z)/2;
         for (int i = 0; i < odims.x; i++)
             for (int j = 0; j < odims.y; j++) {
                 size_t offset1 = i * odims.y * odims.z + j * odims.z;

@@ -39,6 +39,8 @@ namespace tomocam {
         size_t padded = (size_t)((float)idims.z * over_sampling);
         dim3_t pad_idims(idims.x, padded, padded);
         dim3_t pad_odims(odims.x, odims.y, padded);
+        size_t ipad = (padded - idims.z)/2;
+        center += ipad;
 
         // data sizes
         size_t istreamSize = pad_idims.x * pad_idims.y * pad_idims.z;
@@ -78,7 +80,6 @@ namespace tomocam {
         }
 
         // pad data for oversampling
-        int ipad = (padded - idims.z) / 2;
         for (int i = 0; i < idims.x; i++)
             for (int j = 0; j < idims.y; j++) {
                 size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z + ipad;

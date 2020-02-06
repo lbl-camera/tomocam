@@ -40,7 +40,8 @@ namespace tomocam {
         size_t padded = (size_t)((float)idims.z * over_sampling);
         dim3_t pad_idims(idims.x, padded, padded);
         dim3_t pad_odims(odims.x, odims.y, padded);
-
+        size_t ipad = (padded - idims.z) / 2;
+        center += ipad;
         // data sizes
         size_t istreamSize = pad_idims.x * pad_idims.y * pad_idims.z;
         size_t ostreamSize = pad_odims.x * pad_odims.y * pad_odims.z;
@@ -79,10 +80,9 @@ namespace tomocam {
         }
 
         // pad data for oversampling
-        int ipad = (padded - idims.z) / 2;
         for (int i = 0; i < idims.x; i++)
             for (int j = 0; j < idims.y; j++) {
-                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z + ipad;
+                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z;
                 size_t offset2 = i * idims.y * idims.z + j * idims.z;
 
                 status = cudaMemcpyAsync(
@@ -107,8 +107,7 @@ namespace tomocam {
         }
         for (int i = 0; i < odims.x * odims.y; i++) {
             size_t offset1 = i * odims.z;
-            size_t offset2 = i * pad_odims.z;
-
+            size_t offset2 = i * pad_odims.z + ipad;
             status = cudaMemcpyAsync(
                     temp2 + offset1, d_output + offset2, sizeof(cuComplex_t) * odims.z, cudaMemcpyDeviceToDevice, stream);
         }

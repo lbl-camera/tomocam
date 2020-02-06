@@ -60,15 +60,6 @@ namespace tomocam {
         }
     }
 
-    __global__ void ifftshift_center_kernel(cuComplex_t *arr, size_t len, size_t batches, float shift) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        if (i < len * batches) {
-            float k = (float)(i % len) / (float) len;
-            float w = TWOPI * shift * k;
-            arr[i]  = arr[i] * expf_j(w);
-        }
-    }
-
     // multiply by -1^i
     void fftshift1D(cuComplex_t *arr, dim3_t dims, cudaStream_t stream) {
         size_t nelem = dims.x * dims.y * dims.z;
@@ -97,7 +88,7 @@ namespace tomocam {
         size_t nelem = dims.x * dims.y * dims.z;
         dim3 threads(256, 1, 1);
         dim3 tblocks(nelem / threads.x + 1, 1, 1);
-        ifftshift_center_kernel<<< tblocks, threads, 0, stream >>>(arr, dims.z, dims.x * dims.y, center);
+        fftshift_center_kernel<<< tblocks, threads, 0, stream >>>(arr, dims.z, dims.x * dims.y, -center);
     }
 
 } // namespace tomocam
