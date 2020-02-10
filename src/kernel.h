@@ -23,7 +23,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <math.h>
 #include "dev_array.h"
 
 namespace tomocam {
@@ -59,11 +58,11 @@ namespace tomocam {
        
         // farthest index in negative direction
         __device__ 
-        int imin(float d) { return (int) (d - radius_) - 1; }
+        int imin(float d) { return (int) (d - radius_) + 1; }
 
         // farthest index in positive direction 
         __device__ 
-        int imax(float d) { return (int) (d + radius_) + 1; }
+        int imax(float d) { return (int) (d + radius_); }
 
         #ifdef __NVCC__
         // kaiser-bessel window
@@ -79,7 +78,6 @@ namespace tomocam {
             }
             return w;
         }
-        #endif 
  
         // calculate weight at the distane using shared memory
         __device__ __forceinline__
@@ -106,6 +104,9 @@ namespace tomocam {
             else 
                 return 0;
         }
+        #endif // __NVCC__
+ 
+        // calculate weight at the distane using shared memory
     };
 } // namespace tomocam
 

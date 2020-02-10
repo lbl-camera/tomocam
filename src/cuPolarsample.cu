@@ -27,8 +27,8 @@
 namespace tomocam {
 
     __global__ 
-    void cart2polar_nufft(int3 idims, int3 odims, cuComplex_t *input, float *angles,
-        kernel_t kernel, cuComplex_t *output) {
+    void cart2polar_nufft(dim3_t idims, dim3_t odims, cuComplex_t *input, 
+        DeviceArray<float> angles, kernel_t kernel, cuComplex_t *output) {
 
         // get global index
         int gid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -46,11 +46,11 @@ namespace tomocam {
 
             size_t offset = 0;
             for (int j = 0; j < niters; j++) {
-                offset                             = j * blockDim.x;
-                shamem_kfunc[threadIdx.x + offset] = kernel.d_array()[threadIdx.x + offset];
+                offset = j * blockDim.x;
+                shamem_kfunc[threadIdx.x + offset] = kernel[threadIdx.x + offset];
             }
             if ((nextra > 0) && (threadIdx.x < nextra))
-                shamem_kfunc[threadIdx.x + offset] = kernel.d_array()[threadIdx.x + offset];
+                shamem_kfunc[threadIdx.x + offset] = kernel[threadIdx.x + offset];
 
             // polar coordinates
             float c = (float) (odims.z) * 0.5;
@@ -69,21 +69,16 @@ namespace tomocam {
                 for (int ix = ixmin; ix < ixmax; ix++) {
                     int idx = islc * idims.y * idims.z + iy * idims.z + ix;
                     float wx = kernel.weight(x, ix, shamem_kfunc);
-                    output[gid] = output[gid] + input[idx] * wy * wy; 
+                    output[gid] = output[gid] + input[idx] * wx * wy; 
                 }
             }
         }
     }
 
-    void polarsample(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims, DeviceArray<float> angles,
-        kernel_t kernel, cudaStream_t stream) {
-
-        // polar-coordinates
-        float *d_angles = angles.d_array();
+    void polarsample(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims, 
+        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
         // input and output dimensions
-        int3 d_idims = make_int3(idims.x, idims.y, idims.z);
-        int3 d_odims = make_int3(odims.x, odims.y, odims.z);
         int kdims    = kernel.size();
 
         // cuda kernel params
@@ -93,6 +88,6 @@ namespace tomocam {
 
         // launch CUDA kernel
         cart2polar_nufft<<< tblocks, nthread, kdims * sizeof(float), stream>>>(
-            d_idims, d_odims, input, d_angles, kernel, output); 
+            idims, odims, input, angles, kernel, output); 
     }
 } // namespace tomocam

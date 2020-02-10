@@ -82,7 +82,7 @@ namespace tomocam {
         // pad data for oversampling
         for (int i = 0; i < idims.x; i++)
             for (int j = 0; j < idims.y; j++) {
-                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z;
+                size_t offset1 = i * pad_idims.y * pad_idims.z + (j + ipad) * pad_idims.z + ipad;
                 size_t offset2 = i * idims.y * idims.z + j * idims.z;
 
                 status = cudaMemcpyAsync(

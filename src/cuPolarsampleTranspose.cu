@@ -27,8 +27,8 @@
 namespace tomocam {
 
     __global__ 
-    void polar2cart_nufft(dim3_t idims, dim3_t odims, cuComplex_t *input, float *angles,
-        kernel_t kernel, cuComplex_t *output) {
+    void polar2cart_nufft(dim3_t idims, dim3_t odims, cuComplex_t *input, 
+        DeviceArray<float> angles, kernel_t kernel, cuComplex_t *output) {
 
         // get global index
         int gid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -82,9 +82,6 @@ namespace tomocam {
     void polarsample_transpose(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims,
         DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
-        // polar-coordinates
-        float *d_angles = angles.d_array();
-
         // input and output dimensions
         int kdims     = kernel.size();
 
@@ -95,6 +92,6 @@ namespace tomocam {
 
         // launch CUDA kernel
         polar2cart_nufft <<<tblocks, nthread, kdims * sizeof(float), stream>>> (
-            idims, odims, input, d_angles, kernel, output);
+            idims, odims, input, angles, kernel, output);
     }
 } // namespace tomocam

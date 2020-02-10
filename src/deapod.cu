@@ -69,7 +69,7 @@ namespace tomocam {
         float nmax = (float) cols;
         float cen  = (float) (cols / 2);
         if (i < rows * cols) {
-            int j = i % rows;
+            int j = i % cols;
             float x = (j - cen) /  nmax;
             float wx  = kaiser_fourier_trans(x, W, beta);
             arr[i].x = arr[i].x / wx;
