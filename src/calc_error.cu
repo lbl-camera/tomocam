@@ -38,7 +38,7 @@ namespace tomocam {
                 model[m_id].y = 0.f;
             } else {
                 int d_id = i * d2.y * d2.z + j * d2.z + k - ipad;
-                model[m_id].x = data[d_id] - model[m_id].x;
+                model[m_id].x = model[m_id].x - data[d_id];
                 model[m_id].y = 0.f;
             }
         }
