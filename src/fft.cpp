@@ -43,7 +43,10 @@ namespace tomocam {
         cufftHandle plan;
         cufftResult status = cufftPlanMany(&plan, rank, n, NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batches);
         if (status != CUFFT_SUCCESS) {
-            std::cerr << "Failed to make a plan. Error code: " << status << std::endl;
+            int dev = -1;
+            cudaGetDevice(&dev);
+            std::cerr << "Failed to make a plan on device " << dev << "." << std::endl;
+            std::cerr << "Error code: " << status << std::endl;
             throw status;
         }
         return plan;
@@ -62,7 +65,10 @@ namespace tomocam {
         cufftHandle plan;
         cufftResult status = cufftPlanMany(&plan, rank, n, NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batches);
         if (status != CUFFT_SUCCESS) {
-            std::cerr << "Failed to make a plan. Error code: " << status << std::endl;
+            int dev = -1;
+            cudaGetDevice(&dev);
+            std::cerr << "Failed to make a plan on device " << dev << "." << std::endl;
+            std::cerr << "Error code: " << status << std::endl;
             throw status;
         }
         return plan;
