@@ -23,9 +23,6 @@ namespace tomocam {
     // TODO document
     void deApodize2D(cuComplex_t *, dim3_t, float, float, cudaStream_t);
 
-    // TODO document (find appropriate place for function declaration 
-    kernel_t kaiser_window(float, float, size_t);
-
     // TODO document
     void back_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
