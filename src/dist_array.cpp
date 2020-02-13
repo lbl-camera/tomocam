@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <cuda_runtime.h>
 #include <iostream>
 
 namespace tomocam {
@@ -86,12 +85,7 @@ namespace tomocam {
         size_     = dims_.x * dims_.y * dims_.z;
 
         // allocate memory for the array
-        size_t buffersize = sizeof(T) * size_;
-        cudaError_t status = cudaMallocHost((void **)&buffer_, buffersize);
-        if (status != cudaSuccess) {
-            std::cerr << "error: failed to allocate memeory. Exiting cowardly" << std::endl;
-            exit(1);
-        }
+        buffer_ = new T [size_];
     }
     // for calling from python
     template <typename T>
@@ -102,14 +96,12 @@ namespace tomocam {
         size_     = dims_.x * dims_.y * dims_.z;
 
         // allocate memory for the array
-        size_t buffersize = sizeof(T) * size_;
-        cudaMallocHost((void **)&buffer_, buffersize);
+        buffer_ = new T [size_];
     }
 
     template <typename T>
     DArray<T>::~DArray() {
-        cudaDeviceSynchronize();
-        if (buffer_) cudaFree(buffer_);
+        if (buffer_) delete [] buffer_;
     }
 
     template <typename T>
