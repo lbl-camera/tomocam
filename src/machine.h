@@ -33,11 +33,7 @@ namespace tomocam {
         int slcsPerStream_;
         MachineConfig() {
 
-            #ifndef DNDEBUG
-            ndevice_ = 1;
-            #else
             cudaGetDeviceCount(&ndevice_);
-            #endif
 
             //    check avilable GPU for managed memory access
             std::vector<int> devices;
