@@ -89,6 +89,7 @@ namespace tomocam {
         int rows() const { return dims_.y; }
         int cols() const { return dims_.z; }
         int size() const { return size_; }
+        size_t bytes() const { return size_ * sizeof(T); }
 
         // indexing
         T &operator()(int);
