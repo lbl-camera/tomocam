@@ -47,7 +47,7 @@ namespace tomocam {
         cufftDestroy(p1);
 
         // rescale FFT(X) / N
-        float scale = 1.f / ((float) (idims.z));
+        float scale = 1.f / ((float) (idims.z * idims.z));
         rescale(input, idims, scale, stream);
         cudaStreamSynchronize(stream);
 
@@ -58,7 +58,7 @@ namespace tomocam {
         // covolution with kernel
         polarsample_transpose(input, output, idims, odims, angles, kernel, stream);
         cudaStreamSynchronize(stream);
-   
+ 
         // fftshift
         fftshift2D(output, odims, stream);
         cudaStreamSynchronize(stream);
