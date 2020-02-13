@@ -27,33 +27,6 @@
 #include "internals.h"
 #include "types.h"
 
-#ifdef TOMOCAM_DEBUG
-#include <fstream>
-
-void write_output(cuComplex_t * data, tomocam::dim3_t dims) {
-
-    size_t SIZE = dims.y * dims.z;
-    float * real = new float[SIZE];
-    float * imag = new float[SIZE];
-
-    float * tmp = (float *) data;
-    cudaMemcpy2D(real, sizeof(float), tmp, sizeof(cuComplex_t), sizeof(float), SIZE, cudaMemcpyDeviceToHost);
-    cudaMemcpy2D(imag, sizeof(float), tmp+1, sizeof(cuComplex_t), sizeof(float), SIZE, cudaMemcpyDeviceToHost);
-
-    std::ofstream fp("real.out", std::fstream::out);
-    fp.write((char *) real, SIZE * sizeof(float));
-    fp.close();
-    
-    std::ofstream fq("imag.out", std::fstream::out);
-    fq.write((char *) imag, SIZE * sizeof(float));
-    fq.close();
-    
-    exit(1);
-}
-#else // TOMOCAM_DEBUG
-void write_output(cuComplex_t * data, tomocam::dim3_t dims) { return; }
-#endif  // TOMOCAM_DEBUG
-
 namespace tomocam {
 
     void fwd_project(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims, float center,
