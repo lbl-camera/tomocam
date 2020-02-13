@@ -40,19 +40,6 @@ namespace tomocam {
             int iang = iloc / idims.z;
             int ipos = iloc % idims.z;
 
-            // copy kernel to shared memory
-            extern __shared__ float shamem_kfunc[];
-            int niters = kernel.size() / blockDim.x;
-            int nextra = kernel.size() % blockDim.x;
-
-            size_t offset = 0;
-            for (int j = 0; j < niters; j++) {
-                offset = j * blockDim.x;
-                shamem_kfunc[threadIdx.x + offset] = kernel[threadIdx.x + offset];
-            }
-            if ((nextra > 0) && (threadIdx.x < nextra))
-                shamem_kfunc[threadIdx.x + offset] = kernel[threadIdx.x + offset];
-
             // polar coordinates
             float c = (float) (idims.z) * 0.5;
             float a = angles[iang];
@@ -68,9 +55,9 @@ namespace tomocam {
             int ixmax = min(kernel.imax(x), odims.z - 1);
 
             for (; iy < iymax; iy++) {
-                cuComplex_t temp = pValue * kernel.weight(y, iy, shamem_kfunc);
+                cuComplex_t temp = pValue * kernel.weight(y-iy); 
                 for (int ix = ixmin; ix < ixmax; ix++) {
-                    cuComplex_t v = temp * kernel.weight(x, ix, shamem_kfunc);
+                    cuComplex_t v = temp * kernel.weight(x-ix); 
                     int idx = islc * odims.y * odims.z + iy * odims.z + ix;
                     atomicAdd(&output[idx].x, v.x);
                     atomicAdd(&output[idx].y, v.y);
@@ -82,16 +69,13 @@ namespace tomocam {
     void polarsample_transpose(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims,
         DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
-        // input and output dimensions
-        int kdims     = kernel.size();
-
         // cuda kernel params
         int nmax = idims.x * idims.y * idims.z;
         int nthread = 256;
         int tblocks  = idiv(nmax, nthread);
 
         // launch CUDA kernel
-        polar2cart_nufft <<<tblocks, nthread, kdims * sizeof(float), stream>>> (
+        polar2cart_nufft <<<tblocks, nthread, 0, stream>>> (
             idims, odims, input, angles, kernel, output);
     }
 } // namespace tomocam
