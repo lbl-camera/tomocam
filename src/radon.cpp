@@ -35,19 +35,20 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
+        cudaHostRegister(input.begin(), input.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(sino.begin(), sino.bytes(), cudaHostRegisterPortable);
 
         // size of input and output partitions
         dim3_t idims = input.dims();
         dim3_t odims = sino.dims();
 
-        // TODO this is ugly
+        // projection angles
+        static DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
+
         // convolution kernel
         float beta = 12.566370614359172f;
-        float W    = 5.f;
-        kernel_t kernel = kaiser_window(W, beta, 256);
-
-        // projection angles
-        DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
+        float radius = 2.f;
+        static kernel_t kernel(radius, beta);
 
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
@@ -72,6 +73,9 @@ namespace tomocam {
             cudaStreamSynchronize(s);
             cudaStreamDestroy(s);
         }
+
+        cudaHostUnregister(input.begin());
+        cudaHostUnregister(sino.begin());
     }
 
     // inverse radon (Multi-GPU call)

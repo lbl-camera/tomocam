@@ -33,10 +33,12 @@ namespace tomocam {
 
     void total_var_(Partition<float> model, Partition<float> objfn, float p, float sigma, int device) {
 
-        // initalize the device
-        cudaSetDevice(device);
         cudaError_t status;
 
+        // initalize the device
+        cudaSetDevice(device);
+        cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(objfn.begin(), objfn.bytes(), cudaHostRegisterPortable);
         //  output
         dim3_t idims  = objfn.dims();
 
@@ -71,6 +73,8 @@ namespace tomocam {
         for (auto &s : streams) {
             cudaStreamDestroy(s);
         }
+        cudaHostUnregister(model.begin());
+        cudaHostUnregister(objfn.begin());
     }
 
     // multi-GPU call

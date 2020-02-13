@@ -36,6 +36,8 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
+        cudaHostRegister(input.begin(), input.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(output.begin(), output.bytes(), cudaHostRegisterPortable);
 
         // input and output dimensions
         dim3_t idims  = input.dims();
@@ -46,8 +48,8 @@ namespace tomocam {
 
         // interpolation kernel
         float beta = 12.566370614359172f;
-        const float W = 5.f;
-        static kernel_t kernel = kaiser_window(W, beta, 256);
+        float radius = 2.f;
+        static kernel_t kernel(radius, beta);
 
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
@@ -72,6 +74,8 @@ namespace tomocam {
             cudaStreamSynchronize(s);
             cudaStreamDestroy(s);
         }
+        cudaHostUnregister(input.begin());
+        cudaHostUnregister(output.begin());
     }
 
     // Multi-GPU calll 

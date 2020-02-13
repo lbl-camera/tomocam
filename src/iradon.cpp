@@ -33,8 +33,10 @@ namespace tomocam {
     void iradon_(Partition<float> sino, Partition<float> output, float center, float over_sample,
         float *angles, int device) {
 
-        // initalize the device
+        // select device
         cudaSetDevice(device);
+        cudaHostRegister(sino.begin(), sino.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(output.begin(), output.bytes(), cudaHostRegisterPortable);
 
         // input and output dimensions
         dim3_t idims  = sino.dims();
@@ -43,10 +45,11 @@ namespace tomocam {
         // copy angles to device memory
         DeviceArray<float> d_angles = DeviceArray_fromHost(dim3_t(1, 1, idims.y), angles, 0);
 
-        // create kernel array
+        // create kernel 
+        // TODO this should be somewhere else, with user input
         float beta = 12.566370614359172f;
-        float W    = 5.f;
-        static kernel_t kernel = kaiser_window(W, beta, 256);
+        float radius  = 2.f;
+        static kernel_t kernel(radius, beta);
 
         // create smaller partitions
         int nStreams = 0, slcs = 0;
@@ -66,12 +69,17 @@ namespace tomocam {
             int i_stream = i % nStreams;
             stage_back_project(sub_sinos[i], sub_outputs[i], over_sample, center,
                     d_angles, kernel, streams[i_stream]);
+            cudaStreamSynchronize(streams[i_stream]);
         }
 
         for (auto s : streams) {
             cudaStreamSynchronize(s);
             cudaStreamDestroy(s);
         }
+
+        cudaDeviceSynchronize();
+        cudaHostUnregister(sino.begin());
+        cudaHostUnregister(output.begin());
     }
 
     // inverse radon (Multi-GPU call)
@@ -84,9 +92,10 @@ namespace tomocam {
 
         // launch all the available devices
         std::vector<std::thread> threads;
-        for (int i = 0; i < nDevice; i++)
+        for (int i = 0; i < nDevice; i++) {
             threads.push_back(std::thread(iradon_, p1[i], p2[i], center, over_sample, angles, i));
-
+        }
+        
         // wait for devices to finish
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
