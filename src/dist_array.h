@@ -41,6 +41,7 @@ namespace tomocam {
         }
         dim3_t dims() const { return dims_; }
         int size() const { return size_; }
+        size_t bytes() const { return size_ * sizeof(T); }
         T *begin() { return first_; }
         T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
 
