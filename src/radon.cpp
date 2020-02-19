@@ -43,12 +43,12 @@ namespace tomocam {
         dim3_t odims = sino.dims();
 
         // projection angles
-        static DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
+        DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
 
         // convolution kernel
         float beta = 12.566370614359172f;
         float radius = 2.f;
-        static kernel_t kernel(radius, beta);
+        kernel_t kernel(radius, beta);
 
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
