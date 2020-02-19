@@ -42,28 +42,45 @@ namespace tomocam {
         }
         return table;
     }
-
+    
     // and with halo, as well
     template <typename T>
     std::vector<Partition<T>> Partition<T>::sub_partitions(int nmax, int halo) {
         std::vector<Partition<T>> table;    
 
-        int n_partitions = dims_.x / nmax;
-        int n_extra = dims_.x % nmax;
+        int sub_halo[2];
+        int slcs = dims_.x - halo_[0] - halo_[1];
+        int n_partitions = slcs / nmax;
+        int n_extra = slcs % nmax;
         std::vector<int> locations;
 
         for (int i = 0; i < n_partitions; i++)
-            locations.push_back(i * nmax);
-        locations.push_back(n_partitions * nmax);
-        if (n_extra > 0)
-            locations.push_back(dims_.x);
+            locations.push_back(halo_[0] + i * nmax);
+        locations.push_back(halo_[0] + n_partitions * nmax);
 
-        if (n_extra > 0) n_partitions += 1;
+        // if they don't divide nicely
+        if (n_extra > 0) {
+            locations.push_back(dims_.x);
+            n_partitions += 1;
+        }
+
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
+            // check if it is an end
+            if ((i == 0) && (halo_[0] == 0)) 
+                sub_halo[0] = 0;
+            else 
+                sub_halo[0] = halo;
+
             int imax = std::min(locations[i+1] + halo, dims_.x);
+            // check if it is an end
+            if ((i == n_partitions-1) && (halo_[1] == 0))
+                sub_halo[1] = 0;
+            else 
+                sub_halo[1] = halo;
+
             dim3_t d(imax-imin, dims_.y, dims_.z);
-            table.push_back(Partition<T>(d, slice(imin)));
+            table.push_back(Partition<T>(d, slice(imin), sub_halo));
         }
         return table;
     }
@@ -142,11 +159,21 @@ namespace tomocam {
                 offset += n_slices;
             locations.push_back(offset);
         }
+
+        int h[2];
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
+            if ( imin == 0 ) 
+                h[0] = 0;
+            else 
+                h[0] = halo; 
             int imax = std::min(locations[i+1] + halo, dims_.x);
+            if (imax == dims_.x) 
+                h[1] = 0;
+            else 
+                h[1] = halo;
             dim3_t d(imax-imin, dims_.y, dims_.z);
-            table.push_back(Partition<T>(d, slice(imin)));
+            table.push_back(Partition<T>(d, slice(imin), h));
         } 
         return table;
     }

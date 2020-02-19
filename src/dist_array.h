@@ -33,15 +33,26 @@ namespace tomocam {
         dim3_t dims_;
         int size_;
         T *first_;
+        int halo_[2];
 
       public:
-        Partition() : dims_({0, 0, 0}), first_(nullptr) {}
         Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
             size_ = dims_.x * dims_.y * dims_.z; 
+            halo_[0] = 0;
+            halo_[1] = 0;
         }
+
+        Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
+            size_ = dims_.x * dims_.y * dims_.z; 
+            halo_[0] = h[0];
+            halo_[1] = h[1];
+        }
+
         dim3_t dims() const { return dims_; }
         int size() const { return size_; }
         size_t bytes() const { return size_ * sizeof(T); }
+        int  *halo() { return halo_; }
+
         T *begin() { return first_; }
         T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
 
