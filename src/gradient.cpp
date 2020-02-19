@@ -44,12 +44,12 @@ namespace tomocam {
         dim3_t odims  = output.dims();
 
         // copy angles to the device
-        static DeviceArray<float> angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
+        DeviceArray<float> angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
 
         // interpolation kernel
         float beta = 12.566370614359172f;
         float radius = 2.f;
-        static kernel_t kernel(radius, beta);
+        kernel_t kernel(radius, beta);
 
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
