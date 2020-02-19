@@ -40,32 +40,31 @@ namespace tomocam {
       protected:
         dim3_t dims_;
         size_t size_;
-        T *ptr_;
+        T *dev_ptr_;
+        int2 halo_;
 
       public:
-        DeviceArray() : ptr_(NULL) {}
+        DeviceArray() : dev_ptr_(NULL) {}
 
         // does not check if the pointer is a valid device memory
-        DeviceArray(dim3_t d, T * ptr): dims_(d), ptr_(ptr) {
+        DeviceArray(dim3_t d, T *ptr): dims_(d), dev_ptr_(ptr) {
+            halo_ = {0, 0};
             size_ = dims_.x * dims_.y * dims_.z;
         } 
 
-        // explicit destructor
-        void free() { if (ptr_) cudaFree(ptr_); }
-
-        // set size of the window
-        void set_size(size_t len) { size_ = len; }
-
-        void set_d_array(T * arr) { ptr_ = arr; }
-
-        void set_dims(dim3_t d) { 
-            dims_ = d;
-            size_ = d.x * d.y * d.z;
+        // create with halo
+        DeviceArray(dim3_t d, T *ptr, int *h): dims_(d), dev_ptr_(ptr) {
+            halo_.x = h[0];
+            halo_.y = h[1];
+            size_ = dims_.x * dims_.y * dims_.z;
         }
+
+        // explicit destructor
+        void free() { if (dev_ptr_) cudaFree(dev_ptr_); }
 
         // at some point we'll need access to the pointer
         __host__ __device__ 
-        T *d_array() { return ptr_; }
+        T *d_array() { return dev_ptr_; }
 
         // size of the array
         __host__ __device__
@@ -78,13 +77,28 @@ namespace tomocam {
         // indexing 1-D
         __device__ 
         T & operator[](int i) {
-            return ptr_[i];
+            return dev_ptr_[i];
         }
 
         // indexing 3-D
         __device__ 
         T & operator() (int i, int j, int k) {
-            return ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
+
+        // indexing ...
+        // -- with halo excluded
+        // -- check for bounds, return 0 if outside
+        __device__
+        T at(int i, int j, int k) {
+            int ii = i + halo_.x;
+            if ((ii < 0) || (ii > dims_.x - 1)) 
+                return 0;
+            if ((j < 0) || (j > dims_.y - 1))
+                return 0;
+            if ((k < 0) || (k > dims_.z - 1))
+                return 0;
+            return dev_ptr_[ii * dims_.y * dims_.z + j * dims_.z + k];
         }
     };
 
@@ -95,7 +109,7 @@ namespace tomocam {
         T * ptr = NULL;
         cudaMalloc((void **) &ptr, sizeof(T) * p.size());
         cudaMemcpyAsync(ptr, p.begin(), sizeof(T) * p.size(), cudaMemcpyHostToDevice, stream);
-        DeviceArray<T> d_arr(p.dims(), ptr);
+        DeviceArray<T> d_arr(p.dims(), ptr, p.halo());
         return d_arr;
     }
    
