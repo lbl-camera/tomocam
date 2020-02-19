@@ -101,216 +101,114 @@ namespace tomocam {
             __shared__ float s_val[NX + 2][NY + 2][NZ + 2];
 
             // copy from global memory
-            s_val[i + 1][j + 1][k + 1] = model(x, y, z);
+            s_val[i + 1][j + 1][k + 1] = model.at(x, y, z);
 
+            __syncthreads();
             /* copy ghost cells, on all 6 faces */
             // x = 0 face
-            if (i == 0) {
-                if (x > 0) 
-                    s_val[i][j + 1][k + 1] = model(x - 1, y, z);
-                else
-                    s_val[i][j + 1][k + 1] = 0.f;
-            }
+            if (i == 0) 
+                s_val[i][j + 1][k + 1] = model.at(x - 1, y, z);
 
             // x = Nx-1 face
-            if (i == imax) {
-                if (x < dims.x - 1) 
-                    s_val[i + 2][j + 1][k + 1] = model(x + 1, y, z);
-                else
-                    s_val[i + 2][j + 1][k + 1] = 0.f;
-            }
+            if (i == imax)
+                s_val[i + 2][j + 1][k + 1] = model.at(x + 1, y, z);
             __syncthreads();
 
-            if (j == 0) {
-                if (y > 0) 
-                    s_val[i + 1][j][k + 1] = model(x, y - 1, z);
-                else
-                    s_val[i + 1][j][k + 1] = 0.f;
-            }
+            if (j == 0)
+                s_val[i + 1][j][k + 1] = model.at(x, y - 1, z);
 
-            if (j == jmax) {
-                if (y < dims.y - 1) 
-                    s_val[i + 1][j + 2][k + 1] = model(x, y + 1, z);
-                else
-                    s_val[i + 1][j + 2][k + 1] = 0.f;
-            }
+            if (j == jmax)
+                s_val[i + 1][j + 2][k + 1] = model.at(x, y + 1, z);
             __syncthreads();
 
-            if (k == 0) {
-                if (z > 0) 
-                    s_val[i + 1][j + 1][k] = model(x, y, z - 1);
-                else
-                    s_val[i + 1][j + 1][k] = 0.f;
-            }
+            if (k == 0)
+                s_val[i + 1][j + 1][k] = model.at(x, y, z - 1);
 
-            if (k == kmax) {
-                if (z < dims.z - 1) 
-                    s_val[i + 1][j + 1][k + 2] = model(x, y, z + 1);
-                else
-                    s_val[i + 1][j + 1][k + 2] = 0.f;
-            }
+            if (k == kmax)
+                s_val[i + 1][j + 1][k + 2] = model.at(x, y, z + 1);
             __syncthreads();
 
             /* copy ghost cells along 12 edges  */
             if (i == 0) {
-                if (j == 0) {
-                    if ((x > 0) && (y > 0)) 
-                        s_val[i][j][k + 1] = model(x - 1, y - 1, z);
-                    else
-                        s_val[i][j][k + 1] = 0.f;
-                }
-                if (j == jmax) {
-                    if ((x > 0) && (y < dims.y - 1)) 
-                        s_val[i][j + 2][k + 1] = model(x - 1, y + 1, z);
-                    else
-                        s_val[i][j + 2][k + 1] = 0.f;
-                }
+                if (j == 0) 
+                    s_val[i][j][k + 1] = model.at(x - 1, y - 1, z);
+                if (j == jmax)
+                    s_val[i][j + 2][k + 1] = model.at(x - 1, y + 1, z);
             }
             if (i == imax) {
-                if (j == 0) {
-                    if ((x < dims.x - 1) && (y > 0)) 
-                        s_val[i + 2][j][k + 1] = model(x + 1, y - 1, z);
-                    else
-                        s_val[i + 2][j][k + 1] = 0.f;
-                }
-                if (j == jmax) {
-                    if ((x < dims.x - 1) && (y < dims.y - 1)) 
-                        s_val[i + 2][j + 2][k + 1] = model(x + 1, y + 1, z);
-                    else
-                        s_val[i + 2][j + 2][k + 1] = 0.f;
-                }
+                if (j == 0) 
+                    s_val[i + 2][j][k + 1] = model.at(x + 1, y - 1, z);
+                if (j == jmax)
+                    s_val[i + 2][j + 2][k + 1] = model.at(x + 1, y + 1, z);
             }
             __syncthreads();
 
             if (j == 0) {
-                if (k == 0) {
-                    if ((y > 0) && (z > 0)) 
-                        s_val[i + 1][j][k] = model(x, y - 1, z - 1);
-                    else
-                        s_val[i + 1][j][k] = 0.f;
-                }
-                if (k == kmax) {
-                    if ((y > 0) && (z < dims.z - 1)) 
-                        s_val[i + 1][j][k + 2] = model(x, y - 1, z + 1);
-                    else
-                        s_val[i + 1][j][k + 2] = 0.f;
-                }
+                if (k == 0)
+                    s_val[i + 1][j][k] = model.at(x, y - 1, z - 1);
+                if (k == kmax)
+                    s_val[i + 1][j][k + 2] = model.at(x, y - 1, z + 1);
             }
             if (j == jmax) {
-                if (k == 0) {
-                    if ((y < dims.y - 1) && (z > 0)) 
-                        s_val[i + 1][j + 2][k] = model(x, y + 1, z - 1);
-                    else
-                        s_val[i + 1][j + 2][k] = 0.f;
-                }
-                if (k == kmax) {
-                    if ((y < dims.y - 1) && (z < dims.z - 1)) 
-                        s_val[i + 1][j + 2][k + 2] = model(x, y + 1, z + 1);
-                    else
-                        s_val[i + 1][j + 2][k + 2] = 0.f;
-                }
+                if (k == 0)
+                    s_val[i + 1][j + 2][k] = model.at(x, y + 1, z - 1);
+                if (k == kmax)
+                    s_val[i + 1][j + 2][k + 2] = model.at(x, y + 1, z + 1);
             }
             __syncthreads();
 
             // copy ghost-cells along y-direction
             if (k == 0) {
-                if (i == 0) {
-                    if ((x > 0) && (z > 0)) 
-                        s_val[i][j + 1][k] = model(x - 1, y, z - 1);
-                    else
-                        s_val[i][j + 1][k] = 0.f;
-                }
-                if (i == imax) {
-                    if ((x < dims.x - 1) && (z > 0)) 
-                        s_val[i + 2][j + 1][k] = model(x + 1, y, z - 1);
-                    else
-                        s_val[i + 2][j + 1][k] = 0.f;
-                }
+                if (i == 0)
+                    s_val[i][j + 1][k] = model.at(x - 1, y, z - 1);
+                if (i == imax)
+                    s_val[i + 2][j + 1][k] = model.at(x + 1, y, z - 1);
             }
             if (k == kmax) {
-                if (i == 0) {
-                    if ((x > 0) && (z < dims.z - 1)) 
-                        s_val[i][j + 1][k + 2] = model(x - 1, y, z + 1);
-                    else
-                        s_val[i][j + 1][k + 2] = 0.f;
-                }
-                if (i == imax) {
-                    if ((x < dims.x - 1) && (z < dims.z - 1)) 
-                        s_val[i + 2][j + 1][k + 2] = model(x + 1, y, z + 1);
-                    else
-                        s_val[i + 2][j + 1][k + 2] = 0.f;
-                }
+                if (i == 0) 
+                    s_val[i][j + 1][k + 2] = model.at(x - 1, y, z + 1);
+                if (i == imax)
+                    s_val[i + 2][j + 1][k + 2] = model.at(x + 1, y, z + 1);
             }
             __syncthreads();
 
             /*  copy  ghost cells along 16 corners */
             if (k == 0) {
                 if (j == 0) {
-                    if (i == 0) {
-                        if ((x > 0) && (y > 0) && (z > 0)) 
-                            s_val[i][j][k] = model(x - 1, y - 1, z - 1);
-                        else
-                            s_val[i][j][k] = 0.f;
-                    }
+                    if (i == 0)
+                        s_val[i][j][k] = model.at(x - 1, y - 1, z - 1);
                     if (i == imax) {
-                        if ((x < dims.x - 1) && (y > 0) && (z > 0)) 
-                            s_val[i + 2][j][k] = model(x + 1, y - 1, z - 1);
-                        else
-                            s_val[i + 2][j][k] = 0.f;
+                        s_val[i + 2][j][k] = model.at(x + 1, y - 1, z - 1);
                     }
                 }
                 if (j == jmax) {
-                    if (i == 0) {
-                        if ((x > 0) && (y < dims.y - 1) && (z > 0)) 
-                            s_val[i][j + 2][k] = model(x - 1, y + 1, z - 1);
-                        else
-                            s_val[i][j + 2][k] = 0.f;
-                    }
-                    if (i == imax) {
-                        if ((x < dims.x - 1) && (y < dims.y - 1) && (z > 0))
-                            s_val[i + 2][j + 2][k] = model(x + 1, y + 1, z - 1);
-                        else
-                            s_val[i + 2][j + 2][k] = 0.f;
-                    }
+                    if (i == 0)
+                        s_val[i][j + 2][k] = model.at(x - 1, y + 1, z - 1);
+                    if (i == imax)
+                        s_val[i + 2][j + 2][k] = model.at(x + 1, y + 1, z - 1);
                 }
             }
             if (k == kmax) {
                 if (j == 0) {
-                    if (i == 0) {
-                        if ((x > 0) && (y > 0) && (z < dims.z - 1)) 
-                            s_val[i][j][k + 2] = model(x - 1, y - 1, z + 1);
-                        else
-                            s_val[i][j][k + 2] = 0.f;
-                    }
-                    if (i == imax) {
-                        if ((x < dims.x - 1) && (y > 0) && (z < dims.z - 1))
-                            s_val[i + 2][j][k + 2] = model(x + 1, y - 1, z + 1);
-                        else
-                            s_val[i + 2][j][k + 2] = 0.f;
-                    }
+                    if (i == 0)
+                        s_val[i][j][k + 2] = model.at(x - 1, y - 1, z + 1);
+                    if (i == imax)
+                        s_val[i + 2][j][k + 2] = model.at(x + 1, y - 1, z + 1);
                 }
                 if (j == jmax) {
-                    if (i == 0) {
-                        if ((x > 0) && (y < dims.y - 1) && (z < dims.z - 1))
-                            s_val[i][j + 2][k + 2] = model(x - 1, y + 1, z + 1);
-                        else
-                            s_val[i][j + 2][k + 2] = 0.f;
-                    }
-                    if (i == imax) {
-                        if ((x < dims.x - 1) && (y < dims.y - 1) && (z < dims.z - 1))
-                            s_val[i + 2][j + 2][k + 2] = model(x + 1, y + 1, z + 1);
-                        else
-                            s_val[i + 2][j + 2][k + 2] = 0.f;
-                    }
+                    if (i == 0)
+                        s_val[i][j + 2][k + 2] = model.at(x - 1, y + 1, z + 1);
+                    if (i == imax)
+                        s_val[i + 2][j + 2][k + 2] = model.at(x + 1, y + 1, z + 1);
                 }
             }
             __syncthreads();
 
-            float v = s_val[i + 1][j + 1][i + 1];
+            float v = s_val[i + 1][j + 1][k + 1];
             float temp = 0.f;
-            for (int iz = 0; iz < 3; iz++)
+            for (int ix = 0; ix < 3; ix++)
                 for (int iy = 0; iy < 3; iy++)
-                    for (int ix = 0; ix < 3; ix++)
+                    for (int iz = 0; iz < 3; iz++)
                         temp += weight(ix, iy, iz) * deriv_potFCN(v - s_val[i + ix][j + iy][k + iz], p, sigma);
             objfn(x, y, z) += temp;
         }
