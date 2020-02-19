@@ -49,7 +49,7 @@ namespace tomocam {
         // TODO this should be somewhere else, with user input
         float beta = 12.566370614359172f;
         float radius  = 2.f;
-        static kernel_t kernel(radius, beta);
+        kernel_t kernel(radius, beta);
 
         // create smaller partitions
         int nStreams = 0, slcs = 0;
