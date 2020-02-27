@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <thread>
+#include <omp.h>
 
 #include "dev_array.h"
 #include "kernel.h"
@@ -65,6 +66,8 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
+        omp_set_num_threads(nStreams);
+        #pragma omp parallel for
         for (int i = 0; i < sub_sinos.size(); i++) {
             int i_stream = i % nStreams;
             stage_back_project(sub_sinos[i], sub_outputs[i], over_sample, center,

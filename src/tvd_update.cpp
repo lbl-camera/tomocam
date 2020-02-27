@@ -22,6 +22,7 @@
 
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <omp.h>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -68,6 +69,7 @@ namespace tomocam {
 
             copy_fromDeviceArray<float>(objs[i], d_objfn, streams[i_stream]);
             d_model.free();
+            cudaStreamSynchronize(streams[i_stream]);
         }
             
         for (auto &s : streams) {

@@ -24,6 +24,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "types.h"
 #include "common.h"
 #include "dist_array.h"
 
@@ -62,9 +63,15 @@ namespace tomocam {
         // explicit destructor
         void free() { if (dev_ptr_) cudaFree(dev_ptr_); }
 
+        // reset dims
+        void dims(dim3_t d) { dims_ = d; }
+
+        // reset dev_ptr
+        void dev_ptr(T * p) { dev_ptr_ = p; }
+
         // at some point we'll need access to the pointer
         __host__ __device__ 
-        T *d_array() { return dev_ptr_; }
+        T *dev_ptr() { return dev_ptr_; }
 
         // size of the array
         __host__ __device__
@@ -73,6 +80,15 @@ namespace tomocam {
         // get array dims
         __host__ __device__ 
         dim3_t dims() const { return dims_; }
+
+        // check for valid indices
+        __device__
+        bool valid(int i, int j, int k) {
+            if ((i < dims_.x) && (j < dims_.y) && (k < dims_.z))
+                return true;
+            else 
+                return false;
+        }
 
         // indexing 1-D
         __device__ 
@@ -102,17 +118,113 @@ namespace tomocam {
         }
     };
 
+    // copy elements and cast into complex types
+    inline DeviceArray<cuComplex_t> DeviceArray_fromHostR2C(Partition<float> p,  cudaStream_t s) {
+        cudaError_t status;
+        cuComplex_t * dst = NULL;
+        cudaMalloc((void **) &dst, p.size() * sizeof(cuComplex_t));
+        size_t spitch = sizeof(float);
+        size_t dpitch = sizeof(cuComplex_t);
+        size_t width = sizeof(float);
+        float * src = p.begin();
+        status = cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, p.size(), cudaMemcpyHostToDevice, s);
+        if (status != cudaSuccess)
+            throw "failed to copy-cast (R2C) to device";
+        DeviceArray<cuComplex_t> d_arr(p.dims(), dst, p.halo()); 
+        return d_arr;
+    }
 
-    // convenience fuctions
+    // copy elements to host and cast complex -> float
+    inline void copy_fromDeviceArrayC2R(Partition<float> p, DeviceArray<cuComplex_t> d_arr, cudaStream_t s) {
+        cudaError_t status;
+        size_t spitch = sizeof(cuComplex_t);
+        size_t dpitch = sizeof(float);
+        size_t width = sizeof(float);
+        float * dst = p.begin(); 
+        cuComplex_t * src = d_arr.dev_ptr();
+        status = cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, p.size(), cudaMemcpyDeviceToHost, s);
+        if (status != cudaSuccess)
+            throw "failed to copy-cast (C2R) from device";
+    }
+   
+    // add padding on device
+    inline void addPadding(DeviceArray<cuComplex_t> &d_arr, int padding, int dim, cudaStream_t s) {
+        dim3_t d0 = d_arr.dims();
+        dim3_t d1 = d0;
+        int j_offset = 0;
+        if (dim==1) {
+            d1.z += 2 * padding;
+        } else if (dim==2) {
+            d1.y += 2 * padding;
+            d1.z += 2 * padding;
+            j_offset = padding;
+        } else 
+            throw "illegal padding dimensions";
+            
+        size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
+        cuComplex_t * ptr = NULL;
+        cuComplex_t * src = d_arr.dev_ptr();
+        cudaMalloc((void **) &ptr, bytes);
+        cudaMemsetAsync(ptr, 0, bytes, s);
+        for (int i = 0; i < d0.x; i++) {
+            for (int j = 0; j < d0.y; j++) {
+                size_t offset0 = i * d0.y * d0.z + j * d0.z;
+                size_t offset1 = i * d1.y * d1.z + (j + j_offset) * d1.z + padding;
+                cudaMemcpyAsync(ptr + offset1, src + offset0, d0.z * sizeof(cuComplex_t), cudaMemcpyDeviceToDevice, s);
+            }
+        }
+        d_arr.dims(d1);
+        d_arr.dev_ptr(ptr);
+        cudaFree(src);
+    }
+     
+    // strip padding 
+    inline void stripPadding(DeviceArray<cuComplex_t> &d_arr, int padding, int dim, cudaStream_t s) {
+        dim3_t d0 = d_arr.dims();
+        dim3_t d1 = d0;
+        int j_offset = 0;
+        if (dim==1) {
+            d1.z -= 2 * padding;
+        } else if (dim==2) {
+            d1.y -= 2 * padding;
+            d1.z -= 2 * padding;
+            j_offset = padding;
+        } else 
+            throw "illegal padding dimensions";
+        
+        size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
+        cuComplex_t * ptr = NULL;
+        cuComplex_t * src = d_arr.dev_ptr();
+        cudaMalloc((void **) &ptr, bytes);
+        for (int i = 0; i < d1.x; i++) {
+            for (int j = 0; j < d1.y; j++) {
+                size_t offset0 = i * d0.y * d0.z + (j + j_offset) * d0.z + padding;
+                size_t offset1 = i * d1.y * d1.z + j * d1.z;
+                cudaMemcpyAsync(ptr + offset1, src + offset0, d1.z * sizeof(cuComplex_t), cudaMemcpyDeviceToDevice, s);
+            }
+        }
+        d_arr.dims(d1);
+        d_arr.dev_ptr(ptr); 
+        cudaFree(src);
+    }
+
+    // create DeviceArray from Partition
     template <typename T>
     DeviceArray<T> DeviceArray_fromHost(Partition<T> p, cudaStream_t stream) {
+        cudaError_t status;
         T * ptr = NULL;
-        cudaMalloc((void **) &ptr, sizeof(T) * p.size());
-        cudaMemcpyAsync(ptr, p.begin(), sizeof(T) * p.size(), cudaMemcpyHostToDevice, stream);
+        status = cudaMalloc((void **) &ptr, sizeof(T) * p.size());
+        if (status != cudaSuccess)
+            throw "failed to allocate momeory";
+        
+        status = cudaMemcpyAsync(ptr, p.begin(), sizeof(T) * p.size(), cudaMemcpyHostToDevice, stream);
+        if (status != cudaSuccess)
+            throw "failed to copy array to device";
         DeviceArray<T> d_arr(p.dims(), ptr, p.halo());
         return d_arr;
     }
    
+    // create DeviceArray from raw pointer
     template <typename T>
     DeviceArray<T> DeviceArray_fromHost(dim3_t dims, T *h_ptr, cudaStream_t stream) {
         T * ptr = NULL;
@@ -123,12 +235,13 @@ namespace tomocam {
         return d_arr;
     }
 
+    // copy data from DeviceArray -> Partition
     template <typename T>
     void copy_fromDeviceArray(Partition<T> dst, DeviceArray<T> src, cudaStream_t stream) {
-        cudaMemcpyAsync(dst.begin(), src.d_array(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream);
+        cudaMemcpyAsync(dst.begin(), src.dev_ptr(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
-        src.free();
     }
+
 } // namespace tomocam
 
 #endif // TOMOCAM_DEV_ARRAY__H

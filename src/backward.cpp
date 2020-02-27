@@ -26,13 +26,21 @@
 #include "internals.h"
 #include "types.h"
 
+#include "debug.cuh"
+
 namespace tomocam {
 
-    void back_project(cuComplex_t *input, cuComplex_t *output, dim3_t idims, dim3_t odims, 
+    void back_project(DeviceArray<cuComplex_t> d_input, DeviceArray<cuComplex_t> d_output, 
         float center, DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
 
+
+        cuComplex_t * input = d_input.dev_ptr();
+        dim3_t idims = d_input.dims();
+        cuComplex_t * output = d_output.dev_ptr();
+        dim3_t odims = d_output.dims();
+        
         // fftshift
-        fftshift1D(input, idims, stream);
+        fftshift1D(d_input, stream);
         cudaStreamSynchronize(stream);
 
         // 1-D fft
@@ -52,15 +60,15 @@ namespace tomocam {
         cudaStreamSynchronize(stream);
 
         // center shift
-        ifftshift_center(input, idims, center, stream);
+        ifftshift_center(d_input, center, stream);
         cudaStreamSynchronize(stream);
 
         // covolution with kernel
-        polarsample_transpose(input, output, idims, odims, angles, kernel, stream);
+        polarsample_transpose(d_input, d_output, angles, kernel, stream);
         cudaStreamSynchronize(stream);
  
         // fftshift
-        fftshift2D(output, odims, stream);
+        fftshift2D(d_output, stream);
         cudaStreamSynchronize(stream);
 
         // 2-D ifft
@@ -75,7 +83,7 @@ namespace tomocam {
         cufftDestroy(p2);
 
         // fftshift
-        fftshift2D(output, odims, stream);
+        fftshift2D(d_output, stream);
         cudaStreamSynchronize(stream);
         
         // de-apodizing factor

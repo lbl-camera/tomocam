@@ -24,13 +24,13 @@ namespace tomocam {
     void deApodize2D(cuComplex_t *, dim3_t, float, float, cudaStream_t);
 
     // TODO document
-    void back_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);
+    void back_project(DeviceArray<cuComplex_t>, DeviceArray<cuComplex_t>, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void stage_back_project(Partition<float> , Partition<float> , float, float, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
-    void polarsample_transpose(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, DeviceArray<float>, kernel_t, cudaStream_t);
+    void polarsample_transpose(DeviceArray<cuComplex_t> , DeviceArray<cuComplex_t>, DeviceArray<float>, kernel_t, cudaStream_t);
 
     // TODO document
     void fwd_project(cuComplex_t *, cuComplex_t *, dim3_t, dim3_t, float, DeviceArray<float>, kernel_t, cudaStream_t);

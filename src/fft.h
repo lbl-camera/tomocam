@@ -23,6 +23,7 @@
 #include <cufft.h>
 
 #include "dist_array.h"
+#include "dev_array.h"
 #include "types.h"
 
 namespace tomocam {
@@ -30,12 +31,13 @@ namespace tomocam {
 
     cufftHandle fftPlan2D(dim3_t);
 
-    void fftshift_center(cuComplex_t *, dim3_t, float, cudaStream_t);
+    void fftshift_center(DeviceArray<cuComplex_t>, float, cudaStream_t);
 
-    void ifftshift_center(cuComplex_t *, dim3_t, float, cudaStream_t);
+    void ifftshift_center(DeviceArray<cuComplex_t>, float, cudaStream_t);
 
-    void fftshift1D(cuComplex_t *, dim3_t, cudaStream_t);
+    void fftshift1D(DeviceArray<cuComplex_t>, cudaStream_t);
 
-    void fftshift2D(cuComplex_t *, dim3_t, cudaStream_t);
+    void fftshift2D(DeviceArray<cuComplex_t>, cudaStream_t);
+
 } // namespace tomocam
 #endif // TOMOCAM_FFT__H

@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <thread>
+#include <omp.h>
 
 #include "dev_array.h"
 #include "kernel.h"
@@ -68,6 +69,7 @@ namespace tomocam {
             int i_stream = i % nStreams;
             calc_gradient(sub_inputs[i], sub_outputs[i], over_sample, center,
                     angles, kernel, streams[i_stream]);
+            cudaStreamSynchronize(streams[i_stream]);
         }
 
         for (auto s : streams) {
