@@ -26,7 +26,6 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/cuPolarsampleTranspose.cu 
     ${PROJECT_SOURCE_DIR}/cuPolarsample.cu 
     ${PROJECT_SOURCE_DIR}/fftshift.cu
-    ${PROJECT_SOURCE_DIR}/kaiser.cu
     ${PROJECT_SOURCE_DIR}/deapod.cu
     ${PROJECT_SOURCE_DIR}/rescale.cu
     ${PROJECT_SOURCE_DIR}/calc_error.cu
