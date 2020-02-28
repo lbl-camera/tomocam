@@ -21,11 +21,22 @@
 #define TOMOCAM_UTILS__CUH
 
 #include <cuda.h>
+#include <stdio.h>
+
 #include "common.h"
 #include "types.h"
 
+#define SAFE_CALL(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true){
+   if (code != cudaSuccess) {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 #define __deviceI__ __forceinline__ __device__ 
 #define __devhstI__ __forceinline__ __device__ __host__
+
 namespace tomocam {
 
     inline int idiv (int a, int b) {
