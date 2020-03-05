@@ -43,7 +43,7 @@ namespace tomocam {
         dim3_t odims = sino.dims();
 
         // projection angles
-        DeviceArray<float> d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
+        auto d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
 
         // convolution kernel
         float beta = 12.566370614359172f;

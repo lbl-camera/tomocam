@@ -44,7 +44,7 @@ namespace tomocam {
         dim3_t odims  = output.dims();
 
         // copy angles to the device
-        DeviceArray<float> angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
+        auto angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
 
         // interpolation kernel
         float beta = 12.566370614359172f;

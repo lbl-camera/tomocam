@@ -43,7 +43,7 @@ namespace tomocam {
         dim3_t odims  = output.dims();
 
         // copy angles to device memory
-        DeviceArray<float> d_angles = DeviceArray_fromHost(dim3_t(1, 1, idims.y), angles, 0);
+        auto d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, idims.y), angles, 0);
 
         // create kernel 
         // TODO this should be somewhere else, with user input
