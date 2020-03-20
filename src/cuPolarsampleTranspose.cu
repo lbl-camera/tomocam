@@ -27,25 +27,20 @@
 namespace tomocam {
 
     __global__ 
-    void polar2cart_nufft(DeviceArray<cuComplex_t> input, 
-        DeviceArray<cuComplex_t> output,
-        DeviceArray<float> angles, kernel_t kernel) {
+    void polar2cart_nufft(dev_arrayc input, dev_arrayc output,
+            dev_arrayf angles, kernel_t kernel) {
 
-        // get global index
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
- 
+        int3 idx = Index3D();
         dim3_t idims = input.dims();
         dim3_t odims = output.dims();
 
-        if ((i < idims.x) && (j < idims.y) && (k < idims.z)) {
+        if (idx < idims) {
 
             // polar coordinates
             float cen = (float) (idims.z) * 0.5;
-            float ang = angles[j];
-            float y = (k - cen) * sinf(ang) + cen;
-            float z = (k - cen) * cosf(ang) + cen;
+            float ang = angles[idx.y];
+            float y = (idx.z - cen) * sinf(ang) + cen;
+            float z = (idx.z - cen) * cosf(ang) + cen;
 
             // indices where kerel is non-zero
             int iy    = max(kernel.imin(y), 0);
@@ -54,28 +49,27 @@ namespace tomocam {
             int izmax = min(kernel.imax(z), odims.z - 1);
 
             // value at (x, y)
-            cuComplex_t pValue = input(i, j, k);
+            cuComplex_t val = input[idx];
 
             // convolve
             for (; iy < iymax; iy++) {
-                cuComplex_t temp = pValue * kernel.weight(y-iy); 
+                cuComplex_t temp = val * kernel.weight(y-iy); 
                 for (int iz = izmin; iz < izmax; iz++) {
                     cuComplex_t v = temp * kernel.weight(z-iz); 
-                    atomicAdd(&output(i, iy, iz).x, v.x);
-                    atomicAdd(&output(i, iy, iz).y, v.y);
+                    atomicAdd(&output(idx.x, iy, iz).x, v.x);
+                    atomicAdd(&output(idx.x, iy, iz).y, v.y);
                 }
             }
         }
     }
 
-    void polarsample_transpose(DeviceArray<cuComplex_t> input, DeviceArray<cuComplex_t> output,
-        DeviceArray<float> angles, kernel_t kernel, cudaStream_t stream) {
+    void polarsample_transpose(dev_arrayc input, dev_arrayc output,
+        dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
 
         // cuda kernel params
-        dim3 threads(1, 1, 256);
-        dim3 tblocks = calcBlocks(input.dims(), threads);
+        Grid grid(input.dims());
 
         // launch CUDA kernel
-        polar2cart_nufft <<<tblocks, threads, 0, stream>>> (input, output, angles, kernel);
+        polar2cart_nufft <<<grid.blocks(), grid.threads(), 0, stream>>> (input, output, angles, kernel);
     }
 } // namespace tomocam
