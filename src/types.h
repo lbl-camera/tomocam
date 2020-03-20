@@ -21,7 +21,6 @@
 #ifndef TOMOCAM_TYPES__H
 #define TOMOCAM_TYPES__H
 
-#include <cmath>
 #include <complex>
 #include <cuComplex.h>
 
