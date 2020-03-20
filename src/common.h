@@ -28,5 +28,11 @@ namespace tomocam {
         dim3_t() : x(0), y(0), z(0) {}
         dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
     };
+
+    inline int ceili(int a, int b) {
+        int n = a / b;
+        if (a % b) n = n + 1;
+        return n;
+    }
 } // namespace 
 #endif // TOMOCAM_COMMON__H
