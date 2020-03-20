@@ -44,7 +44,7 @@ namespace tomocam {
         dim3_t odims  = output.dims();
 
         // copy angles to device memory
-        DeviceArray<float> d_angles = DeviceArray_fromHost(dim3_t(1, 1, idims.y), angles, 0);
+        auto d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, idims.y), angles, 0);
 
         // create kernel 
         // TODO this should be somewhere else, with user input
@@ -66,13 +66,48 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
-        omp_set_num_threads(nStreams);
-        #pragma omp parallel for
-        for (int i = 0; i < sub_sinos.size(); i++) {
-            int i_stream = i % nStreams;
-            stage_back_project(sub_sinos[i], sub_outputs[i], over_sample, center,
-                    d_angles, kernel, streams[i_stream]);
-            cudaStreamSynchronize(streams[i_stream]);
+        // padding for oversampling
+        int ipad = (int) ((over_sample-1) * idims.z / 2);
+        center += ipad;
+
+        // run batches of nStreams 
+        int n_parts = sub_sinos.size();
+        int n_batch = ceili(n_parts, nStreams);
+        for (int i = 0; i < n_batch; i++) {
+
+            // current batch size 
+            int n_sub = std::min(nStreams, n_parts - i * nStreams);
+            std::vector<dev_arrayc> d_sinos;
+            std::vector<dev_arrayc> d_recns;
+
+            // asynchronously copy data to device
+            for (int j = 0; j < n_sub; j++) {
+                auto t1 = DeviceArray_fromHostR2C(sub_sinos[i * nStreams + j], streams[j]);
+                d_sinos.push_back(t1);
+            }
+
+            for (int j = 0; j < n_sub; j++) {
+                dim3_t d = sub_outputs[i * nStreams + j].dims();
+                dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
+                auto t2 = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
+                d_recns.push_back(t2);
+            }
+
+            // asynchronously launch kernels
+            for (int j = 0; j < n_sub; j++) 
+                stage_back_project(d_sinos[j], d_recns[j], ipad, center,
+                    d_angles, kernel, streams[j]);
+
+            // asynchronously copy data back to host
+            for (int j = 0; j < n_sub; j++) 
+                copy_fromDeviceArrayC2R(sub_outputs[i * nStreams + j], d_recns[j], streams[j]);
+
+            // clean up
+            for (int j = 0; j < n_sub; j++) {
+                cudaStreamSynchronize(streams[j]);
+                d_sinos[j].free();
+                d_recns[j].free();
+            }
         }
 
         for (auto s : streams) {
