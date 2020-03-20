@@ -29,69 +29,56 @@ namespace tomocam {
 
     __device__ const float TWOPI = 6.283185307179586;
 
-    __global__ void fftshift1D_kernel(DeviceArray<cuComplex_t> arr) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
-
-        if (arr.valid(i, j, k)) {
-            float a = powf(-1.f, k & 1);
-            arr(i, j, k).x *= a;
-            arr(i, j, k).y *= a;
+    __global__ 
+    void fftshift1D_kernel(dev_arrayc arr) {
+        int3 idx = Index3D();
+        if (idx < arr.dims()) {
+            float a = powf(-1.f, idx.z & 1);
+            arr[idx] = arr[idx] * a;
         }
     }
 
-    __global__ void fftshift2D_kernel(DeviceArray<cuComplex_t> arr) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
-
-        if (arr.valid(i, j, k)) {
-            float a = powf(-1.f, (j + k) & 1);
-            arr(i,j,k).x *= a; 
-            arr(i,j,k).y *= a;
+    __global__ 
+    void fftshift2D_kernel(dev_arrayc arr) {
+        int3 idx = Index3D();
+        if (idx < arr.dims()) {
+            float a = powf(-1.f, (idx.y + idx.z) & 1);
+            arr[idx] = arr[idx] * a;
         }
     }
 
-    __global__ void fftshift_center_kernel(DeviceArray<cuComplex_t> arr, float shift) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
-
+    __global__ 
+    void fftshift_center_kernel(dev_arrayc arr, float shift) {
+        int3 idx = Index3D();
         dim3_t dims = arr.dims();
-        if (arr.valid(i, j, k)) {
-            float z = (float) k / (float) dims.z;
+        if (idx < dims) {
+            float z = (float) idx.z / dims.z;
             float w = TWOPI * shift * z;
-            arr(i,j,k)  = arr(i,j,k) * expf_j(-w);
+            arr[idx] = arr[idx] * expf_j(-w);
         }
     }
 
     // multiply by -1^i
-    void fftshift1D(DeviceArray<cuComplex_t> arr, cudaStream_t stream) {
-        dim3 threads(1,1,256);
-        dim3 tblocks = calcBlocks(arr.dims(), threads);
-        fftshift1D_kernel<<< tblocks, threads, 0, stream >>>(arr);
+    void fftshift1D(dev_arrayc arr, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        fftshift1D_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr);
     }
 
     // multiply by 2-D chessboard pattern
-    void fftshift2D(DeviceArray<cuComplex_t> arr, cudaStream_t stream) {
-        dim3 threads(1, 16, 16);
-        dim3 tblocks = calcBlocks(arr.dims(), threads);
-        fftshift2D_kernel<<< tblocks, threads, 0, stream>>>(arr);
+    void fftshift2D(dev_arrayc arr, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        fftshift2D_kernel<<< grid.blocks(), grid.threads(), 0, stream>>>(arr);
     }
 
     // phase shift center
-    void fftshift_center(DeviceArray<cuComplex_t> arr, float center, cudaStream_t stream) {
-        dim3 threads(1, 1, 256);
-        dim3 tblocks = calcBlocks(arr.dims(), threads);
-        fftshift_center_kernel<<< tblocks, threads, 0, stream >>>(arr, center);
+    void fftshift_center(dev_arrayc arr, float center, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, center);
     }
 
     // undo phase shift center
-    void ifftshift_center(DeviceArray<cuComplex_t> arr, float center, cudaStream_t stream) {
-        dim3 threads(1, 1, 256);
-        dim3 tblocks = calcBlocks(arr.dims(), threads);
-        fftshift_center_kernel<<< tblocks, threads, 0, stream >>>(arr, -center);
+    void ifftshift_center(dev_arrayc arr, float center, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, -center);
     }
-
 } // namespace tomocam
