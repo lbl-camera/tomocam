@@ -20,6 +20,8 @@
 #ifndef TOMOCAM_FFT__H
 #define TOMOCAM_FFT__H
 
+#include <iostream>
+#include <cuda_runtime.h>
 #include <cufft.h>
 
 #include "dist_array.h"
@@ -27,17 +29,58 @@
 #include "types.h"
 
 namespace tomocam {
-    cufftHandle fftPlan1D(dim3_t);
 
-    cufftHandle fftPlan2D(dim3_t);
+    inline cufftHandle fftPlan1D(dim3_t dims) {
+        // order: nslc, ncol, nrow
+        int rank    = 1;
+        int n[]     = {dims.z};
+        int istride = 1;
+        int ostride = 1;
+        int idist   = dims.z;
+        int odist   = dims.z;
+        int batches = dims.x * dims.y;
 
-    void fftshift_center(DeviceArray<cuComplex_t>, float, cudaStream_t);
+        cufftHandle plan;
+        cufftResult status = cufftPlanMany(&plan, rank, n, NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batches);
+        if (status != CUFFT_SUCCESS) {
+            int dev = -1;
+            cudaGetDevice(&dev);
+            std::cerr << "Failed to make a plan on device " << dev << "." << std::endl;
+            std::cerr << "Error code: " << status << std::endl;
+            throw status;
+        }
+        return plan;
+    }
 
-    void ifftshift_center(DeviceArray<cuComplex_t>, float, cudaStream_t);
+    inline cufftHandle fftPlan2D(dim3_t dims) {
+        // order: nslc, ncol, nrow
+        int rank    = 2;
+        int n[]     = {dims.y, dims.z};
+        int istride = 1;
+        int ostride = 1;
+        int idist   = dims.y * dims.z;
+        int odist   = dims.y * dims.z;
+        int batches = dims.x;
 
-    void fftshift1D(DeviceArray<cuComplex_t>, cudaStream_t);
+        cufftHandle plan;
+        cufftResult status = cufftPlanMany(&plan, rank, n, NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batches);
+        if (status != CUFFT_SUCCESS) {
+            int dev = -1;
+            cudaGetDevice(&dev);
+            std::cerr << "Failed to make a plan on device " << dev << "." << std::endl;
+            std::cerr << "Error code: " << status << std::endl;
+            throw status;
+        }
+        return plan;
+    }
 
-    void fftshift2D(DeviceArray<cuComplex_t>, cudaStream_t);
+    void fftshift_center(dev_arrayc, float, cudaStream_t);
+
+    void ifftshift_center(dev_arrayc, float, cudaStream_t);
+
+    void fftshift1D(dev_arrayc, cudaStream_t);
+
+    void fftshift2D(dev_arrayc, cudaStream_t);
 
 } // namespace tomocam
 #endif // TOMOCAM_FFT__H
