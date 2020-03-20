@@ -10,19 +10,24 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
 set(SRC 
-    ${PROJECT_SOURCE_DIR}/fft.cpp 
     ${PROJECT_SOURCE_DIR}/backward.cpp 
-    ${PROJECT_SOURCE_DIR}/stage_backward.cpp
+    ${PROJECT_SOURCE_DIR}/forward.cpp
+    ${PROJECT_SOURCE_DIR}/staging.cpp
     ${PROJECT_SOURCE_DIR}/iradon.cpp
-    )
+    ${PROJECT_SOURCE_DIR}/radon.cpp
+    ${PROJECT_SOURCE_DIR}/gradient.cpp
+    ${PROJECT_SOURCE_DIR}/tvd_update.cpp
+   )
 
 set(CUSRC 
     ${PROJECT_SOURCE_DIR}/cuPolarsampleTranspose.cu 
+    ${PROJECT_SOURCE_DIR}/cuPolarsample.cu 
+    ${PROJECT_SOURCE_DIR}/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/fftshift.cu
     ${PROJECT_SOURCE_DIR}/deapod.cu
     ${PROJECT_SOURCE_DIR}/rescale.cu
     ${PROJECT_SOURCE_DIR}/calc_error.cu
-    )
+   )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -69,6 +74,9 @@ target_link_libraries(tomocam PRIVATE dummy)
 
 add_executable(gridrec "test_gridrec.cpp")
 target_link_libraries(gridrec tomocam)
+
+add_executable(mbir "test_mbir.cpp")
+target_link_libraries(mbir tomocam)
 
 
 
