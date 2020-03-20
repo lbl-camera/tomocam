@@ -19,33 +19,32 @@
  */
 
 #include <iostream>
-#include <thread>
 #include <omp.h>
+#include <thread>
 
 #include "dev_array.h"
-#include "kernel.h"
 #include "dist_array.h"
-#include "machine.h"
 #include "internals.h"
+#include "kernel.h"
+#include "machine.h"
 #include "types.h"
-#include "util.h"
 
 namespace tomocam {
 
-    void gradient_(Partition<float> input, Partition<float> output, float center, float over_sample,
-        float *h_angles, int device) {
+    void gradient_(Partition<float> model, Partition<float> sino, float center,
+        float over_sample, float *h_angles, int device) {
 
         // initalize the device
         cudaSetDevice(device);
-        cudaHostRegister(input.begin(), input.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(output.begin(), output.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(sino.begin(), sino.bytes(), cudaHostRegisterPortable);
 
         // input and output dimensions
-        dim3_t idims  = input.dims();
-        dim3_t odims  = output.dims();
+        dim3_t idims = model.dims();
+        dim3_t odims = sino.dims();
 
         // copy angles to the device
-        DeviceArray<float> angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
+        auto angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
 
         // interpolation kernel
         float beta = 12.566370614359172f;
@@ -54,8 +53,8 @@ namespace tomocam {
 
         int nStreams = 0, slcs = 0;
         MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
-        std::vector<Partition<float>> sub_inputs = input.sub_partitions(slcs);
-        std::vector<Partition<float>> sub_outputs = output.sub_partitions(slcs);
+        std::vector<Partition<float>> sub_model = model.sub_partitions(slcs);
+        std::vector<Partition<float>> sub_sino = sino.sub_partitions(slcs);
 
         // create cudaStreams
         std::vector<cudaStream_t> streams;
@@ -65,34 +64,71 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
-        for (int i = 0; i < sub_inputs.size(); i++) {
-            int i_stream = i % nStreams;
-            calc_gradient(sub_inputs[i], sub_outputs[i], over_sample, center,
-                    angles, kernel, streams[i_stream]);
-            cudaStreamSynchronize(streams[i_stream]);
+        // padding on each end
+        int ipad = (int)((over_sample - 1) * idims.z / 2);
+        center += ipad;
+
+        // run batches on nStreams
+        int n_parts = sub_model.size();
+        int n_batch = ceili(n_parts, nStreams);
+        for (int i = 0; i < n_batch; i++) {
+
+            // current batch size
+            int n_sub = std::min(nStreams, n_parts - i * nStreams);
+            std::vector<dev_arrayc> d_model;
+            std::vector<dev_arrayf> d_sino;
+
+            // asynchronously copy
+            for (int j = 0; j < n_sub; j++) {
+                auto t1 = DeviceArray_fromHostR2C(sub_model[i * nStreams + j], streams[j]);
+                d_model.push_back(t1);
+            }
+
+            // copy data to device
+            for (int j = 0; j < n_sub; j++) {
+                auto t2 = DeviceArray_fromHost<float>(sub_sino[i * nStreams + j], streams[j]);
+                d_sino.push_back(t2);
+            }
+
+            // run concurrent cuda-kernels
+            for (int j = 0; j < n_sub; j++)
+                calc_gradient(d_model[j], d_sino[j], ipad, center, angles,
+                              kernel, streams[j]);
+
+            // copy data back to host
+            for (int j = 0; j < n_sub; j++)
+                copy_fromDeviceArrayC2R(sub_model[i * nStreams + j], d_model[j], streams[j]);
+
+            // ... and delete device_arrays
+            for (int j = 0; j < n_sub; j++) {
+                cudaStreamSynchronize(streams[j]);
+                d_model[j].free();
+                d_sino[j].free();
+            }
         }
 
         for (auto s : streams) {
             cudaStreamSynchronize(s);
             cudaStreamDestroy(s);
         }
-        cudaHostUnregister(input.begin());
-        cudaHostUnregister(output.begin());
+        cudaHostUnregister(model.begin());
+        cudaHostUnregister(sino.begin());
     }
 
-    // Multi-GPU calll 
-    void gradient(DArray<float> &input, DArray<float> &output, float *angles, 
-        float center, float over_sample) {
-              
+    // Multi-GPU calll
+    void gradient(DArray<float> &model, DArray<float> &sinogram, float *angles,
+                  float center, float over_sample) {
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
-        std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
-        std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
+        std::vector<Partition<float>> p1 = model.create_partitions(nDevice);
+        std::vector<Partition<float>> p2 = sinogram.create_partitions(nDevice);
 
         // launch all the available devices
         std::vector<std::thread> threads;
-        for (int i = 0; i < nDevice; i++) 
-            threads.push_back(std::thread(gradient_, p1[i], p2[i], center, over_sample, angles, i));
+        for (int i = 0; i < nDevice; i++)
+            threads.push_back(
+                std::thread(
+                    gradient_, p1[i], p2[i], center, over_sample, angles, i));
 
         // wait for devices to finish
         for (int i = 0; i < nDevice; i++) {
