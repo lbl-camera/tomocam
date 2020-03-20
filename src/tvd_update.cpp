@@ -22,6 +22,7 @@
 
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <omp.h>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -39,6 +40,7 @@ namespace tomocam {
         cudaSetDevice(device);
         cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
         cudaHostRegister(objfn.begin(), objfn.bytes(), cudaHostRegisterPortable);
+
         //  output
         dim3_t idims  = objfn.dims();
 
@@ -54,20 +56,44 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
-        // create sub-partitions of `slcs` slices each
-        std::vector<Partition<float>> objs = objfn.sub_partitions(slcs);
         // create sub-partitions with halo
         std::vector<Partition<float>> mods = model.sub_partitions(slcs, 1);
+        // create sub-partitions of `slcs` slices each
+        std::vector<Partition<float>> objs = objfn.sub_partitions(slcs);
 
-        for (int i = 0; i < objs.size(); i++) {
-            int i_stream = i % nStreams;
-            DeviceArray<float> d_model = DeviceArray_fromHost<float>(mods[i], streams[i_stream]);
-            DeviceArray<float> d_objfn = DeviceArray_fromHost<float>(objs[i], streams[i_stream]);
+        // run batches of nStreams
+        int n_parts = objs.size();
+        int n_batch = ceili(n_parts, nStreams);
+        for (int i = 0; i < n_batch; i++) {
+          
+            // current batch size
+            int n_sub = std::min(nStreams, n_parts - i * nStreams);
+            std::vector<dev_arrayf> d_model;
+            std::vector<dev_arrayf> d_objfn;
 
-            add_total_var(d_model, d_objfn, p, sigma, streams[i_stream]);
+            // copy model to device array
+            for (int j = 0; j < n_sub; j++) {
+                auto t1 = DeviceArray_fromHost<float>(mods[i * nStreams + j], streams[j]);
+                d_model.push_back(t1);
+            }
 
-            copy_fromDeviceArray<float>(objs[i], d_objfn, streams[i_stream]);
-            d_model.free();
+            // copy objective function to devie array
+            for (int j = 0; j < n_sub; j++) {
+                auto t1 = DeviceArray_fromHost<float>(objs[i * nStreams + j], streams[j]);
+                d_objfn.push_back(t1);
+            }
+
+            // calcuate constraints and update the objective function in-place
+            for (int j = 0; j < n_sub; j++)
+                add_total_var(d_model[j], d_objfn[j], p, sigma, streams[j]);
+
+            // copy data back to host memeory
+            for (int j = 0; j < n_sub; j++) {
+                cudaStreamSynchronize(streams[j]);
+                copy_fromDeviceArray<float>(objs[i * nStreams + j], d_objfn[j], streams[j]);
+                d_model[j].free();
+                d_objfn[j].free();
+            }
         }
             
         for (auto &s : streams) {

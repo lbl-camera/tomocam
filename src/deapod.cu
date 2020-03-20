@@ -22,79 +22,47 @@
 #include <cuda_runtime.h>
 
 #include "dev_array.h"
+#include "kernel.h"
 #include "types.h"
 #include "utils.cuh"
 
 namespace tomocam {
 
-    __device__ 
-    float kaiser_fourier_trans(float x, float W, float beta) {
-        const float PI = 3.14159265359f;
-        float t1 = powf(beta, 2) - powf(x * W * PI, 2);
-
-        if (t1 > 0 ) { 
-            t1 = sqrtf(t1);
-            float t2 = W / cyl_bessel_i0(beta);
-            return (t2 * sinhf(t1)/t1);
-        } 
-        else return 1.f;
-    }
-        
     __global__ 
-    void deapodize2d_kernel(cuComplex_t * arr, float W, float beta, int2 grid, int slcs) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
-
-        int nrows  = grid.x;
-        int ncols  = grid.y;
-        float nmax = (float) ncols;
-        float cen  = (float) (nmax / 2);
-
-        if ((i < slcs) && (j < nrows) && (k < ncols)) {
-            float y = (j - cen) / nmax; 
-            float x = (k - cen) / nmax;
-            float wx = kaiser_fourier_trans(x, W, beta);
-            float wy = kaiser_fourier_trans(y, W, beta);
-            int gid = i * nrows * ncols + j * ncols + k;
-            arr[gid].x = arr[gid].x / wx / wy;
+    void deapodize2d_kernel(dev_arrayc arr, kernel_t kernel) {
+        int3 idx = Index3D();
+        dim3_t dims = arr.dims();
+        float cen_y  = (float) (dims.y / 2);
+        float cen_z  = (float) (dims.z / 2);
+        if (idx < arr.dims()) {
+            float y = (idx.y - cen_y) / dims.y;
+            float z = (idx.z - cen_z) / dims.z;
+            float wy = kernel.weightft(y);
+            float wz = kernel.weightft(z);
+            arr[idx].x = arr[idx].x / wz / wy;
         }
     }
 
-
     __global__ 
-    void deapodize1d_kernel(cuComplex_t * arr, float W, float beta, int cols, int rows) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        
-        float nmax = (float) cols;
-        float cen  = (float) (cols / 2);
-        if (i < rows * cols) {
-            int j = i % cols;
-            float x = (j - cen) /  nmax;
-            float wx  = kaiser_fourier_trans(x, W, beta);
-            arr[i].x = arr[i].x / wx;
+    void deapodize1d_kernel(dev_arrayc arr, kernel_t kernel) {
+        int3 idx = Index3D();
+        dim3_t dims = arr.dims();
+        float cen  = (float) (dims.z / 2);
+        if ( idx < dims) {
+            float z = (idx.z - cen) /  dims.z;
+            float w  = kernel.weightft(z);
+            arr[idx].x = arr[idx].x / w;
         }
     }
-
 
     // kernel wrappers 
-    void deApodize2D(cuComplex_t * arr, dim3_t dims, float W, float beta, cudaStream_t stream) {
-        int slcs  = dims.x;
-        int2 grid = make_int2(dims.y, dims.z);
-        dim3 threads(1, 16, 16);
-   
-        dim3 tblocks = calcBlocks(dims, threads);
-        deapodize2d_kernel <<< tblocks, threads, 0, stream >>> (arr, W, beta, grid, slcs);
+    void deapodize2D(dev_arrayc arr, kernel_t kernel, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        deapodize2d_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, kernel);
     }
 
-
-    void deApodize1D(cuComplex_t * arr, dim3_t dims, float W, float beta, cudaStream_t stream) {
-        int size = dims.x * dims.y * dims.z;
-        int cols = dims.z;
-        int rows = dims.x * dims.y;
-
-        dim3 threads(256, 1, 1);
-        dim3 tblocks(idiv(size, threads.x), 1, 1);
-        deapodize1d_kernel <<< tblocks, threads, 0, stream >>> (arr, W, beta, cols, rows);
+    void deapodize1D(dev_arrayc arr, kernel_t kernel, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        deapodize1d_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, kernel);
     }
 } // namespace tomocam

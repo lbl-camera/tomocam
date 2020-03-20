@@ -63,11 +63,49 @@ namespace tomocam {
             streams.push_back(temp);
         }
 
-        for (int i = 0; i < sub_inputs.size(); i++) {
-            int i_stream = i % nStreams; 
-                stage_fwd_project(sub_inputs[i], sub_sinos[i], over_sample, center,
-                    d_angles, kernel, streams[i_stream]);
+        // calculate padding
+        int ipad = (int) ((over_sample - 1) * idims.z / 2);
+        center += ipad;
+
+        // run batches of nStreams
+        int n_parts = sub_inputs.size();
+        int n_batch = ceili(n_parts, nStreams);
+        for (int i = 0; i < n_batch; i++) {
+
+            // current batch size
+            int n_sub = std::min(nStreams, n_parts - i * nStreams);
+            std::vector<dev_arrayc> d_volms;
+            std::vector<dev_arrayc> d_sinos;
+
+            // asynchronously copy data to device
+            for (int j = 0; j < n_sub; j++) {
+                auto t1 = DeviceArray_fromHostR2C(sub_inputs[i * nStreams + j], streams[j]);
+                d_volms.push_back(t1);
             }
+
+            // create device arrays for output
+            for (int j = 0; j < n_sub; j++) {
+                dim3_t d = sub_sinos[i * nStreams + j].dims();
+                dim3_t pad_odims = dim3_t(d.x, d.y, d.z + 2 * ipad);
+                auto t1 = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
+                d_sinos.push_back(t1);
+            }
+
+            // asynchronously launch kernels
+            for (int j = 0; j < n_sub; j++)
+               stage_fwd_project(d_volms[j], d_sinos[j], ipad, center, d_angles, kernel, streams[j]);
+
+            // asynchronously copy data from device to host
+            for (int j = 0; j < n_sub; j++)
+                copy_fromDeviceArrayC2R(sub_sinos[i * nStreams + j], d_sinos[j], streams[j]);
+
+            // clean up
+            for (int j = 0; j < n_sub; j++) {
+                cudaStreamSynchronize(streams[j]);
+                d_volms[j].free();
+                d_sinos[j].free();
+            }
+        }
 
         for (auto s : streams) {
             cudaStreamSynchronize(s);

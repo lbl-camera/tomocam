@@ -1,14 +1,11 @@
-GPU reconstruction of synchrotron tomography data using non-uniform FFT.
+Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
 
 **Dependencies**
 ----------------
 
-1. [Arrayfire](https://github.com/arrayfire/arrayfire)
-2. [Arrayfire-python](https://github.com/arrayfire/arrayfire-python)
-3. [tomopy](https://github.com/tomopy/tomopy)
-4. CUDA 
-5. numpy
-6. C++ compiler
+1. CUDA 
+2. pybind11
+3. numpy
 
 **Copyright Notice**
 ---------------------

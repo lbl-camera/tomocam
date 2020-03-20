@@ -12,27 +12,24 @@ set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 set(SRC 
     ${PROJECT_SOURCE_DIR}/norm2.cpp
     ${PROJECT_SOURCE_DIR}/caxpy.cpp
-    ${PROJECT_SOURCE_DIR}/fft.cpp 
     ${PROJECT_SOURCE_DIR}/backward.cpp 
-    ${PROJECT_SOURCE_DIR}/forward.cpp 
-    ${PROJECT_SOURCE_DIR}/gradient.cpp
-    ${PROJECT_SOURCE_DIR}/stage_backward.cpp
-    ${PROJECT_SOURCE_DIR}/stage_forward.cpp
-    ${PROJECT_SOURCE_DIR}/stage_gradient.cpp
+    ${PROJECT_SOURCE_DIR}/forward.cpp
+    ${PROJECT_SOURCE_DIR}/staging.cpp
     ${PROJECT_SOURCE_DIR}/iradon.cpp
     ${PROJECT_SOURCE_DIR}/radon.cpp
+    ${PROJECT_SOURCE_DIR}/gradient.cpp
     ${PROJECT_SOURCE_DIR}/tvd_update.cpp
-    )
+   )
 
 set(CUSRC 
     ${PROJECT_SOURCE_DIR}/cuPolarsampleTranspose.cu 
     ${PROJECT_SOURCE_DIR}/cuPolarsample.cu 
+    ${PROJECT_SOURCE_DIR}/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/fftshift.cu
     ${PROJECT_SOURCE_DIR}/deapod.cu
     ${PROJECT_SOURCE_DIR}/rescale.cu
     ${PROJECT_SOURCE_DIR}/calc_error.cu
-    ${PROJECT_SOURCE_DIR}/cuTVD.cu
-    )
+   )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -61,22 +58,30 @@ set_target_properties(dummy PROPERTIES
                       CUDA_VISIBILITY_PRESET "hidden"
                      )
 
-                 #add_library(cTomocam MODULE ${SRC})
-add_library(cTomocam ${SRC})
+#
+#add_library(cTomocam MODULE ${SRC})
+#set_target_properties(cTomocam PROPERTIES 
+#                      CXX_VISIBILITY_PRESET "hidden" 
+#                      PREFIX "${PYTHON_MODULE_PREFIX}" 
+#                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
+#target_link_libraries(cTomocam PRIVATE ${LIBS})
+#target_link_libraries(cTomocam PRIVATE dummy)
 
-set_target_properties(cTomocam PROPERTIES 
-                      CXX_VISIBILITY_PRESET "hidden" 
-                      PREFIX "${PYTHON_MODULE_PREFIX}" 
-                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
-target_link_libraries(cTomocam PRIVATE ${LIBS})
-target_link_libraries(cTomocam PRIVATE dummy)
+
+# for testing
+add_library(tomocam ${SRC})
+set_target_properties(tomocam PROPERTIES CXX_VISIBILITY_PRESET "hidden")
+target_link_libraries(tomocam PRIVATE ${LIBS})
+target_link_libraries(tomocam PRIVATE dummy)
 
 add_executable(gridrec "test_gridrec.cpp")
-target_link_libraries(gridrec cTomocam)
+target_link_libraries(gridrec tomocam)
 
-add_executable(tvd "test_tvd.cpp")
-target_link_libraries(tvd cTomocam)
+add_executable(mbir "test_mbir.cpp")
+target_link_libraries(mbir tomocam)
 
-install(TARGETS cTomocam 
-        ARCHIVE DESTINATION tomocam
-        LIBRARY DESTINATION tomocam)
+
+
+#install(TARGETS cTomocam 
+#        ARCHIVE DESTINATION tomocam
+#        LIBRARY DESTINATION tomocam)

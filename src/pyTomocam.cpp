@@ -28,8 +28,14 @@ PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
     // DArray class
-    py::class_<tomocam::DArray<float>>(m, "DArrayf").def(py::init<int, int, int>());
+    py::class_<tomocam::DArray<float>>(m, "DArray").def(py::init<int, int, int>());
 
-    // machine config
-    m.def("fft1d", &tomocam::fft1d, "One-dimensional FFT of DArray type");
+
+    // radon transform
+    // iradon transform
+    // gradients
+    // add_tv
+    // caxpy
+    // norm2
+    
 }

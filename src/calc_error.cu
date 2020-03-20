@@ -25,28 +25,25 @@
 #include "utils.cuh"
 
 namespace tomocam {
-    __global__ void calc_error_kernel(cuComplex_t * model, float * data, dim3_t d1, dim3_t d2) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        int j = blockDim.y * blockIdx.y + threadIdx.y;
-        int k = blockDim.z * blockIdx.z + threadIdx.z;
+    __global__ void calc_error_kernel(dev_arrayc model, dev_arrayf data) {
 
-        if ((i < d1.x) && (j < d1.y) && (k < d1.z)) {
-            int m_id = i * d1.y * d1.z + j * d1.z + k;
-            int ipad = (d1.z - d2.z)/2;
-            if ((k < ipad) || (k > ipad + d2.z - 1)) {
-                model[m_id].x = 0.f;
-                model[m_id].y = 0.f;
+        int3 idx = Index3D();
+        dim3_t d1 = model.dims();
+        dim3_t d2 = data.dims();
+        if (idx < d1) {
+            int ipad = (d1.z - d2.z) / 2;
+            if ((idx.z < ipad) || (idx.z > ipad + d2.z - 1)) {
+                model[idx].x = 0.f;
+                model[idx].y = 0.f;
             } else {
-                int d_id = i * d2.y * d2.z + j * d2.z + k - ipad;
-                model[m_id].x = model[m_id].x - data[d_id];
-                model[m_id].y = 0.f;
+                model[idx].x = model[idx].x - data(idx.x, idx.y, idx.z - ipad);
+                model[idx].y = 0.f;
             }
         }
     }
 
-    void calc_error(cuComplex_t *model,  float *data, dim3_t d1, dim3_t d2, cudaStream_t stream) {
-        dim3 threads(1, 16, 16);
-        dim3 tblocks = calcBlocks(d1, threads);
-        calc_error_kernel <<< tblocks, threads, 0, stream >>> (model, data, d1, d2);
+    void calc_error(dev_arrayc model, dev_arrayf data, cudaStream_t stream) {
+        Grid grid(model.dims());
+        calc_error_kernel<<<grid.blocks(), grid.threads(), 0, stream>>>(model, data);
     }
 } // namespace tomocam

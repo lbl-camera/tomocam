@@ -69,7 +69,7 @@ namespace tomocam {
         return MRF_Q / (MRF_SIGMA_Q * MRF_C);
     }
 
-    __global__ void tvd_update_kernel(DeviceArray<float> model, DeviceArray<float> objfn, float p, float sigma) {
+    __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma) {
 
         // thread ids
         int i = threadIdx.x;
@@ -214,14 +214,15 @@ namespace tomocam {
         }
     }
 
-    __global__ void hessian_zero_kernel(DeviceArray<float> hessian, float sigma) {
+    __global__ void hessian_zero_kernel(dev_arrayf hessian, float sigma) {
 
-        int x = blockDim.x * blockIdx.x + threadIdx.x;
-        int y = blockDim.y * blockIdx.y + threadIdx.y;
-        int z = blockDim.z * blockIdx.z + threadIdx.z;
-
+        int3 idx = Index3D();
         dim3_t dims = hessian.dims();
-        if ((x < dims.x) && (y < dims.y) && (z < dims.z)) {
+
+        int x = idx.x;
+        int y = idx.y;
+        int z = idx.z;
+        if (idx < dims) {
             float temp = 0.f;
             for (int ix = 0; ix < 3; ix++)
                 for (int iy = 0; iy < 3; iy++)
@@ -230,22 +231,22 @@ namespace tomocam {
         }
     }
 
-    void add_total_var(DeviceArray<float> model, DeviceArray<float> objfn, float p, float sigma, cudaStream_t stream) {
+    void add_total_var(dev_arrayf model, dev_arrayf objfn, float p, float sigma, cudaStream_t stream) {
 
-        // block dims
-        dim3 threads(NX, NY, NZ);
-        dim3 tblocks = calcBlocks(objfn.dims(), threads);
-        tvd_update_kernel<<<tblocks, threads, 0, stream>>>(model, objfn, p, sigma);
+        // CUDA kernel parameters
+        Grid grid(objfn.dims());
+
+        // update gradients of objective function inplace
+        tvd_update_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(model, objfn, p, sigma);
     }
 
-    void calcHessian(DeviceArray<float> hessian, float sigma, cudaStream_t stream) {
+    void calcHessian(dev_arrayf hessian, float sigma, cudaStream_t stream) {
 
-        // block dims
-        dim3 threads(NX, NY, NZ);
-        dim3 tblocks = calcBlocks(hessian.dims(), threads);
+        // CUDA kernel parameters
+        Grid grid(hessian.dims());
 
         // update hessain inplace
-        hessian_zero_kernel<<<tblocks, threads, 0, stream>>>(hessian, sigma);
+        hessian_zero_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(hessian, sigma);
     }
 
 } // namespace tomocam

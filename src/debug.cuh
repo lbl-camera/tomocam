@@ -2,9 +2,7 @@
 #define TOMOCAM_DEBUG__H
 
 #include <fstream>
-
 #include <cuda_runtime.h>
-
 #include "common.h"
 
 namespace tomocam {
@@ -31,3 +29,4 @@ namespace tomocam {
 }
 
 #endif // TOMOCAM_DEBUG__H
+

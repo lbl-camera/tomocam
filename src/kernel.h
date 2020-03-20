@@ -73,9 +73,22 @@ namespace tomocam {
             }
             return w;
         }
+        // fourier transform of kaiser window
+        __device__ __forceinline__ 
+        float weightft(float x) {
+            const float PI = 3.14159265359f;
+            float M = 2 * radius_ + 1;
+            float t1 = powf(beta_, 2) - powf(x * M * PI, 2);
+            float t2 = M / cyl_bessel_i0(beta_);
+            if (t1 > 0) {
+                t1 = sqrtf(t1);
+                return (t2 * sinhf(t1)/t1);
+            } else {
+                t1 = sqrtf(-t1);
+                return (t2 * sinf(t1)/t1); 
+            }
+        }
         #endif // __NVCC__
- 
-        // calculate weight at the distane using shared memory
     };
 } // namespace tomocam
 
