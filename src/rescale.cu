@@ -23,20 +23,19 @@
 
 #include "dev_array.h"
 #include "types.h"
+#include "utils.cuh"
 
 namespace tomocam {
-    __global__ void rescale_kernel(cuComplex_t * arr, float scale, int len) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        if (i < len) {
-            arr[i].x *= scale;
-            arr[i].y *= scale;
-        } 
+    __global__ void rescale_kernel(DeviceArray<cuComplex_t> arr, float scale) {
+        int3 idx = Index3D();
+        if (idx < arr.dims()) 
+            arr[idx] = arr[idx]*scale;
     }
 
-    void rescale(cuComplex_t * arr, dim3_t dims, float scale, cudaStream_t stream) {
-        int len = dims.x * dims.y * dims.z; 
-        dim3 threads(256);
-        dim3 tblocks(len / threads.x + 1);
-        rescale_kernel <<< tblocks, threads, 0, stream >>> (arr, scale, len);
+    void rescale(dev_arrayc arr, cudaStream_t stream) {
+        dim3_t dims = arr.dims();
+        float scale = 1.f / (dims.z * dims.z);
+        Grid grid(dims); 
+        rescale_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, scale);
     }
 } // namespace tomocam
