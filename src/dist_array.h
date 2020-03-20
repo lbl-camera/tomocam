@@ -69,7 +69,6 @@ namespace tomocam {
         T *buffer_;   ///< Pointer to data buffer
 
         // return global index
-        int idx_(int i, int j) { return (i * dims_.y + j); }
         int idx_(int i, int j, int k) { return (i * dims_.y * dims_.z + j * dims_.z + k); }
 
       public:
@@ -103,9 +102,8 @@ namespace tomocam {
         size_t bytes() const { return size_ * sizeof(T); }
 
         // indexing
-        T &operator()(int);
-        T &operator()(int, int);
-        T &operator()(int, int, int);
+        T &operator[](int i) { return buffer_[i]; }
+        T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
 
         /// Returns pointer to N-th slice
         T *slice(int n) { return (buffer_ + n * dims_.y * dims_.z); }

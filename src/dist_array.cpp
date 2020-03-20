@@ -178,18 +178,4 @@ namespace tomocam {
         return table;
     }
 
-    template <typename T>
-    T &DArray<T>::operator()(int i) {
-        return buffer_[i];
-    }
-
-    template <typename T>
-    T &DArray<T>::operator()(int i, int j) {
-        return buffer_[idx_(i, j)];
-    }
-
-    template <typename T>
-    T &DArray<T>::operator()(int i, int j, int k) {
-        return buffer_[idx_(i, j, k)];
-    }
 } // namespace tomocam
