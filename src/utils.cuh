@@ -28,13 +28,59 @@
 #define __devhstI__ __forceinline__ __device__ __host__
 namespace tomocam {
 
-    inline int idiv (int a, int b) {
+    inline unsigned int idiv (size_t a, int b) {
         if (a % b) return (a / b + 1);
         else return (a / b);
     }
 
     inline dim3 calcBlocks(dim3_t dims, dim3 thrds) {
         return dim3(idiv(dims.x, thrds.x), idiv(dims.y, thrds.y), idiv(dims.z, thrds.z));
+    }
+
+    // cuda doesn't like when hread block has:
+    // ...  x = 1 and y >, z > 1, or
+    // ...  x = 1, y = 1 and z > 1
+    struct Grid {
+        dim3 threads_;
+        dim3 blocks_;
+
+        Grid(size_t nx){
+            threads_ = {256, 1, 1};
+            blocks_ = { idiv(nx, threads_.x), 1, 1 };
+        }
+
+        Grid(dim3_t d) {
+            threads_ = { 16, 16, 1};
+            blocks_ =  { idiv(d.z, threads_.x), idiv(d.y, threads_.y), idiv(d.x, threads_.z) };
+        }
+
+        dim3 blocks() { return blocks_; }
+        dim3 threads() { return threads_; }
+    };
+
+
+    // calculate thread global index
+    __deviceI__ 
+    int Index1D() {
+        return (blockDim.x * blockIdx.x + threadIdx.x);
+    }
+
+    __deviceI__ 
+    int3 Index3D() {
+        int3 idx; 
+        idx.x = blockDim.z * blockIdx.z + threadIdx.z;
+        idx.y = blockDim.y * blockIdx.y + threadIdx.y;
+        idx.z = blockDim.x * blockIdx.x + threadIdx.x;
+        return idx;
+    }
+
+    // check if indices are in range
+    __deviceI__ 
+    bool operator< (int3 i, dim3_t d) {
+        if ((i.x < d.x) && (i.y < d.y) && (i.z < d.z)) 
+            return true;
+        else 
+            return false;
     }
 
     /* add complex to a complex */
@@ -48,7 +94,6 @@ namespace tomocam {
     cuComplex_t operator*(cuComplex_t a, float b) {
         return make_cuFloatComplex(a.x * b, a.y * b);
     }
-
     __devhstI__
     cuComplex_t operator*(float b, cuComplex_t a) {
         return make_cuFloatComplex(a.x * b, a.y * b);
