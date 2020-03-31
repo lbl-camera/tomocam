@@ -76,7 +76,7 @@ namespace tomocam {
         fwd_project(model, sino, center, angles, kernel, stream);
 
         // overwrite d_sino with error and redo the zero-padding
-        calc_error(sino, data, stream);
+        calc_error(sino, data, ipad, stream);
 
         // set d_model to zero
         cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), stream);
