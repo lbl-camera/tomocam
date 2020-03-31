@@ -33,10 +33,9 @@ set(CUSRC
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
-find_package(CUDA REQUIRED) 
+# CUDA Stuff
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
-set(LIBS ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #python d
@@ -45,7 +44,6 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 #pybind11
 find_package(pybind11 REQUIRED) 
-list(APPEND LIBS pybind11::module)
 
 find_package(OpenMP) 
 if (OpenMP_FOUND) 
@@ -58,30 +56,31 @@ set_target_properties(dummy PROPERTIES
                       CUDA_VISIBILITY_PRESET "hidden"
                      )
 
-#
-#add_library(cTomocam MODULE ${SRC})
-#set_target_properties(cTomocam PROPERTIES 
-#                      CXX_VISIBILITY_PRESET "hidden" 
-#                      PREFIX "${PYTHON_MODULE_PREFIX}" 
-#                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
-#target_link_libraries(cTomocam PRIVATE ${LIBS})
-#target_link_libraries(cTomocam PRIVATE dummy)
+
+add_library(cTomocam MODULE pyTomocam.cpp ${SRC})
+set_target_properties(cTomocam PROPERTIES 
+                      CXX_VISIBILITY_PRESET "hidden" 
+                      PREFIX "${PYTHON_MODULE_PREFIX}" 
+                      SUFFIX "${PYTHON_MODULE_EXTENSION}")
+target_link_libraries(cTomocam PRIVATE cublas cufft)
+target_link_libraries(cTomocam PRIVATE dummy)
+target_link_libraries(cTomocam PRIVATE pybind11::module)
 
 
 # for testing
-add_library(tomocam ${SRC})
-set_target_properties(tomocam PROPERTIES CXX_VISIBILITY_PRESET "hidden")
-target_link_libraries(tomocam PRIVATE ${LIBS})
-target_link_libraries(tomocam PRIVATE dummy)
+#add_library(tomocam ${SRC})
+#set_target_properties(tomocam PROPERTIES CXX_VISIBILITY_PRESET "hidden")
+#target_link_libraries(tomocam PRIVATE ${LIBS})
+#target_link_libraries(tomocam PRIVATE dummy)
+#
+#add_executable(gridrec "test_gridrec.cpp")
+#target_link_libraries(gridrec tomocam)
 
-add_executable(gridrec "test_gridrec.cpp")
-target_link_libraries(gridrec tomocam)
-
-add_executable(mbir "test_mbir.cpp")
-target_link_libraries(mbir tomocam)
+#add_executable(mbir "test_mbir.cpp")
+#target_link_libraries(mbir tomocam)
 
 
 
-#install(TARGETS cTomocam 
-#        ARCHIVE DESTINATION tomocam
-#        LIBRARY DESTINATION tomocam)
+install(TARGETS cTomocam 
+        ARCHIVE DESTINATION tomocam
+        LIBRARY DESTINATION tomocam)
