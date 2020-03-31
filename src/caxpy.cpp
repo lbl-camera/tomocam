@@ -33,16 +33,16 @@
 
 namespace tomocam {
 
-    void calc_axpy(float alpha, DeviceArray<float> x,  DeviceArray<float> y) {
+    void calc_axpy(float alpha, DeviceArray<float> x,  DeviceArray<float> y, cudaStream_t stream) {
         cublasHandle_t handle;
         cublasCreate(&handle);
         cublasSetStream(handle, stream);
         const int inc = 1; 
-        cublasSaxpy(handle, x.size(), &alpha, x.d_array(), inc, y.d_array(), inc);
+        cublasSaxpy(handle, x.size(), &alpha, x.dev_ptr(), inc, y.dev_ptr(), inc);
         cublasDestroy(handle);
     }
 
-    void axpy_(float alpha, Partition<float> x, Partition<float>, int device){
+    void axpy_(float alpha, Partition<float> x, Partition<float> y, int device){
         // initalize the device
         cudaSetDevice(device);
         cudaHostRegister(x.begin(), x.bytes(), cudaHostRegisterPortable);
@@ -65,17 +65,19 @@ namespace tomocam {
         }
 
         int n_partitions = sub_xs.size();
-        int n_batch = n_partitions / nStreams + 1;
+        int n_batch = ceili(n_partitions, nStreams);
         for (int i = 0; i < n_batch; i++) {
             int np = std::min(nStreams, n_partitions - i * nStreams);
             
             std::vector<DeviceArray<float>> dev_x;
-            std::vector<DeviceArray<float>> dev_y;
-            for (int j = 0; j < np; j++) {
+            for (int j = 0; j < np; j++)
                 dev_x.push_back(DeviceArray_fromHost(sub_xs[i * nStreams + j], streams[j]));
+
+
+            std::vector<DeviceArray<float>> dev_y;
+            for (int j = 0; j < np; j++)
                 dev_y.push_back(DeviceArray_fromHost(sub_ys[i * nStreams + j], streams[j]));
-            }
-                
+
             for (int j = 0; j < np; j++)
                 calc_axpy(alpha, dev_x[j], dev_y[j], streams[j]);
 
@@ -95,7 +97,7 @@ namespace tomocam {
     }
 
     // y = y + alpha * x (Multi-GPU call)
-    void axpy(float alpha, DArray<float> x, DArray<float> y) {
+    void axpy(float alpha, DArray<float> &x, DArray<float> &y) {
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<float>> p1 = x.create_partitions(nDevice);
