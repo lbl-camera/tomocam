@@ -39,7 +39,7 @@ namespace tomocam {
         cublasSetStream(handle, stream);
         const int incx = 1; 
         float norm = 0;
-        cublasSnrm2(handle, arr.size(), arr.d_array(), incx, &norm);
+        cublasSnrm2(handle, arr.size(), arr.dev_ptr(), incx, &norm);
         cublasDestroy(handle);
         return norm;        
     }
