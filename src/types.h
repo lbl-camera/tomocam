@@ -24,9 +24,16 @@
 #include <complex>
 #include <cuComplex.h>
 
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+
 namespace {
     typedef std::complex<float> complex_t;
     typedef cuFloatComplex cuComplex_t;
+
+    template < typename T >
+    using np_array_t = py::array_t< T, py::array::c_style | py::array::forcecast>;
 
 } // namespace
 
