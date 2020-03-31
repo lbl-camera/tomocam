@@ -17,25 +17,35 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-
+#include "types.h"
 #include "dist_array.h"
-#include "fft.h"
+#include "tomocam.h"
+
 
 /* setup methods table */
 PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
     // DArray class
-    py::class_<tomocam::DArray<float>>(m, "DArray").def(py::init<int, int, int>());
-
-
-    // radon transform
-    // iradon transform
-    // gradients
-    // add_tv
-    // caxpy
-    // norm2
+    py::class_<tomocam::DArray<float>>(m, "DArray")
+        .def(py::init<np_array_t<float> &>())
+        .def("to_numpy", &tomocam::DArray<float>::to_numpy);
     
+    // radon transform
+    m.def("radon", &tomocam::radon);
+
+    // iradon transform
+    m.def("iradon", &tomocam::iradon);
+
+    // gradients
+    m.def("gradients", &tomocam::gradient);
+
+    // add_tv
+    m.def("total_variation", &tomocam::add_total_var);
+
+    // caxpy
+    m.def("axpy", &tomocam::axpy);
+
+    // norm2
+    m.def("norm", &tomocam::norm2);    
 }
