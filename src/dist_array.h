@@ -23,6 +23,8 @@
 
 #include <vector>
 
+
+#include "types.h"
 #include "common.h"
 
 namespace tomocam {
@@ -64,6 +66,7 @@ namespace tomocam {
     template <typename T>
     class DArray {
       private:
+        bool owns_buffer_; ///< Don't free buffer if not-owned
         dim3_t dims_; ///< [Slices, Rows, Colums]
         int size_;    ///< Size of the alloated array
         T *buffer_;   ///< Pointer to data buffer
@@ -72,15 +75,14 @@ namespace tomocam {
         int idx_(int i, int j, int k) { return (i * dims_.y * dims_.z + j * dims_.z + k); }
 
       public:
-        DArray() = delete;
-        DArray(int, int, int);
         DArray(dim3_t);
+        DArray(np_array_t<T>);
         ~DArray();
 
         // Forbid copy and move
         DArray(const DArray &) = delete;
+        DArray(DArray &&) = delete;
         DArray operator=(const DArray &) = delete;
-        DArray(DArray &&)                = delete;
         DArray operator=(DArray &&) = delete;
 
         // setup partitioning of array along slowest dimension
@@ -110,6 +112,10 @@ namespace tomocam {
 
         /// Expose the alloaated memoy pointer
         T *data() { return buffer_; }
+
+        // return a numpy array 
+        np_array_t<T> to_numpy();
+            
     };
 } // namespace tomocam
 

@@ -96,29 +96,47 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T>::DArray(dim3_t dim) {
-        // limit ndims to 3
-        int ndims = 3;
         dims_     = dim;
         size_     = dims_.x * dims_.y * dims_.z;
+        owns_buffer_ = true;
 
         // allocate memory for the array
         buffer_ = new T [size_];
     }
+
     // for calling from python
     template <typename T>
-    DArray<T>::DArray(int nx, int ny, int nz) {
-        // limit ndims to 3
-        int ndims = 3;
-        dims_     = dim3_t(nx, ny, nz);
-        size_     = dims_.x * dims_.y * dims_.z;
-
-        // allocate memory for the array
-        buffer_ = new T [size_];
+    DArray<T>::DArray(np_array_t<T> np_array) {
+        int ndims = np_array.ndim();
+        if (ndims == 1) 
+            dims_ = { 1, 1, (int)np_array.shape(0) };
+        else if (ndims == 2) 
+            dims_ = { 1, (int)np_array.shape(0), (int)np_array.shape(1) };
+        else if (ndims == 3)
+            dims_ = { (int)np_array.shape(0), (int)np_array.shape(1), (int)np_array.shape(2) };
+        else 
+            throw "Unsupported numpy array.";
+        size_ = dims_.x * dims_.y * dims_.z;
+        buffer_ = (T *) np_array.request().ptr;
+        owns_buffer_ = false;
+    }
+ 
+    template <typename T>
+    DArray<T>::~DArray() {
+        if (buffer_ && owns_buffer_) delete [] buffer_;
     }
 
     template <typename T>
-    DArray<T>::~DArray() {
-        if (buffer_) delete [] buffer_;
+    np_array_t<T> DArray<T>::to_numpy() {
+        std::vector<int> shape;
+        if ((dims_.x == 1) && (dims_.y == 1))
+            shape.push_back(dims_.z);
+        else {
+            shape.push_back(dims_.x);
+            shape.push_back(dims_.y);
+            shape.push_back(dims_.z);
+        }
+        return py::array_t<T>(shape, buffer_);   
     }
 
     template <typename T>
