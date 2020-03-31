@@ -16,9 +16,10 @@ namespace tomocam {
      *
      *  @param DeviceArray<cuComplex_t> model as complex array on device
      *  @param DeviceArray<float> sinogram data as array on device
+     *  @param int size of padding
      *  @param cudaStream_t for concurrencny
      */ 
-    void calc_error(dev_arrayc, dev_arrayf, cudaStream_t);
+    void calc_error(dev_arrayc, dev_arrayf, int ipad, cudaStream_t);
 
     /**
      * Rescales output from cufft, by dividing by N^2
