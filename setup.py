@@ -1,12 +1,14 @@
 
 
-from skbuild import setup
+from setuptools import setup
+from cmake_setuptools import CMakeExtension, CMakeBuildExt
 
 setup(name='tomocam',
-      # random metadata. there's more you can supploy
       author='Dinesh Kumar',
       version='2.0.0',
-      description = "Computed Tomography reconstruction parackge developed by CAMERA/LBL", 
-      license = "BSDish",
+      description = "GPU based CT reconstruction parackge developed by CAMERA/LBL", 
       packages = [ 'tomocam' ],
+      license = "Tomocam Copyright (c) 2018",
+      ext_modules = [ CMakeExtension('tomocam.cTomocam') ],
+      cmdclass = {'build_ext' : CMakeBuildExt } 
       )
