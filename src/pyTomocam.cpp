@@ -29,6 +29,7 @@ PYBIND11_MODULE(cTomocam, m) {
     // DArray class
     py::class_<tomocam::DArray<float>>(m, "DArray")
         .def(py::init<np_array_t<float> &>())
+        .def("shape", &tomocam::DArray<float>::shape)
         .def("to_numpy", &tomocam::DArray<float>::to_numpy);
     
     // radon transform
