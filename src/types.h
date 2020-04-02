@@ -33,7 +33,7 @@ namespace {
     typedef cuFloatComplex cuComplex_t;
 
     template < typename T >
-    using np_array_t = py::array_t< T, py::array::c_style | py::array::forcecast>;
+    using np_array_t = py::array_t< T, py::array::c_style>;
 
 } // namespace
 
