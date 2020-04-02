@@ -14,14 +14,21 @@ Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using
 Make sure `CUDA` and `cmake` are installed.
 
 **Recommended**
-`pip install virtualenv`
-`virtualenv -p /usr/bin/python3 tomocam`
-`pip install cmake-setuptools`
-`pip install numpy`
 
 
-`cd tomocam`
-`pip install .`
+```
+pip install virtualenv
+`virtualenv -p /usr/bin/python3 tomocam
+```
+
+with or without virtualenv
+
+```
+pip install cmake-setuptools
+pip install numpy
+cd tomocam
+pip install .
+```
 
 
 **Copyright Notice**
