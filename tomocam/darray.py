@@ -3,39 +3,48 @@ from .cTomocam import axpy
 from .cTomocam import norm
 from .cTomocam import DArray
 
-class DistArray(DArray):
-    def __int__(self, array):
-        super().__init__(array)
+class DistArray:
+    def __init__(self, array):
+        if not isinstance(array, np.ndarray):
+            raise TypeError('argument to DistArray must be a numpy.ndarray')
+        self.handle = DArray(array)
+        self.shape = self.handle.shape()
 
     def norm(self):
-        return norm(self)
+        return norm(self.handle)
 
-    def __add__(self, d_array):
-        if not isinstance(d_array, DArray):
+    def to_numpy(self):
+        return self.handle.to_numpy()
+
+    def __add__(self, other):
+        if not isinstance(other, DistArray):
             raise TypeError('operand type mismatch')
-        if self.dims != d_array.dims:
+        if self.shape != other.shape:
             raise ValueError('dimension mismatch')
-        axpy(1, self, d_array)
+        axpy(1, other.handle, self.handle)
         return self
 
-    def __iadd__(self, d_array):
-        if not isinstance(d_array, DArray):
+    def __iadd__(self, other):
+        if not isinstance(other, DistArray):
             raise TypeError('operand type mismatch')
-        if self.dims != d_array.dims:
+        if self.shape != other.shape:
             raise ValueError('dimension mismatch')
-        axpy(1, self, d_array)
-
-    def __sub__(self, d_array):
-        if not isinstance(d_array, DArray):
-            raise TypeError('operand type mismatch')
-        if self.dims != d_array.dims:
-            raise ValueError('dimension mismatch')
-        axpy(-1, self, d_array)
+        axpy(1, other.handle, self.handle)
         return self
 
-    def __isub__(self, d_array):
-        if not isinstance(d_array, DArray):
+    def __sub__(self, other):
+        if not isinstance(other, DistArray):
             raise TypeError('operand type mismatch')
-        if self.dims != d_array.dims:
+        if self.shape != other.shape:
             raise ValueError('dimension mismatch')
-        axpy(-1, self, d_array)
+        axpy(-1, other.handle, self.handle)
+        return self
+
+    def __isub__(self, other):
+        if not isinstance(other, DistArray):
+            raise TypeError('operand type mismatch')
+        if self.shape != other.shape:
+            raise ValueError('dimension mismatch')
+        axpy(-1, other.handle, self.handle)
+        return self
+
