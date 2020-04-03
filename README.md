@@ -18,7 +18,8 @@ Make sure `CUDA` and `cmake` are installed.
 
 ```
 pip install virtualenv
-virtualenv -p /usr/bin/python3 tomocam
+virtualenv -p /usr/bin/python3 tomocam-venv
+source tomocam-venv/bin/activate
 ```
 
 with or without virtualenv
