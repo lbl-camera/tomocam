@@ -123,7 +123,7 @@ namespace tomocam {
  
     template <typename T>
     DArray<T>::~DArray() {
-        if (buffer_ && owns_buffer_) delete [] buffer_;
+        if (owns_buffer_) delete [] buffer_;
     }
 
     template <typename T>
