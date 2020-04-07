@@ -7,14 +7,17 @@ class DistArray:
     def __init__(self, array):
         if not isinstance(array, np.ndarray):
             raise TypeError('argument to DistArray must be a numpy.ndarray')
+
         self.handle = DArray(array)
+        self._array = array
         self.shape = self.handle.shape()
+        self.dtype = array.dtype
 
     def norm(self):
         return norm(self.handle)
 
     def to_numpy(self):
-        return self.handle.to_numpy()
+        return self._array
 
     def __add__(self, other):
         if not isinstance(other, DistArray):
