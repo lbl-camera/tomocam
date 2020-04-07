@@ -33,8 +33,7 @@ namespace tomocam {
         int slcsPerStream_;
         MachineConfig() {
 
-            //cudaGetDeviceCount(&ndevice_);
-            ndevice_ = 1;
+            cudaGetDeviceCount(&ndevice_);
 
             //    check avilable GPU for managed memory access
             std::vector<int> devices;
@@ -58,6 +57,7 @@ namespace tomocam {
             return instance;
         }
         // setters
+        void setNumOfGPUs(int ndev) { ndevice_ = ndev; }
         void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
         void setStreamsPerGPU(int strms) { nStreams_ = strms; }
 
