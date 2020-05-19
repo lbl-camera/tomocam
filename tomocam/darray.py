@@ -10,7 +10,7 @@ class DistArray:
 
         self.handle = DArray(array)
         self._array = array
-        self.shape = self.handle.shape()
+        self.shape = array.shape
         self.dtype = array.dtype
 
     def norm(self):
@@ -18,6 +18,9 @@ class DistArray:
 
     def to_numpy(self):
         return self._array
+
+    def copy(self):
+        return DistArray(self._array.copy())
 
     def __add__(self, other):
         if not isinstance(other, DistArray):
