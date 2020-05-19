@@ -115,17 +115,47 @@ namespace tomocam {
         else if (ndims == 3)
             dims_ = { (int)np_array.shape(0), (int)np_array.shape(1), (int)np_array.shape(2) };
         else 
-            throw "Unsupported numpy array.";
+            throw std::runtime_error("Unsupported numpy array.");
         size_ = dims_.x * dims_.y * dims_.z;
         buffer_ = (T *) np_array.request().ptr;
         owns_buffer_ = false;
     }
  
+    /* destructor */
     template <typename T>
     DArray<T>::~DArray() {
         if (owns_buffer_) delete [] buffer_;
     }
 
+    /* copy constructor */
+    template <typename T>
+    DArray<T>::DArray(const DArray<T> &other) {
+        if (this == &other) return;
+        dims_ = other.dims_;
+        size_ = other.size_;
+        buffer_ = new T [size_];
+        std::copy(other.buffer_, other.buffer_ + size_, buffer_);
+        owns_buffer_ = true;
+    }
+
+    /* assignment operator */
+    template <typename T>
+    DArray<T>& DArray<T>::operator=(const DArray<T> & other) {
+        if (this == &other) return *this;
+        if (dims_ != other.dims_) throw std::runtime_error("size mismatch!");
+        std::copy(other.buffer_, other.buffer_ + size_, buffer_);
+        return *this;
+    }
+
+    /* exposed to python to create a deepcopy */
+    template <typename T>
+    DArray<T>& DArray<T>::clone() const {
+        DArray<T> * temp = new DArray<T>(dims_);
+        std::copy(buffer_, buffer_ + size_, temp->buffer_);
+        return *temp;
+    }
+
+    /* return numpy array from DArray */
     template <typename T>
     np_array_t<T> DArray<T>::to_numpy() {
         std::vector<int> shape;
@@ -139,6 +169,7 @@ namespace tomocam {
         return py::array_t<T>(shape, buffer_);   
     }
 
+    /* subdivide array into N partitions */
     template <typename T>
     std::vector<Partition<T>> DArray<T>::create_partitions(int n_partitions) {
         dim3_t d     = dims_;
@@ -159,6 +190,7 @@ namespace tomocam {
         return table;
     }
 
+    /* subdivide array into N partitions, with n halo layers on boundaries */
     template <typename T>
     std::vector<Partition<T>> DArray<T>::create_partitions(int n_partitions, int halo) {
         int n_slices = dims_.x / n_partitions;

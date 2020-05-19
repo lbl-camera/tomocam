@@ -80,19 +80,22 @@ namespace tomocam {
         ~DArray();
 
         // Forbid copy and move
-        DArray(const DArray &) = delete;
+        DArray(const DArray &);
+        DArray& operator=(const DArray &);
         DArray(DArray &&) = delete;
-        DArray operator=(const DArray &) = delete;
-        DArray operator=(DArray &&) = delete;
+        DArray& operator=(DArray &&) = delete;
+
+        // copy data to DArray
+        void copy(T * values) { std::copy(values, values + size_, buffer_); }
+    
+        // make a deep copy, expose to python
+        DArray<T> & clone() const;
 
         // setup partitioning of array along slowest dimension
         std::vector<Partition<T>> create_partitions(int);
 
         // create partitionng along slowest dimension with halo
         std::vector<Partition<T>> create_partitions(int, int);
-
-        // copy data,
-        void copy(T *data) { std::copy(data, data + size_, buffer_); }
 
         // getters
         /// dimensions of the array
