@@ -39,4 +39,4 @@ def update_total_variation(model, gradients, p=1.2, smoothness=0.1):
     """
     if model.dtype != np.float32 and gradients.dtype != np.float32:
         raise ValueError('input data must be single precision')
-    cTomocam.add_total_varitation(gradients.handle, model.handle, p, smoothness) 
+    cTomocam.total_variation(gradients.handle, model.handle, p, smoothness) 
