@@ -27,6 +27,18 @@ namespace tomocam {
         int x, y, z;
         dim3_t() : x(0), y(0), z(0) {}
         dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
+        bool operator==(const dim3_t & other){
+            if ((x == other.x) && (y == other.y) && (z == other.z))
+                return true;
+            else
+                return false;
+        }
+        bool operator!=(const dim3_t & other){
+            if ((x == other.x) && (y == other.y) && (z == other.z))
+                return false;
+            else
+                return true;
+        }
     };
 
     inline int ceili(int a, int b) {
