@@ -34,6 +34,7 @@ namespace tomocam {
         MachineConfig() {
 
             cudaGetDeviceCount(&ndevice_);
+            ndevice_ = 1;
 
             //    check avilable GPU for managed memory access
             std::vector<int> devices;
