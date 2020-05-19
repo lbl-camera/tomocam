@@ -21,6 +21,8 @@
 #ifndef TOMOCAM_DEV_ARRAY__H
 #define TOMOCAM_DEV_ARRAY__H
 
+#include <stdexcept>
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -131,7 +133,7 @@ namespace tomocam {
         float * src = p.begin();
         status = cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, p.size(), cudaMemcpyHostToDevice, s);
         if (status != cudaSuccess)
-            throw "failed to copy-cast (R2C) to device";
+            throw std::runtime_error("failed to copy-cast (R2C) to device");
         dev_arrayc d_arr(p.dims(), dst, p.halo()); 
         return d_arr;
     }
@@ -146,7 +148,7 @@ namespace tomocam {
         cuComplex_t * src = d_arr.dev_ptr();
         status = cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, p.size(), cudaMemcpyDeviceToHost, s);
         if (status != cudaSuccess)
-            throw "failed to copy-cast (C2R) from device";
+            throw std::runtime_error("failed to copy-cast (C2R) from device");
     }
    
     // add padding on device
@@ -161,7 +163,7 @@ namespace tomocam {
             d1.z += 2 * padding;
             j_offset = padding;
         } else 
-            throw "illegal padding dimensions";
+            throw std::runtime_error("illegal padding dimensions");
             
         size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
         cuComplex_t * ptr = NULL;
@@ -192,7 +194,7 @@ namespace tomocam {
             d1.z -= 2 * padding;
             j_offset = padding;
         } else 
-            throw "illegal padding dimensions";
+            throw std::runtime_error("illegal padding dimensions");
         
         size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
         cuComplex_t * ptr = NULL;
@@ -216,10 +218,10 @@ namespace tomocam {
         cudaError_t status;
         T * ptr = NULL;
         status = cudaMalloc((void **) &ptr, sizeof(T) * p.size());
-        if (status != cudaSuccess) throw "failed to allocate momeory";
+        if (status != cudaSuccess) throw std::runtime_error("failed to allocate momeory");
         
         status = cudaMemcpyAsync(ptr, p.begin(), sizeof(T) * p.size(), cudaMemcpyHostToDevice, stream);
-        if (status != cudaSuccess) throw "failed to copy array to device";
+        if (status != cudaSuccess) throw std::runtime_error("failed to copy array to device");
         DeviceArray<T> d_arr(p.dims(), ptr, p.halo());
         return d_arr;
     }
@@ -231,10 +233,10 @@ namespace tomocam {
         T * ptr = NULL;
         size_t size = dims.x * dims.y * dims.z;
         status = cudaMalloc((void **) &ptr, sizeof(T) * size);
-        if (status != cudaSuccess) throw "failed to allocate momeory";
+        if (status != cudaSuccess) throw std::runtime_error("failed to allocate momeory");
 
         status = cudaMemcpyAsync(ptr, h_ptr, sizeof(T) * size, cudaMemcpyHostToDevice, stream);
-        if (status != cudaSuccess) throw "failed to copy array to device";
+        if (status != cudaSuccess) throw std::runtime_error("failed to copy array to device");
 
         return DeviceArray<T>(dims, ptr);
     }
@@ -246,10 +248,10 @@ namespace tomocam {
         T * ptr = NULL;
         size_t bytes = dims.x * dims.y * dims.z * sizeof(T);
         status = cudaMalloc((void **) &ptr, bytes);
-        if (status != cudaSuccess) throw "failed to allocate momeory";
+        if (status != cudaSuccess) throw std::runtime_error("failed to allocate momeory");
 
         status = cudaMemsetAsync(ptr, 0, bytes, stream);
-        if (status != cudaSuccess) throw "failed to initialize memory to zeros";
+        if (status != cudaSuccess) throw std::runtime_error("failed to initialize memory to zeros");
 
         return DeviceArray<T>(dims, ptr);
     }
@@ -259,7 +261,7 @@ namespace tomocam {
     void copy_fromDeviceArray(Partition<T> dst, DeviceArray<T> src, cudaStream_t stream) {
         cudaError_t status;
         status = cudaMemcpyAsync(dst.begin(), src.dev_ptr(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream);
-        if (status != cudaSuccess) throw "failed to copy array to host from device";
+        if (status != cudaSuccess) throw std::runtime_error("failed to copy array to host from device");
     }
 } // namespace tomocam
 
