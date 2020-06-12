@@ -45,18 +45,18 @@ namespace tomocam {
     
     // and with halo, as well
     template <typename T>
-    std::vector<Partition<T>> Partition<T>::sub_partitions(int nmax, int halo) {
+    std::vector<Partition<T>> Partition<T>::sub_partitions(int partition_size, int halo) {
         std::vector<Partition<T>> table;    
 
         int sub_halo[2];
         int slcs = dims_.x - halo_[0] - halo_[1];
-        int n_partitions = slcs / nmax;
-        int n_extra = slcs % nmax;
+        int n_partitions = slcs / partition_size;
+        int n_extra = slcs % partition_size;
         std::vector<int> locations;
 
         for (int i = 0; i < n_partitions; i++)
-            locations.push_back(halo_[0] + i * nmax);
-        locations.push_back(halo_[0] + n_partitions * nmax);
+            locations.push_back(halo_[0] + i * partition_size);
+        locations.push_back(halo_[0] + n_partitions * partition_size);
 
         // if they don't divide nicely
         if (n_extra > 0) {
@@ -84,7 +84,6 @@ namespace tomocam {
         }
         return table;
     }
-            
 
     /*
      *
