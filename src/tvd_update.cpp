@@ -38,8 +38,8 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
-        cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(objfn.begin(), objfn.bytes(), cudaHostRegisterPortable);
+        //cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
+        //cudaHostRegister(objfn.begin(), objfn.bytes(), cudaHostRegisterPortable);
 
         //  output
         dim3_t idims  = objfn.dims();
@@ -58,6 +58,7 @@ namespace tomocam {
 
         // create sub-partitions with halo
         std::vector<Partition<float>> mods = model.sub_partitions(slcs, 1);
+     
         // create sub-partitions of `slcs` slices each
         std::vector<Partition<float>> objs = objfn.sub_partitions(slcs);
 
@@ -99,8 +100,8 @@ namespace tomocam {
         for (auto &s : streams) {
             cudaStreamDestroy(s);
         }
-        cudaHostUnregister(model.begin());
-        cudaHostUnregister(objfn.begin());
+        //cudaHostUnregister(model.begin());
+        //cudaHostUnregister(objfn.begin());
     }
 
     // multi-GPU call
@@ -109,16 +110,24 @@ namespace tomocam {
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<std::thread> threads;
         int halo = 1;
+
+        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(objfn.data(), objfn.bytes(), cudaHostRegisterPortable);
         std::vector<Partition<float>> m = model.create_partitions(nDevice, halo);
         std::vector<Partition<float>> f = objfn.create_partitions(nDevice);
 
-        for (int i = 0; i < nDevice; i++)
+        for (int i = 0; i < nDevice; i++){
+            cudaSetDevice(i);
             threads.push_back(std::thread(total_var_, m[i], f[i], p, sigma, i));
+            total_var_(m[i], f[i], p, sigma, i);
+        }
 
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
             threads[i].join();
         }
+        cudaHostUnregister(model.data());
+        cudaHostUnregister(objfn.data());
     }
 } // namespace tomocam

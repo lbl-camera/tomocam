@@ -32,12 +32,10 @@
 namespace tomocam {
 
     void gradient_(Partition<float> model, Partition<float> sino, float center,
-        float over_sample, float *h_angles, int device) {
+        float over_sample, float *h_angles, int device_id) {
 
-        // initalize the device
-        cudaSetDevice(device);
-        cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(sino.begin(), sino.bytes(), cudaHostRegisterPortable);
+        // set device
+        cudaSetDevice(device_id);
 
         // input and output dimensions
         dim3_t idims = model.dims();
@@ -111,13 +109,15 @@ namespace tomocam {
             cudaStreamSynchronize(s);
             cudaStreamDestroy(s);
         }
-        cudaHostUnregister(model.begin());
-        cudaHostUnregister(sino.begin());
     }
 
     // Multi-GPU calll
     void gradient(DArray<float> &model, DArray<float> &sinogram, float *angles,
                   float center, float over_sample) {
+
+        // pin host memory
+        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(sinogram.data(), sinogram.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<float>> p1 = model.create_partitions(nDevice);
@@ -125,10 +125,11 @@ namespace tomocam {
 
         // launch all the available devices
         std::vector<std::thread> threads;
-        for (int i = 0; i < nDevice; i++)
+        for (int i = 0; i < nDevice; i++) {
+            cudaSetDevice(i);
             threads.push_back(
-                std::thread(
-                    gradient_, p1[i], p2[i], center, over_sample, angles, i));
+                std::thread(gradient_, p1[i], p2[i], center, over_sample, angles, i));
+        }
 
         // wait for devices to finish
         for (int i = 0; i < nDevice; i++) {
@@ -136,6 +137,8 @@ namespace tomocam {
             cudaDeviceSynchronize();
             threads[i].join();
         }
+        cudaHostUnregister(model.data());
+        cudaHostUnregister(sinogram.data());
     }
 
 } // namespace tomocam

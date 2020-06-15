@@ -45,8 +45,6 @@ namespace tomocam {
     void axpy_(float alpha, Partition<float> x, Partition<float> y, int device){
         // initalize the device
         cudaSetDevice(device);
-        cudaHostRegister(x.begin(), x.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(y.begin(), y.bytes(), cudaHostRegisterPortable);
 
         // size of input and output partitions
         dim3_t idims = x.dims();
@@ -92,12 +90,13 @@ namespace tomocam {
         for (auto s : streams) {
             cudaStreamDestroy(s);
         }
-        cudaHostUnregister(x.begin());
-        cudaHostUnregister(y.begin());
     }
 
     // y = y + alpha * x (Multi-GPU call)
     void axpy(float alpha, DArray<float> &x, DArray<float> &y) {
+
+        cudaHostRegister(x.data(), x.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(y.data(), y.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<float>> p1 = x.create_partitions(nDevice);
@@ -114,5 +113,7 @@ namespace tomocam {
             cudaDeviceSynchronize();
             threads[i].join();
         }
+        cudaHostUnregister(x.data());
+        cudaHostUnregister(y.data());
     }
 } // namespace tomocam

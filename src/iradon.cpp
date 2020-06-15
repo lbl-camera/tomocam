@@ -36,8 +36,6 @@ namespace tomocam {
 
         // select device
         cudaSetDevice(device);
-        cudaHostRegister(sino.begin(), sino.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(output.begin(), output.bytes(), cudaHostRegisterPortable);
 
         // input and output dimensions
         dim3_t idims  = sino.dims();
@@ -116,13 +114,15 @@ namespace tomocam {
         }
 
         cudaDeviceSynchronize();
-        cudaHostUnregister(sino.begin());
-        cudaHostUnregister(output.begin());
     }
 
     // inverse radon (Multi-GPU call)
     void iradon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
+
+        // pin host memeory
+        cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
+        cudaHostRegister(output.data(), output.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
@@ -140,6 +140,8 @@ namespace tomocam {
             cudaDeviceSynchronize();
             threads[i].join();
         }
+        cudaHostUnregister(input.data());
+        cudaHostUnregister(output.data());
     }
 
 } // namespace tomocam
