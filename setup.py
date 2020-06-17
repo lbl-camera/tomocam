@@ -5,6 +5,13 @@ import subprocess
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+# hack to make it work in virtualenv
+import sysconfig
+cfg = sysconfig.get_config_vars()
+pylib = os.path.join(cfg['LIBDIR'], cfg['LDLIBRARY'])
+pyinc = cfg['INCLUDEPY']
+pyver = cfg['VERSION']
+
 class CMakeExtension(Extension):
     """
     setuptools.Extension for cmake
@@ -29,7 +36,11 @@ class CMakeBuildExt(build_ext):
             cmake_args = ['cmake',
                           ext.sourcedir,
                           '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + output_dir,
-                          '-DCMAKE_BUILD_TYPE=' + build_type]
+                          '-DCMAKE_BUILD_TYPE=' + build_type,
+                          '-DPYBIND11_PYTHON_VERSION=' + pyver,
+                          '-DPYTHON_LIBRARY=' + pylib,
+                          '-DPYTHON_INCLUDE_DIR=' + pyinc
+                         ]
             cmake_args.extend([x for x in os.environ.get('CMAKE_COMMON_VARIABLES', '').split(' ') if x])
 
             env = os.environ.copy()
