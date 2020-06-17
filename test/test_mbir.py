@@ -17,13 +17,17 @@ sino = tomocam.DistArray(s.copy())
 model = tomocam.DistArray(np.ones((nslc, nrow, nrow), dtype=np.float32))
 angs = np.linspace(0, np.pi, nproj, dtype=np.float32)
 
+lam = 0.8
+prev_e = np.Infinity
+
 for i in range(20):
     grads = model.copy()
-    print(' 000 ')
     tomocam.calc_gradients(grads, sino, angs, center=640)
-    print(' 111 ')
     tomocam.update_total_variation(model, grads)
-    print(' 222 ')
-    tomocam.axpy(-0.1, grads, model)
-    print(' 333 ')
-
+    e = grads.norm() * lam
+    if e > prev_e:
+        lam *= 0.9
+    else: 
+        tomocam.axpy(-lam, grads, model)
+        prev_e = e
+        print(e)
