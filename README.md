@@ -1,15 +1,34 @@
-GPU reconstruction of synchrotron tomography data using non-uniform FFT.
+Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
 
 **Dependencies**
 ----------------
 
-1. [Arrayfire](https://github.com/arrayfire/arrayfire)
-2. [Arrayfire-python](https://github.com/arrayfire/arrayfire-python)
-3. [Afnumpy](https://github.com/FilipeMaia/afnumpy/tree/master/afnumpy) [PLEASE USE THE FORK FROM ARYABHATT - https://github.com/aryabhatt/afnumpy]
-4. [tomopy](https://github.com/tomopy/tomopy)
-5. CUDA 
-6. numpy
-7. C++ compiler
+1. CUDA (with cufft and cublas)
+2. pybind11
+3. numpy
+4. camke
+
+**Installation**
+-----------------
+Make sure `CUDA`, `cmake`, and `pybind11` are installed.
+
+**Recommended**
+
+
+```
+pip install virtualenv
+virtualenv -p /usr/bin/python3 tomocam-venv
+source tomocam-venv/bin/activate
+```
+
+with or without virtualenv
+
+```
+pip install numpy
+cd tomocam
+pip install .
+```
+
 
 **Copyright Notice**
 ---------------------
