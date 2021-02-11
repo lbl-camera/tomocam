@@ -39,8 +39,8 @@ namespace tomocam {
             // polar coordinates
             float cen = (float) (odims.z) * 0.5;
             float ang = angles[idx.y];
-            float y = (idx.z - cen) * cosf(ang) + cen;
-            float z = (idx.z - cen) * sinf(ang) + cen;
+            float y = (idx.z - cen) * sinf(ang) + cen;
+            float z = (idx.z - cen) * cosf(ang) + cen;
 
             // get min and max of non-zero kernel
             int iy    = max(kernel.imin(y), 0);
