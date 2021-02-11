@@ -120,6 +120,8 @@ namespace tomocam {
         cudaHostRegister(output.data(), output.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
+        if (nDevice > input.slices()) nDevice = input.slices();
+
         std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
         //
