@@ -5,9 +5,13 @@ set(tomocam_VERSION_MAJOR 2)
 set(tomocam_VERSION_MINOR 0)
 
 #C++ 11 Stuff
-set(CMAKE_CXX_STANDARD 11) 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_STANDARD 17) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
+
+
+option(ENABLE_TESTS "Enable tests" ON)
+
 
 set(SRC 
     ${PROJECT_SOURCE_DIR}/src/norm2.cpp
@@ -29,6 +33,7 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/src/deapod.cu
     ${PROJECT_SOURCE_DIR}/src/rescale.cu
     ${PROJECT_SOURCE_DIR}/src/calc_error.cu
+    ${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
    )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
@@ -55,7 +60,7 @@ set_target_properties(dummy PROPERTIES
                       POSITION_INDEPENDENT_CODE ON 
                       CUDA_VISIBILITY_PRESET "hidden"
                      )
-
+set_property(TARGET dummy PROPERTY CUDA_ARCHITECTURES 60)
 
 add_library(cTomocam MODULE src/pyTomocam.cpp ${SRC})
 set_target_properties(cTomocam PROPERTIES 
@@ -65,7 +70,18 @@ set_target_properties(cTomocam PROPERTIES
 target_link_libraries(cTomocam PRIVATE cublas cufft)
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
+target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
         ARCHIVE DESTINATION tomocam
         LIBRARY DESTINATION tomocam)
+
+
+
+if (${ENABLE_TESTS})
+    add_library(tomocam STATIC ${SRC})
+    target_link_libraries(tomocam PRIVATE dummy cublas cufft)
+    target_link_libraries(tomocam PRIVATE pybind11::module)
+    target_compile_features(tomocam PRIVATE cxx_std_17)
+    add_subdirectory(test)
+endif()
