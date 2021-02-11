@@ -53,11 +53,11 @@ namespace tomocam {
        
         // farthest index in negative direction
         __device__ 
-        int imin(float d) { return (int) (d - radius_); }
+        int imin(float d) { return (int) floorf(d - radius_); }
 
         // farthest index in positive direction 
         __device__ 
-        int imax(float d) { return (int) (d + radius_) + 1; }
+        int imax(float d) { return  (int) ceilf(d + radius_); }
 
         #ifdef __NVCC__
         // kaiser-bessel window
