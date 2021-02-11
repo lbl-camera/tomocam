@@ -120,6 +120,8 @@ namespace tomocam {
         cudaHostRegister(sinogram.data(), sinogram.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
+        if (nDevice > model.slices()) nDevice = model.slices();
+
         std::vector<Partition<float>> p1 = model.create_partitions(nDevice);
         std::vector<Partition<float>> p2 = sinogram.create_partitions(nDevice);
 
