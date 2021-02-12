@@ -55,7 +55,7 @@ namespace tomocam {
             radon(x, y, angles, cen, over_samp);
             iradon(y, g, angles, cen, over_samp);
             add_tv_hessian(g, sigma);
-            lipschitz_ = 1.0E-02 / g.max();
+            lipschitz_ = g.max();
         }
 
         template <typename T>
