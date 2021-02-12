@@ -58,6 +58,6 @@ setup(name='tomocam',
       description = "GPU based CT reconstruction parackge developed by CAMERA/LBL", 
       packages = [ 'tomocam' ],
       license = "Tomocam Copyright (c) 2018",
-      ext_modules = [ CMakeExtension('tomocam.cTomocam') ],
+      ext_modules = [ CMakeExtension('tomocam.cTomocam', os.getcwd()) ],
       cmdclass = {'build_ext' : CMakeBuildExt } 
       )

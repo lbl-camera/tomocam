@@ -2,9 +2,10 @@ import numpy as np
 import os
 import h5py
 import tomocam
+import matplotlib.pyplot as plt
 
 
-filename = '/data/tomochallange/phantom_00016/phantom_00016.h5'
+filename = '/home/dkumar/Data/phantom/phantom_00016.h5'
 h5fp = h5py.File(filename, 'r')
 
 data = h5fp['/projs']
@@ -31,3 +32,8 @@ for i in range(20):
         tomocam.axpy(-lam, grads, model)
         prev_e = e
         print(e)
+recon = model.to_numpy()
+
+for i in range(10):
+    plt.imshow(recon[i])
+    plt.show()

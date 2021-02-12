@@ -22,6 +22,12 @@ namespace tomocam {
 
     // TODO document
     float norm2(DArray<float> &);
+
+    /**
+     * TODO: document it
+     */
+    void add_tv_hessian(DArray<float> &, float);
+
 } // namespace tomocam
 
 #endif // TOMOCAM__H

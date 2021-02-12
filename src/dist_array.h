@@ -79,17 +79,11 @@ namespace tomocam {
         DArray(np_array_t<T>);
         ~DArray();
 
-        // Forbid copy and move
+        //  copy and move
         DArray(const DArray &);
         DArray& operator=(const DArray &);
-        DArray(DArray &&) = delete;
-        DArray& operator=(DArray &&) = delete;
-
-        // copy data to DArray
-        void copy(T * values) { std::copy(values, values + size_, buffer_); }
-    
-        // make a deep copy, expose to python
-        DArray<T> & clone() const;
+        DArray(DArray &&);
+        DArray& operator=(DArray &&);
 
         // setup partitioning of array along slowest dimension
         std::vector<Partition<T>> create_partitions(int);
@@ -97,7 +91,53 @@ namespace tomocam {
         // create partitionng along slowest dimension with halo
         std::vector<Partition<T>> create_partitions(int, int);
 
-        // getters
+        // copy data to DArray
+        void init(T *values) {
+            #pragma omp parallel for
+            for (int i = 0; i < size_; i++)
+                buffer_[i] = values[i];
+        }
+
+        // init
+        void init(T v) {
+            #pragma omp parallel for
+            for (int i = 0; i < size_; i++)
+                buffer_[i] = v;
+        }
+
+        // norm2
+        T norm() const {
+            T v = 0;
+            #pragma omp parallel for reduction( + : v)
+                for (int i = 0; i < size_; i++)
+                    v += buffer_[i] * buffer_[i];
+            return std::sqrt(v);
+        }
+
+        // sum
+        T sum() const {
+            T v = 0;
+            #pragma omp parallel for reduction( + : v)
+            for (int i = 0; i < size_; i++) v += buffer_[i];
+            return v;
+        }
+
+        T max() const {
+            T v = -1E10;
+            #pragma omp parallel for reduction(max : v)
+            for (int i = 0; i < size_; i++)
+                if (buffer_[i] > v) v = buffer_[i];
+            return v;
+        }
+
+        T min() const {
+            T v = 1E10;
+            #pragma omp parallel for reduction(min : v)
+            for (int i = 0; i < size_; i++)
+                if (buffer_[i] < v) v = buffer_[i];
+            return v;
+        }
+
         /// dimensions of the array
         dim3_t dims() const { return dims_; };
         int slices() const { return dims_.x; }

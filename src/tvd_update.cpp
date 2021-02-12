@@ -38,8 +38,6 @@ namespace tomocam {
 
         // initalize the device
         cudaSetDevice(device);
-        //cudaHostRegister(model.begin(), model.bytes(), cudaHostRegisterPortable);
-        //cudaHostRegister(objfn.begin(), objfn.bytes(), cudaHostRegisterPortable);
 
         //  output
         dim3_t idims  = objfn.dims();
@@ -100,14 +98,14 @@ namespace tomocam {
         for (auto &s : streams) {
             cudaStreamDestroy(s);
         }
-        //cudaHostUnregister(model.begin());
-        //cudaHostUnregister(objfn.begin());
     }
 
     // multi-GPU call
     void add_total_var(DArray<float> &model, DArray<float> &objfn, float p, float sigma) {
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
+        if (nDevice > model.slices()) nDevice = model.slices();
+
         std::vector<std::thread> threads;
         int halo = 1;
 

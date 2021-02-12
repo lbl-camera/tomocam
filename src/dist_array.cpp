@@ -18,7 +18,7 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
+#include <vector>
 
 namespace tomocam {
 
@@ -146,26 +146,32 @@ namespace tomocam {
         return *this;
     }
 
-    /* exposed to python to create a deepcopy */
+
+    /* move constructor */
     template <typename T>
-    DArray<T>& DArray<T>::clone() const {
-        DArray<T> * temp = new DArray<T>(dims_);
-        std::copy(buffer_, buffer_ + size_, temp->buffer_);
-        return *temp;
+    DArray<T>::DArray(DArray<T> &&other) {
+        dims_ = other.dims_;
+        size_ = other.size_;
+        owns_buffer_ = other.owns_buffer_;
+        buffer_ = other.buffer_;
+
+        other.dims_ = dim3_t{0, 0, 0};
+        other.size_ = 0;
+        other.buffer_ = nullptr;
     }
 
-    /* return numpy array from DArray */
+    /* move assignment */
     template <typename T>
-    np_array_t<T> DArray<T>::to_numpy() {
-        std::vector<int> shape;
-        if ((dims_.x == 1) && (dims_.y == 1))
-            shape.push_back(dims_.z);
-        else {
-            shape.push_back(dims_.x);
-            shape.push_back(dims_.y);
-            shape.push_back(dims_.z);
-        }
-        return py::array_t<T>(shape, buffer_);   
+    DArray<T> &DArray<T>::operator=(DArray<T> &&other) {
+        dims_ = other.dims_;
+        size_ = other.size_;
+        owns_buffer_ = other.owns_buffer_;
+        buffer_ = other.buffer_;
+
+        other.dims_ = dim3_t{0, 0, 0};
+        other.size_ = 0;
+        other.buffer_ = nullptr;
+        return *this;
     }
 
     /* subdivide array into N partitions */
