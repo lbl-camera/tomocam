@@ -156,10 +156,6 @@ namespace tomocam {
         /// Expose the alloaated memoy pointer
         T *data() { return buffer_; }
 
-        // return a numpy array 
-        np_array_t<T> to_numpy();
-        py::tuple shape() { return py::make_tuple(dims_.x, dims_.y, dims_.z); }
-            
     };
 } // namespace tomocam
 
