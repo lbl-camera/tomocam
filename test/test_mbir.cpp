@@ -10,42 +10,30 @@
 #include "reader.h"
 
 const float PI = M_PI;
-const char * FILENAME = "/home/dkumar/data/shepp_logan/sino400.bin";
+const int MAX_ITERS = 150;
+//const char * FILENAME = "/home/dkumar/data/dula/llzo_stack.h5";
+const char * FILENAME = "/home/dkumar/data/phantom/phantom_00016/phantom_00016.h5";
 const char * DATASET = "projs";
-
-const int dims[] = { 1, 400, 400 };
-const int num_angles = 400;
+//const char * ANGLES = "angles";
+const char * ANGLES = "angs";
 
 int main(int argc, char **argv) {
 
     // read data
-    size_t size = dims[0] * dims[1] * dims[2];
-    float * data = new float[size];
-    float * angles = new float[num_angles];
+	tomocam::H5Reader fp(FILENAME);
+	fp.setDataset(DATASET);
+	auto sino = fp.read_sinogram(16);
+	std::vector<float> angs = fp.read_angles(ANGLES);
+	float * angles = angs.data();
 
-
-	float d_angle = M_PI / (float) (num_angles-1);
-    for (int i = 0; i < dims[1]; i++) 
-		angles[i] = i * d_angle;
-
-    std::ifstream fp(FILENAME);
-    if (! fp.is_open()) {
-        std::cerr << "error! unable to open data file." << std::endl;
-        exit(1);
-    }
-    fp.read((char *) data, sizeof(float) * size);
-
-    tomocam::dim3_t d1(dims[0], num_angles, dims[2]);
-    tomocam::dim3_t d2(dims[0], dims[1], dims[2]);
-
-    tomocam::DArray<float> sino(d1);
-    sino.init(data);
+    tomocam::dim3_t d1 = sino.dims();
+    tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 
     // normalize
     float maxval = sino.max();
     float minval = sino.min();
 
-    std::cout << "Size = " << sino.size() << std::endl;
+
     #pragma omp parallel for
     for (int i = 0; i < sino.size(); i++)
         sino[i] = (sino[i] - minval)/(maxval - minval);
@@ -56,17 +44,22 @@ int main(int argc, char **argv) {
     grad.init(0.f);
 
 
-    float center = 200;
+    float center = 640;
+    //float center = 1279.375;
     float oversample = 1.5;
-    float sigma = 10;
+    float sigma = 1;
 
-    if (argc == 3) {
-        center = std::atof(argv[1]);
-        oversample = std::atof(argv[2]);
+    if (argc == 2) {
+        sigma = std::atof(argv[1]);
     }
 
+    std::cout << "Inpit size: (" << d1.x << ", " << d1.y << ", " << d1.z <<" )" << std::endl;
+	std::cout << "Center: " << center << std::endl;
+	std::cout << "Oversampling: " << oversample << std::endl;
+	std::cout << "Smoothness: " << sigma << std::endl;
+
     tomocam::Optimizer opt(d2, d1, angles, center, oversample, sigma);
-    for (int i = 0; i < 60; i++) {
+    for (int i = 0; i < MAX_ITERS; i++) {
         grad = model;
         tomocam::gradient(grad, sino, angles, center, oversample);
         std::cout << "Error = " << grad.norm() << std::endl;

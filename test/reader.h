@@ -51,7 +51,8 @@ namespace tomocam {
             auto fs = ds.getSpace();
             hsize_t dims[3]  = { 0, 0, 0 }; 
             int ndim = fs.getSimpleExtentDims(dims);
-            size_t size = dims[0] * dims[1] * dims[2];
+            size_t size = 1;
+			for (int i = 0; i < ndim; i++) size *=  dims[i];
             H5::DataSpace ms(ndim, dims);
             
             std::vector<float> a(size, 0);
