@@ -19,9 +19,6 @@ class DistArray:
     def to_numpy(self):
         return self._array
 
-    def copy(self):
-        return DistArray(self._array.copy())
-
     def __add__(self, other):
         if not isinstance(other, DistArray):
             raise TypeError('operand type mismatch')
