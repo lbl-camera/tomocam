@@ -51,9 +51,7 @@ PYBIND11_MODULE(cTomocam, m) {
     // DArray class
     py::class_<tomocam::DArray<float>>(m, "DArray")
         .def(py::init<np_array_t<float> &>())
-        .def("shape", &tomocam::DArray<float>::shape)
-        .def("init", static_cast<void (tomocam::DArray<float>::*)(float)>(&tomocam::DArray<float>::init), "initialize array with a value")
-        .def("to_numpy", &tomocam::DArray<float>::to_numpy);
+        .def("init", static_cast<void (tomocam::DArray<float>::*)(float)>(&tomocam::DArray<float>::init), "initialize array with a value");
 
     // set gpu paramters
     m.def("set_num_of_gpus", 
