@@ -49,6 +49,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 #pybind11
 find_package(pybind11 REQUIRED) 
+include_directories(${pybind11_INCLUDE_DIR})
 
 find_package(OpenMP) 
 if (OpenMP_FOUND) 
