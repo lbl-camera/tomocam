@@ -15,13 +15,17 @@ namespace tomocam {
     void gradient(DArray<float> &, DArray<float> &, float *, float, float);
 
     // TODO document
-    void add_total_var(DArray<float> &, DArray<float> &, float , float);
+    void add_total_var(DArray<float> &, DArray<float> &, float, float);
 
     // TODO document
     void axpy(float, DArray<float> &, DArray<float> &);
 
-    // TODO document
-    float norm2(DArray<float> &);
+	template <typename T>
+    void mbir(DArray<T> &, DArray<T> &, float *, float, int, float, float);
+
+    // specialize
+    extern template void mbir<float>(
+        DArray<float> &, DArray<float> &, float *, float, int, float, float);
 
     /**
      * TODO: document it
