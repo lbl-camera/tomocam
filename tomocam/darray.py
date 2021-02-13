@@ -1,6 +1,5 @@
 import numpy as np
 from .cTomocam import axpy
-from .cTomocam import norm
 from .cTomocam import DArray
 
 class DistArray:

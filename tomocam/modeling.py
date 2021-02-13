@@ -40,3 +40,32 @@ def update_total_variation(model, gradients, p=1.2, smoothness=0.1):
     if model.dtype != np.float32 and gradients.dtype != np.float32:
         raise ValueError('input data must be single precision')
     cTomocam.total_variation(gradients.handle, model.handle, p, smoothness) 
+
+
+def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1.0):
+    """Computes the Model-based Iterative reconstruction using nufft.
+
+    Parameters
+    ----------
+    sinogram: numpy.ndarray
+        Projection data for which radon transform is seeketh, (single precision)
+    angles: numpy.ndarray
+        Projection angles (single, precision)
+    center: float
+       Center of rotation
+    num_iters: int
+        Number of iterations
+    over_sample: float
+        Zero padding to be added to signal for fft
+    smoothness: float
+        Controls smoothness of reconstruction
+
+    Returns
+    --------
+        numpy.ndarray
+            Reconstructed tomographic volume
+    """
+    if sinogram.dtype != np.float32 and angles.dtype != np.float32:
+        raise ValueError('input data-type must be single precision')
+
+    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, smoothness)
