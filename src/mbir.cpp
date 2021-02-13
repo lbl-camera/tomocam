@@ -34,19 +34,28 @@ namespace tomocam {
         float center,
         int num_iters,
         float oversample,
-        float sigma) {
+        float sigma,
+        float p) {
 
-        Optimizer opt(model.dims(), sino.dims(), angles, center, oversample, sigma);
+        Optimizer opt(
+            model.dims(), sino.dims(), angles, center, oversample, sigma);
 
         model.init(1.f);
         for (int i = 0; i < num_iters; i++) {
             DArray<T> grad = model;
             gradient(grad, sino, angles, center, oversample);
             std::cout << "Error = " << grad.norm() << std::endl;
-            tomocam::add_total_var(model, grad, 1.2, sigma);
+            tomocam::add_total_var(model, grad, p, sigma);
             opt.update(model, grad);
         }
     }
 
-	template void mbir<float>(DArray<float> &, DArray<float> &, float *, float, int, float, float);
+    template void mbir<float>(DArray<float> &,
+        DArray<float> &,
+        float *,
+        float,
+        int,
+        float,
+        float,
+        float);
 } // namespace tomocam

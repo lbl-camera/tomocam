@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
     float center = 640;
     float oversample = 1.5;
     float sigma = 1;
+    float p = 1.2;
 
     if (argc == 2) {
         sigma = std::atof(argv[1]);
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
 	std::cout << "Oversampling: " << oversample << std::endl;
 	std::cout << "Smoothness: " << sigma << std::endl;
 
-	tomocam::mbir(sino, model, angles, center, 100, oversample, sigma);
+	tomocam::mbir(sino, model, angles, center, 100, oversample, sigma, p);
 
     std::fstream out("output.bin", std::fstream::out);
     out.write((char *) model.data(), model.size() * sizeof(float));

@@ -48,7 +48,7 @@ void tv_wrapper(tomocam::DArray<float> &arg1, tomocam::DArray<float> &arg2, doub
  
 
 np_array_t<float> mbir_wrapper(np_array_t<float> & np_sino, np_array_t<float> & np_angles, 
-	float center, int num_iters, float oversample, float sigma) {
+	float center, int num_iters, float oversample, float sigma, float p) {
 	
 	// create DArray from numpy
 	tomocam::DArray<float> sino(np_sino);
@@ -60,7 +60,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> & np_sino, np_array_t<float> & 
 
 	// get data pointer to angles
 	float * angles = static_cast<float *>(np_angles.request().ptr);
-	tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma);
+	tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma, p);
 
 	// return numpy array
 	return recn;
