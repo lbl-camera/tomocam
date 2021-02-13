@@ -23,6 +23,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/radon.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
+    ${PROJECT_SOURCE_DIR}/src/mbir.cpp
    )
 
 set(CUSRC 
