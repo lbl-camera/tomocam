@@ -27,25 +27,13 @@ int main(int argc, char **argv) {
 	float * angles = angs.data();
 
     tomocam::dim3_t d1 = sino.dims();
+
+
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
-
-    // normalize
-    float maxval = sino.max();
-    float minval = sino.min();
-
-
-    #pragma omp parallel for
-    for (int i = 0; i < sino.size(); i++)
-        sino[i] = (sino[i] - minval)/(maxval - minval);
-
-    tomocam::DArray<float> model(d2);
-    model.init(1.f);
-    tomocam::DArray<float> grad(d2);
-    grad.init(0.f);
+	tomocam::DArray<float> model(d2);
 
 
     float center = 640;
-    //float center = 1279.375;
     float oversample = 1.5;
     float sigma = 1;
 
@@ -58,14 +46,7 @@ int main(int argc, char **argv) {
 	std::cout << "Oversampling: " << oversample << std::endl;
 	std::cout << "Smoothness: " << sigma << std::endl;
 
-    tomocam::Optimizer opt(d2, d1, angles, center, oversample, sigma);
-    for (int i = 0; i < MAX_ITERS; i++) {
-        grad = model;
-        tomocam::gradient(grad, sino, angles, center, oversample);
-        std::cout << "Error = " << grad.norm() << std::endl;
-	    tomocam::add_total_var(model, grad, 1.2, sigma);
-        opt.update(model, grad);
-    }
+	tomocam::mbir(sino, model, angles, center, 100, oversample, sigma);
 
     std::fstream out("output.bin", std::fstream::out);
     out.write((char *) model.data(), model.size() * sizeof(float));
