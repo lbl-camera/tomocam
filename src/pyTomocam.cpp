@@ -17,10 +17,13 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+
 #include "types.h"
 #include "dist_array.h"
 #include "tomocam.h"
 #include "machine.h"
+#include "optimize.h"
 
 template <typename T>
 inline T * getPtr(np_array_t<T> array) {
@@ -44,6 +47,26 @@ void tv_wrapper(tomocam::DArray<float> &arg1, tomocam::DArray<float> &arg2, doub
 }
  
 
+np_array_t<float> mbir_wrapper(np_array_t<float> & np_sino, np_array_t<float> & np_angles, 
+	float center, int num_iters, float oversample, float sigma) {
+	
+	// create DArray from numpy
+	tomocam::DArray<float> sino(np_sino);
+	tomocam::dim3_t dims = sino.dims();
+
+	// allocate return array
+	auto recn = py::array_t<float>({dims.x, dims.z, dims.z});
+	tomocam::DArray<float> model(recn);
+
+	// get data pointer to angles
+	float * angles = static_cast<float *>(np_angles.request().ptr);
+	tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma);
+
+	// return numpy array
+	return recn;
+}
+
+
 /* setup methods table */
 PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
@@ -51,7 +74,10 @@ PYBIND11_MODULE(cTomocam, m) {
     // DArray class
     py::class_<tomocam::DArray<float>>(m, "DArray")
         .def(py::init<np_array_t<float> &>())
-        .def("init", static_cast<void (tomocam::DArray<float>::*)(float)>(&tomocam::DArray<float>::init), "initialize array with a value");
+        .def("init", static_cast<void (tomocam::DArray<float>::*)(float)>(&tomocam::DArray<float>::init), "initialize array with a value")
+		.def("norm", &tomocam::DArray<float>::norm)
+		.def("max", &tomocam::DArray<float>::max)
+		.def("min", &tomocam::DArray<float>::min);
 
     // set gpu paramters
     m.def("set_num_of_gpus", 
@@ -87,6 +113,6 @@ PYBIND11_MODULE(cTomocam, m) {
     // caxpy
     m.def("axpy", &tomocam::axpy);
 
-    // norm2
-    m.def("norm", &tomocam::norm2);    
+    // mbir
+    m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
 }

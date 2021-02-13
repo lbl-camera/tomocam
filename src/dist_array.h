@@ -111,7 +111,7 @@ namespace tomocam {
             #pragma omp parallel for reduction( + : v)
                 for (int i = 0; i < size_; i++)
                     v += buffer_[i] * buffer_[i];
-            return std::sqrt(v);
+            return std::sqrt(v) / size_;
         }
 
         // sum
