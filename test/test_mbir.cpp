@@ -11,10 +11,8 @@
 
 const float PI = M_PI;
 const int MAX_ITERS = 150;
-//const char * FILENAME = "/home/dkumar/data/dula/llzo_stack.h5";
 const char * FILENAME = "/home/dkumar/data/phantom/phantom_00016/phantom_00016.h5";
 const char * DATASET = "projs";
-//const char * ANGLES = "angles";
 const char * ANGLES = "angs";
 
 int main(int argc, char **argv) {
@@ -27,11 +25,8 @@ int main(int argc, char **argv) {
 	float * angles = angs.data();
 
     tomocam::dim3_t d1 = sino.dims();
-
-
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 	tomocam::DArray<float> model(d2);
-
 
     float center = 640;
     float oversample = 1.5;
