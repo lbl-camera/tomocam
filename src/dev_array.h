@@ -21,6 +21,7 @@
 #ifndef TOMOCAM_DEV_ARRAY__H
 #define TOMOCAM_DEV_ARRAY__H
 
+#include <iostream>
 #include <stdexcept>
 
 #include <cuda.h>
@@ -108,15 +109,15 @@ namespace tomocam {
         // -- with halo excluded
         // -- check for bounds, return 0 if outside
         __device__
-        T at(int i, int j, int k) {
-            int ii = i + halo_.x;
-            if ((ii < 0) || (ii > dims_.x - 1)) 
+        T at(int ii, int j, int k) {
+            int i = ii + halo_.x;
+            if ((i < 0) || (i > dims_.x - 1)) 
                 return 0;
             if ((j < 0) || (j > dims_.y - 1))
                 return 0;
             if ((k < 0) || (k > dims_.z - 1))
                 return 0;
-            return dev_ptr_[ii * dims_.y * dims_.z + j * dims_.z + k];
+            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
         }
     };
     typedef DeviceArray<float> dev_arrayf;
@@ -261,7 +262,10 @@ namespace tomocam {
     void copy_fromDeviceArray(Partition<T> dst, DeviceArray<T> src, cudaStream_t stream) {
         cudaError_t status;
         status = cudaMemcpyAsync(dst.begin(), src.dev_ptr(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream);
-        if (status != cudaSuccess) throw std::runtime_error("failed to copy array to host from device");
+        if (status != cudaSuccess)  {
+            std::cerr << "cudaMemcpyAsync failed with error code: " << status << std::endl;
+            throw std::runtime_error("failed to copy array to host from device");
+        }
     }
 } // namespace tomocam
 
