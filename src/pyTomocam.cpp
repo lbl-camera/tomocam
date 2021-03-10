@@ -47,7 +47,7 @@ np_array_t<float> radon_wrapper(np_array_t<float> &imgstack, np_array_t<float> a
 }
 
         
-np_array_t<float> iradon_wrapper(tomocam::DArray<float> &sino, np_array_t<float> angs, double cen, double oversamp) {
+np_array_t<float> iradon_wrapper(np_array_t<float> &sino, np_array_t<float> angs, double cen, double oversamp) {
     tomocam::DArray<float> arg1(sino);
     tomocam::dim3_t dims = arg1.dims();
 
