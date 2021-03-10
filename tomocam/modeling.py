@@ -57,10 +57,8 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
         Number of iterations
     over_sample: float
         Zero padding to be added to signal for fft
-    smoothness: float
+    smoothness: float (>= 0)
         Controls smoothness of reconstruction
-    p: float
-        Controls ??
 
     Returns
     --------
@@ -70,4 +68,8 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
     if sinogram.dtype != np.float32 and angles.dtype != np.float32:
         raise ValueError('input data-type must be single precision')
 
-    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, smoothness, p)
+    if smoothness <= 0:
+        raise ValueError('smoothness value must be greater than 0')
+    sigma = 1./smoothness
+
+    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma, p)
