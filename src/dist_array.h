@@ -161,7 +161,7 @@ namespace tomocam {
             #pragma omp parallel for
             for (int i = 0; i < size_; i++)
                 buffer_[i] += rhs.buffer_[i];
-            return *this
+            return *this;
         }
 
         // save array to file
