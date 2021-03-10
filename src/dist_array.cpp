@@ -218,12 +218,12 @@ namespace tomocam {
         int h[2];
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
-            if ( imin == 0 ) 
+            if (i == 0) 
                 h[0] = 0;
             else 
                 h[0] = halo; 
             int imax = std::min(locations[i+1] + halo, dims_.x);
-            if (imax == dims_.x) 
+            if (i == n_partitions-1)
                 h[1] = 0;
             else 
                 h[1] = halo;
