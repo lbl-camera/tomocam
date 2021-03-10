@@ -20,10 +20,12 @@
  */
 
 #include <iostream>
+#include <fstream>
 
 #include "dist_array.h"
 #include "optimize.h"
 #include "tomocam.h"
+#include "machine.h"
 
 namespace tomocam {
 
@@ -40,13 +42,16 @@ namespace tomocam {
         Optimizer opt(
             model.dims(), sino.dims(), angles, center, oversample, sigma);
 
+        std::ofstream fout("tomocam_mbir.log");
         model.init(1.f);
         for (int i = 0; i < num_iters; i++) {
             DArray<T> grad = model;
             gradient(grad, sino, angles, center, oversample);
-            std::cout << "Error = " << grad.norm() << std::endl;
-            tomocam::add_total_var(model, grad, p, sigma);
+            MachineConfig::getInstance().synchronize();
+            float e = grad.norm();
+            add_total_var(model, grad, p, sigma);
             opt.update(model, grad);
+            fout << "Iteration:  " << i << ", Error: " << e << std::endl; 
         }
     }
 
