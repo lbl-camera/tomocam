@@ -56,6 +56,20 @@ namespace tomocam {
             static MachineConfig instance;
             return instance;
         }
+
+        // sync all devices
+        void synchronize() {
+            int curr_dev = -1;
+            cudaGetDevice(&curr_dev);
+
+            for (int i = 0; i < ndevice_; i++) {
+                cudaSetDevice(i);
+                cudaDeviceSynchronize();
+            }
+            // reset original device
+            cudaSetDevice(curr_dev);
+        }
+
         // setters
         void setNumOfGPUs(int ndev) { ndevice_ = ndev; }
         void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
