@@ -54,7 +54,7 @@ class CMakeBuildExt(build_ext):
 
 setup(name='tomocam',
       author='Dinesh Kumar',
-      version='2.0.0',
+      version='2.0.1',
       description = "GPU based CT reconstruction parackge developed by CAMERA/LBL", 
       packages = [ 'tomocam' ],
       license = "Tomocam Copyright (c) 2018",
