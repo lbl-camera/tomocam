@@ -22,7 +22,7 @@
 #define TOMOCAM_DISTARRAY__H
 
 #include <vector>
-
+#include <fstream>
 
 #include "types.h"
 #include "common.h"
@@ -138,6 +138,39 @@ namespace tomocam {
             return v;
         }
 
+        // addition operator
+        DArray<T> operator+(const DArray<T> & rhs) {
+            DArray<T> rv(dims_);
+            #pragma omp parallel for
+            for (int i = 0; i < size_; i++)
+                rv.buffer_[i] = buffer_[i] + rhs.buffer_[i];
+            return rv;
+        }
+         
+        // subtraction operator
+        DArray<T> operator-(const DArray<T> & rhs) {
+            DArray<T> rv(dims_);
+            #pragma omp parallel for
+            for (int i = 0; i < size_; i++)
+                rv.buffer_[i] = buffer_[i] - rhs.buffer_[i];
+            return rv;
+        }
+
+        // add-assign
+        DArray<T> & operator+=(const DArray<T> &rhs) {
+            #pragma omp parallel for
+            for (int i = 0; i < size_; i++)
+                buffer_[i] += rhs.buffer_[i];
+            return *this
+        }
+
+        // save array to file
+        void to_file(const char * filename) {
+            std::ofstream fout(filename, std::ios::binary);
+            fout.write((char *) buffer_, this->bytes());
+            fout.close();
+        }
+
         /// dimensions of the array
         dim3_t dims() const { return dims_; };
         int slices() const { return dims_.x; }
@@ -149,6 +182,16 @@ namespace tomocam {
         // indexing
         T &operator[](int i) { return buffer_[i]; }
         T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
+
+        // padded
+        T padded(int i, int j, int k) {
+            if ((i < 0) || (i >= dims_.x) || 
+                    (j < 0) || (j >= dims_.y) ||
+                    (k < 0) || (k >= dims_.z)) 
+                return 0;
+            else
+                return buffer_[idx_(i, j, k)]; 
+        }
 
         /// Returns pointer to N-th slice
         T *slice(int n) { return (buffer_ + n * dims_.y * dims_.z); }
