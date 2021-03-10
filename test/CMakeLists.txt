@@ -7,6 +7,9 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 include_directories(${HDF5_INCLUDE_DIRS})
 
 
+add_executable(tvd test_tvd.cpp)
+target_link_libraries(tvd tomocam)
+add_test(test_tvd tvd)
 
 add_executable(read test_reader.cpp)
 target_link_libraries(read ${HDF5_LIBRARIES})
