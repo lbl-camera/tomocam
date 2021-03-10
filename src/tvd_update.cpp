@@ -18,8 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <thread>
-
 #include <cuda_runtime.h>
 #include <cuda.h>
 #include <omp.h>
@@ -105,8 +103,6 @@ namespace tomocam {
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         if (nDevice > model.slices()) nDevice = model.slices();
-
-        std::vector<std::thread> threads;
         int halo = 1;
 
         cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
@@ -114,16 +110,16 @@ namespace tomocam {
         std::vector<Partition<float>> m = model.create_partitions(nDevice, halo);
         std::vector<Partition<float>> f = objfn.create_partitions(nDevice);
 
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++){
             cudaSetDevice(i);
-            threads.push_back(std::thread(total_var_, m[i], f[i], p, sigma, i));
             total_var_(m[i], f[i], p, sigma, i);
         }
 
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
-            threads[i].join();
         }
         cudaHostUnregister(model.data());
         cudaHostUnregister(objfn.data());
