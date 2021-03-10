@@ -36,7 +36,7 @@ namespace tomocam {
 
     __device__ const float FILTER[3][3][3] = {
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
-        {{0.0370, 0.0523, 0.0370}, {0.0532, 0.0000, 0.0523}, {0.0370, 0.0523, 0.0370}},
+        {{0.0370, 0.0523, 0.0370}, {0.0523, 0.0000, 0.0523}, {0.0370, 0.0523, 0.0370}},
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}}};
 
     __deviceI__ float weight(int i, int j, int k) { return FILTER[i][j][k]; }
@@ -58,9 +58,9 @@ namespace tomocam {
         float temp2 = powf(fabs(delta), MRF_Q - 1);
         float temp3 = MRF_C + temp1;
 
-        if (delta < 0.0) {
+        if (delta < 0.f) {
             return ((-1 * temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
-        } else if (delta > 0.0) {
+        } else if (delta > 0.f) {
             return ((temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
         } else {
             return 0; // MRF_Q / (MRF_SIGMA_Q*MRF_C);
