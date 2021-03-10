@@ -1,12 +1,12 @@
 import numpy as np
 from . import cTomocam
 
-def radon(volume, angles, center=0, over_sample=2):
+def radon(volume, angles, center, over_sample=1.5):
     """Computes the radon transform using nufft.
 
     Parameters
     -----------
-    volume: tomocam.DistArray
+    volume: numpy.ndarray
         Data for which radon transform is seeketh, (single precision)
     angles: numpy.ndarray
         Projection angles (single, precision)
@@ -17,29 +17,22 @@ def radon(volume, angles, center=0, over_sample=2):
 
     Returns
     --------
-        tomocam.DistArray
+        numpy.ndarray
             Radon transform of input volume
     """
     if volume.dtype != np.float32 and angles.dtype != np.float32:
         raise ValueError('input data-type must be single precision')
-    slcs, _, ncol = volume.shape
-    nangle = angles.shape[0]
-    sino = np.zeros((slcs, nangle, ncol), dtype=np.float32)
-
-    # create appropriate data-structures 
-    sinogram = cTomocam.DArray(sino)
 
     # compute transformation
-    cTomocam.radon(volume.handle, sinogram, angles, center, over_sample)
-    return sino
-    
+    return cTomocam.radon(volume, angles, center, over_sample)
 
-def iradon(sinogram, angles, center=0, over_sample=2):
-    """Computes the radon transform using nufft.
+
+def iradon(sinogram, angles, center, over_sample=1.5):
+    """Computes the inverse-radon transform using nufft.
 
     Parameters
     ----------
-    sinogram: tomocam.DistArray
+    sinogram: numpy.ndarray 
         Projection data for which radon transform is seeketh, (single precision)
     angles: numpy.ndarray
         Projection angles (single, precision)
@@ -50,16 +43,11 @@ def iradon(sinogram, angles, center=0, over_sample=2):
 
     Returns
     --------
-        tomocam.DistArray
+        numpy.ndarray
             Inverse radon transform of input projection data
     """
     if sinogram.dtype != np.float32 and angles.dtype != np.float32:
         raise ValueError('input data-type must be single precision')
-    slcs, _, ncol = sinogram.shape
    
     # create appropriate data-structures 
-    vol = np.zeros((slcs, ncol, ncol), dtype=np.float32)
-    volume  = cTomocam.DArray(vol)
-
-    cTomocam.iradon(sinogram.handle, volume, angles, center, over_sample)
-    return vol
+    return cTomocam.iradon(sinogram, angles, center, over_sample)
