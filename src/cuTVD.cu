@@ -30,14 +30,14 @@ namespace tomocam {
     __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma) {
 
         // thread ids
-        int i = threadIdx.x;
+        int i = threadIdx.z;
         int j = threadIdx.y;
-        int k = threadIdx.z;
+        int k = threadIdx.x;
 
         // global offsets
-        int I = blockDim.x * blockIdx.x;
+        int I = blockDim.z * blockIdx.z;
         int J = blockDim.y * blockIdx.y;
-        int K = blockDim.z * blockIdx.z;
+        int K = blockDim.x * blockIdx.x;
 
         // global ids
         int x = I + i;
@@ -46,9 +46,9 @@ namespace tomocam {
 
         // last thread in the block
         dim3_t dims = objfn.dims();
-        int imax = min(dims.x - I - 1, blockDim.x - 1);
+        int imax = min(dims.x - I - 1, blockDim.z - 1);
         int jmax = min(dims.y - J - 1, blockDim.y - 1);
-        int kmax = min(dims.z - K - 1, blockDim.z - 1);
+        int kmax = min(dims.z - K - 1, blockDim.x - 1);
 
         if ((x < dims.x) && (y < dims.y) && (z < dims.z)) {
 
