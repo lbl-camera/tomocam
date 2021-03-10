@@ -30,12 +30,36 @@ inline T * getPtr(np_array_t<T> array) {
     return (T *) array.request().ptr;
 }
 
-void radon_wrapper(tomocam::DArray<float> &arg1, tomocam::DArray<float> &arg2, np_array_t<float> angs, double cen, double oversamp) {
+np_array_t<float> radon_wrapper(np_array_t<float> &imgstack, np_array_t<float> angs, double cen, double oversamp) {
+    tomocam::DArray<float> arg1(imgstack);
+    int num_angs = static_cast<int>(angs.size());
+    tomocam::dim3_t dims = arg1.dims();
+
+    // create output array
+	auto sino = py::array_t<float>({dims.x, num_angs, dims.z});
+    tomocam::DArray<float> arg2(sino);
+
+    // radon call
     tomocam::radon(arg1, arg2, getPtr<float>(angs), (float) cen, (float) oversamp);
+
+    // return numpy array
+    return sino;
 }
+
         
-void iradon_wrapper(tomocam::DArray<float> &arg1, tomocam::DArray<float> &arg2, np_array_t<float> angs, double cen, double oversamp) {
+np_array_t<float> iradon_wrapper(tomocam::DArray<float> &sino, np_array_t<float> angs, double cen, double oversamp) {
+    tomocam::DArray<float> arg1(sino);
+    tomocam::dim3_t dims = arg1.dims();
+
+    // create output array
+	auto recon = py::array_t<float>({dims.x, dims.z, dims.z});
+    tomocam::DArray<float> arg2(recon);
+
+    // iradon call
     tomocam::iradon(arg1, arg2, getPtr<float>(angs), (float) cen, (float) oversamp);
+
+    // return recon as numpy array
+    return recon;
 }
         
 void gradient_wrapper(tomocam::DArray<float> &arg1, tomocam::DArray<float> &arg2, np_array_t<float> angs, double cen, double oversamp) {
