@@ -20,7 +20,7 @@
  */
 
 #include <iostream>
-#include <fstream>
+#include <pybind11/pybind11.h>
 
 #include "dist_array.h"
 #include "optimize.h"
@@ -42,7 +42,6 @@ namespace tomocam {
         Optimizer opt(
             model.dims(), sino.dims(), angles, center, oversample, sigma);
 
-        std::ofstream fout("tomocam_mbir.log");
         model.init(1.f);
         for (int i = 0; i < num_iters; i++) {
             DArray<T> grad = model;
@@ -51,7 +50,7 @@ namespace tomocam {
             float e = grad.norm();
             add_total_var(model, grad, p, sigma);
             opt.update(model, grad);
-            fout << "Iteration:  " << i << ", Error: " << e << std::endl; 
+            py::print("Iteration:  ", i, ", Error: ", e);
         }
     }
 
