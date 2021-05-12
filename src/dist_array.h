@@ -33,25 +33,25 @@ namespace tomocam {
     class Partition {
       private:
         dim3_t dims_;
-        int size_;
+        uint64_t size_;
         T *first_;
         int halo_[2];
 
       public:
         Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
-            size_ = dims_.x * dims_.y * dims_.z; 
+            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
             halo_[0] = 0;
             halo_[1] = 0;
         }
 
         Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
-            size_ = dims_.x * dims_.y * dims_.z; 
+            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
             halo_[0] = h[0];
             halo_[1] = h[1];
         }
 
         dim3_t dims() const { return dims_; }
-        int size() const { return size_; }
+        uint64_t size() const { return size_; }
         size_t bytes() const { return size_ * sizeof(T); }
         int  *halo() { return halo_; }
 
@@ -68,11 +68,14 @@ namespace tomocam {
       private:
         bool owns_buffer_; ///< Don't free buffer if not-owned
         dim3_t dims_; ///< [Slices, Rows, Colums]
-        int size_;    ///< Size of the alloated array
+        uint64_t size_;    ///< Size of the alloated array
         T *buffer_;   ///< Pointer to data buffer
 
         // return global index
-        int idx_(int i, int j, int k) { return (i * dims_.y * dims_.z + j * dims_.z + k); }
+        uint64_t idx_(int i, int j, int k) { 
+            return (i * dims_.y * static_cast<uint64_t>(dims_.z) + 
+            j * static_cast<uint64_t>(dims_.z) + k); 
+        }
 
       public:
         DArray(dim3_t);
@@ -94,14 +97,14 @@ namespace tomocam {
         // copy data to DArray
         void init(T *values) {
             #pragma omp parallel for
-            for (int i = 0; i < size_; i++)
+            for (uint64_t i = 0; i < size_; i++)
                 buffer_[i] = values[i];
         }
 
         // init
         void init(T v) {
             #pragma omp parallel for
-            for (int i = 0; i < size_; i++)
+            for (uint64_t i = 0; i < size_; i++)
                 buffer_[i] = v;
         }
 
@@ -109,8 +112,8 @@ namespace tomocam {
         T norm() const {
             T v = 0;
             #pragma omp parallel for reduction( + : v)
-                for (int i = 0; i < size_; i++)
-                    v += buffer_[i] * buffer_[i];
+            for (uint64_t i = 0; i < size_; i++)
+                v += buffer_[i] * buffer_[i];
             return std::sqrt(v);
         }
 
@@ -118,23 +121,26 @@ namespace tomocam {
         T sum() const {
             T v = 0;
             #pragma omp parallel for reduction( + : v)
-            for (int i = 0; i < size_; i++) v += buffer_[i];
+            for (uint64_t i = 0; i < size_; i++) 
+                v += buffer_[i];
             return v;
         }
 
         T max() const {
             T v = -1E10;
             #pragma omp parallel for reduction(max : v)
-            for (int i = 0; i < size_; i++)
-                if (buffer_[i] > v) v = buffer_[i];
+            for (uint64_t i = 0; i < size_; i++)
+                if (buffer_[i] > v) 
+                    v = buffer_[i];
             return v;
         }
 
         T min() const {
             T v = 1E10;
             #pragma omp parallel for reduction(min : v)
-            for (int i = 0; i < size_; i++)
-                if (buffer_[i] < v) v = buffer_[i];
+            for (uint64_t i = 0; i < size_; i++)
+                if (buffer_[i] < v) 
+                    v = buffer_[i];
             return v;
         }
 
@@ -142,7 +148,7 @@ namespace tomocam {
         DArray<T> operator+(const DArray<T> & rhs) {
             DArray<T> rv(dims_);
             #pragma omp parallel for
-            for (int i = 0; i < size_; i++)
+            for (uint64_t i = 0; i < size_; i++)
                 rv.buffer_[i] = buffer_[i] + rhs.buffer_[i];
             return rv;
         }
@@ -151,7 +157,7 @@ namespace tomocam {
         DArray<T> operator-(const DArray<T> & rhs) {
             DArray<T> rv(dims_);
             #pragma omp parallel for
-            for (int i = 0; i < size_; i++)
+            for (uint64_t i = 0; i < size_; i++)
                 rv.buffer_[i] = buffer_[i] - rhs.buffer_[i];
             return rv;
         }
@@ -159,7 +165,7 @@ namespace tomocam {
         // add-assign
         DArray<T> & operator+=(const DArray<T> &rhs) {
             #pragma omp parallel for
-            for (int i = 0; i < size_; i++)
+            for (uint64_t i = 0; i < size_; i++)
                 buffer_[i] += rhs.buffer_[i];
             return *this;
         }
@@ -173,14 +179,14 @@ namespace tomocam {
 
         /// dimensions of the array
         dim3_t dims() const { return dims_; };
-        int slices() const { return dims_.x; }
-        int rows() const { return dims_.y; }
-        int cols() const { return dims_.z; }
-        int size() const { return size_; }
+        uint64_t slices() const { return dims_.x; }
+        uint64_t rows() const { return dims_.y; }
+        uint64_t cols() const { return dims_.z; }
+        uint64_t size() const { return size_; }
         size_t bytes() const { return size_ * sizeof(T); }
 
         // indexing
-        T &operator[](int i) { return buffer_[i]; }
+        T &operator[](uint64_t i) { return buffer_[i]; }
         T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
 
         // padded

@@ -96,7 +96,7 @@ namespace tomocam {
     template <typename T>
     DArray<T>::DArray(dim3_t dim) {
         dims_     = dim;
-        size_     = dims_.x * dims_.y * dims_.z;
+        size_     = dims_.x * dims_.y * static_cast<uint64_t>(dims_.z);
         owns_buffer_ = true;
 
         // allocate memory for the array
@@ -115,7 +115,7 @@ namespace tomocam {
             dims_ = { (int)np_array.shape(0), (int)np_array.shape(1), (int)np_array.shape(2) };
         else 
             throw std::runtime_error("Unsupported numpy array.");
-        size_ = dims_.x * dims_.y * dims_.z;
+        size_ = dims_.x * dims_.y * static_cast<uint64_t>(dims_.z);
         buffer_ = (T *) np_array.request().ptr;
         owns_buffer_ = false;
     }
