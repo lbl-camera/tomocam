@@ -44,8 +44,8 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
-#python d
-find_package(PythonLibs REQUIRED) 
+#python
+find_package(Python REQUIRED) 
 include_directories(${PYTHON_INCLUDE_DIRS})
 
 #pybind11
@@ -72,6 +72,7 @@ set_target_properties(cTomocam PROPERTIES
 target_link_libraries(cTomocam PRIVATE cublas cufft)
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
+target_link_libraries(cTomocam PRIVATE ${PYTHON_LIBRARIES})
 target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
@@ -84,6 +85,7 @@ if (${ENABLE_TESTS})
     add_library(tomocam STATIC ${SRC})
     target_link_libraries(tomocam PRIVATE dummy cublas cufft)
     target_link_libraries(tomocam PRIVATE pybind11::module)
+    target_link_libraries(tomocam PRIVATE ${PYTHON_LIBRARIES})
     target_compile_features(tomocam PRIVATE cxx_std_17)
     add_subdirectory(test)
 endif()
