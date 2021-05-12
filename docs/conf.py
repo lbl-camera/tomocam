@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'tomocam'
-copyright = '2021, Dinesh Kumar'
+copyright = 'Tomocam Copyright (c) 2018, The Regents of the University of California'
 author = 'Dinesh Kumar'
 
 
@@ -28,6 +28,9 @@ author = 'Dinesh Kumar'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

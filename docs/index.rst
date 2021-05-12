@@ -10,7 +10,8 @@ Welcome to tomocam's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+.. automodule:: tomocam
+   :members:
 
 Indices and tables
 ==================
