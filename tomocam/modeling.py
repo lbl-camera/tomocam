@@ -7,9 +7,9 @@ def calc_gradients(model, sinogram, angles, center=0, over_sample=2):
 
     Parameters
     -----------
-    model: tomocam.DistArray
+    model: numpy.ndarray
         3-D model on obejct (single precision)
-    sinogram: tomocam.DistArray
+    sinogram: numpy.ndarray
         Projection data in sinogram form (single precision)
     angles: numpy.ndarray
         Projection angles (single precision)
@@ -30,9 +30,9 @@ def update_total_variation(model, gradients, p=1.2, smoothness=0.1):
     Parameters:
     -----------
 
-    model: tomocam.DistArray
+    model: numpy.ndarray
         model of the volume beign scanned (single precision)
-    gradients: tomocam.DistArray
+    gradients: numpy.ndarray
         gradients of the error between mdoel and data
     p: scalar, hyperparamter, default = 1.2
     smoothness: scalar, default = 0.1
