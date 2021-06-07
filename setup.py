@@ -4,6 +4,7 @@ import os
 import subprocess
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+from distutils.util import convert_path
 
 # hack to make it work in virtualenv
 import sysconfig
@@ -11,6 +12,12 @@ cfg = sysconfig.get_config_vars()
 pylib = os.path.join(cfg['LIBDIR'], cfg['LDLIBRARY'])
 pyinc = cfg['INCLUDEPY']
 pyver = cfg['VERSION']
+
+# versioning
+main_ns = {}
+ver_path = convert_path('tomocam/_version.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
 
 class CMakeExtension(Extension):
     """
@@ -53,8 +60,8 @@ class CMakeBuildExt(build_ext):
             super().build_extension(ext)
 
 setup(name='tomocam',
-      author='Dinesh Kumar',
-      version='2.0.1',
+      author ='Dinesh Kumar',
+      version = main_ns['__version__'],
       description = "GPU based CT reconstruction parackge developed by CAMERA/LBL", 
       packages = [ 'tomocam' ],
       license = "Tomocam Copyright (c) 2018",
