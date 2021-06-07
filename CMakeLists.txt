@@ -14,8 +14,6 @@ option(ENABLE_TESTS "Enable tests" OFF)
 
 
 set(SRC 
-    ${PROJECT_SOURCE_DIR}/src/norm2.cpp
-    ${PROJECT_SOURCE_DIR}/src/caxpy.cpp
     ${PROJECT_SOURCE_DIR}/src/backward.cpp 
     ${PROJECT_SOURCE_DIR}/src/forward.cpp
     ${PROJECT_SOURCE_DIR}/src/staging.cpp
