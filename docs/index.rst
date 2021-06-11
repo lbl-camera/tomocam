@@ -7,11 +7,10 @@ Welcome to tomocam's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
 
-.. automodule:: tomocam
-   :members:
+   tomocam
 
 Indices and tables
 ==================
