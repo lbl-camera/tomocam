@@ -43,6 +43,7 @@ link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #python
+set(Python_FIND_VIRTUALENV FIRST)
 find_package(Python COMPONENTS Interpreter Development REQUIRED) 
 include_directories(${Python_INCLUDE_DIRS})
 
