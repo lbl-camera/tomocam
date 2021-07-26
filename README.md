@@ -6,7 +6,7 @@ Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using
 1. CUDA (with cufft and cublas)
 2. pybind11
 3. numpy
-4. camke
+4. cmake
 
 **Installation**
 -----------------
