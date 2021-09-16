@@ -21,10 +21,10 @@ def calc_gradients(model, sinogram, angles, center=0, over_sample=2):
 
     if model.dtype != np.float32 and data.dtype != np.float32 and angles.data != np.float32:
         raise ValueError('input data must be single precision')
-    cTomocam.gradients(model.handle, sinogram.handle, angles, center, over_sample)
+    cTomocam.gradients(model, sinogram, angles, center, over_sample)
 
 
-def update_total_variation(model, gradients, p=1.2, smoothness=0.1):
+def update_total_variation(model, gradients, smoothness=1.0E-03):
     """Add constraints to gradients in-place
 
     Parameters:
@@ -34,15 +34,14 @@ def update_total_variation(model, gradients, p=1.2, smoothness=0.1):
         model of the volume beign scanned (single precision)
     gradients: numpy.ndarray
         gradients of the error between mdoel and data
-    p: scalar, hyperparamter, default = 1.2
-    smoothness: scalar, default = 0.1
+    smoothness: scalar, default = 0.001
     """
     if model.dtype != np.float32 and gradients.dtype != np.float32:
         raise ValueError('input data must be single precision')
-    cTomocam.total_variation(gradients.handle, model.handle, p, smoothness) 
+    cTomocam.total_variation(gradients, model, smoothness) 
 
 
-def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1.0, p = 1.2):
+def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1.0E-03):
     """Computes the Model-based Iterative reconstruction using nufft.
 
     Parameters
@@ -72,4 +71,4 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
         raise ValueError('smoothness value must be greater than 0')
     sigma = 1./smoothness
 
-    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma, p)
+    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma)
