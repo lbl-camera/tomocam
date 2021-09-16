@@ -84,11 +84,11 @@ void gradient_wrapper(np_array_t<float> &recon,
 
 void tv_wrapper(np_array_t<float> &recon,
     np_array_t<float> &gradients,
-    double p,
     double s) {
+    float p = 1.2;
     tomocam::DArray<float> arg1(recon);
     tomocam::DArray<float> arg2(gradients);
-    tomocam::add_total_var(arg1, arg2, (float)p, (float)s);
+    tomocam::add_total_var(arg1, arg2, p, static_cast<float>(s));
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
@@ -96,8 +96,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     float center,
     int num_iters,
     float oversample,
-    float sigma,
-    float p) {
+    float sigma) {
 
     // create DArray from numpy
     tomocam::DArray<float> sino(np_sino);
@@ -108,6 +107,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     tomocam::DArray<float> model(recn);
 
     // get data pointer to angles
+    float p = 1.2;
     float *angles = static_cast<float *>(np_angles.request().ptr);
     tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma, p);
 
