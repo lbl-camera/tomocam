@@ -44,7 +44,7 @@ namespace tomocam {
         auto d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), angles, 0);
 
         // convolution kernel
-        float beta = 12.566370614359172f;
+        float beta = 12.566370614359172f; // 4π
         float radius = 2.f;
         kernel_t kernel(radius, beta);
 
