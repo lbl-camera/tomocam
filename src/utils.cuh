@@ -21,6 +21,7 @@
 #define TOMOCAM_UTILS__CUH
 
 #include <cuda.h>
+#include <cuda_runtime.h>
 #include <stdio.h>
 
 #include "common.h"
@@ -71,6 +72,7 @@ namespace tomocam {
 
 
     // calculate thread global index
+    #ifdef __NVCC__
     __deviceI__ 
     int Index1D() {
         return (blockDim.x * blockIdx.x + threadIdx.x);
@@ -84,6 +86,7 @@ namespace tomocam {
         idx.z = blockDim.x * blockIdx.x + threadIdx.x;
         return idx;
     }
+    #endif // __NVCC__
 
     // check if indices are in range
     __deviceI__ 
