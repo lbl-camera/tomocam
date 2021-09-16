@@ -30,6 +30,7 @@
 #include "types.h"
 #include "common.h"
 #include "dist_array.h"
+#include "utils.cuh"
 
 namespace tomocam {
 
@@ -64,7 +65,7 @@ namespace tomocam {
         }
 
         // explicit destructor
-        void free() { if (dev_ptr_) cudaFree(dev_ptr_); }
+        void free() { if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_)); }
 
         // reset dims
         void dims(dim3_t d) { 
@@ -127,7 +128,7 @@ namespace tomocam {
     inline dev_arrayc DeviceArray_fromHostR2C(Partition<float> p,  cudaStream_t s) {
         cudaError_t status;
         cuComplex_t * dst = NULL;
-        cudaMalloc((void **) &dst, p.size() * sizeof(cuComplex_t));
+        SAFE_CALL(cudaMalloc((void **) &dst, p.size() * sizeof(cuComplex_t)));
         size_t spitch = sizeof(float);
         size_t dpitch = sizeof(cuComplex_t);
         size_t width = sizeof(float);
@@ -169,7 +170,7 @@ namespace tomocam {
         size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
         cuComplex_t * ptr = NULL;
         cuComplex_t * src = d_arr.dev_ptr();
-        cudaMalloc((void **) &ptr, bytes);
+        SAFE_CALL(cudaMalloc((void **) &ptr, bytes));
         cudaMemsetAsync(ptr, 0, bytes, s);
         for (int i = 0; i < d0.x; i++) {
             for (int j = 0; j < d0.y; j++) {
@@ -180,7 +181,7 @@ namespace tomocam {
         }
         d_arr.dims(d1);
         d_arr.dev_ptr(ptr);
-        cudaFree(src);
+        SAFE_CALL(cudaFree(src));
     }
      
     // strip padding 
@@ -200,7 +201,7 @@ namespace tomocam {
         size_t bytes = d1.x * d1.y * d1.z * sizeof(cuComplex_t);
         cuComplex_t * ptr = NULL;
         cuComplex_t * src = d_arr.dev_ptr();
-        cudaMalloc((void **) &ptr, bytes);
+        SAFE_CALL(cudaMalloc((void **) &ptr, bytes));
         for (int i = 0; i < d1.x; i++) {
             for (int j = 0; j < d1.y; j++) {
                 size_t offset0 = i * d0.y * d0.z + (j + j_offset) * d0.z + padding;
@@ -210,7 +211,7 @@ namespace tomocam {
         }
         d_arr.dims(d1);
         d_arr.dev_ptr(ptr); 
-        cudaFree(src);
+        SAFE_CALL(cudaFree(src));
     }
 
     // create DeviceArray from Partition
