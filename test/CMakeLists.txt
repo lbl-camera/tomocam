@@ -21,7 +21,7 @@ target_link_libraries(mbir ${HDF5_LIBRARIES})
 add_test(test_mbir mbir)
 
 add_executable(backward test_backward.cpp)
-target_link_libraries(backward tomocam)
+target_link_libraries(backward tomocam ${HDF5_LIBRARIES})
 add_test(test_backward backward)
 
 add_executable(forward test_forward.cpp)
