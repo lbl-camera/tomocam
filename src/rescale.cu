@@ -32,7 +32,7 @@ namespace tomocam {
             arr[idx] = arr[idx]*scale;
     }
 
-    void rescale(dev_arrayc arr, cudaStream_t stream) {
+    void rescale(dev_arrayc &arr, cudaStream_t stream) {
         dim3_t dims = arr.dims();
         float scale = 1.f / (dims.z * dims.z);
         Grid grid(dims); 

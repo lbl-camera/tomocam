@@ -58,7 +58,7 @@ namespace tomocam {
         }
     }
 
-    void polarsample(dev_arrayc input, dev_arrayc output, dev_arrayf angles,
+    void polarsample(dev_arrayc &input, dev_arrayc &output, dev_arrayf &angles,
             kernel_t kernel, cudaStream_t stream) {
         // parallelize over sinogram
         Grid grid(output.dims());

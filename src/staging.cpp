@@ -29,8 +29,8 @@
 namespace tomocam {
 
     /* zero pads arrays and remves padding after calculations */ 
-    void stage_back_project(dev_arrayc sinogram, dev_arrayc &volume, int ipad, float center,
-            dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
+    void stage_back_project(dev_arrayc &sinogram, dev_arrayc &volume, int ipad, float center,
+            dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
 
         // add zero padding
         addPadding(sinogram, ipad, 1, stream);
@@ -44,8 +44,8 @@ namespace tomocam {
 
 
     /* zero pads arrays and remves padding after calculations */ 
-    void stage_fwd_project(dev_arrayc volume, dev_arrayc &sinos, int ipad,
-        float center, dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
+    void stage_fwd_project(dev_arrayc &volume, dev_arrayc &sinos, int ipad,
+        float center, dev_arrayf& angles, kernel_t kernel, cudaStream_t stream) {
 
         // pad input array with zeros
         addPadding(volume, ipad, 2, stream);
@@ -59,8 +59,8 @@ namespace tomocam {
     }
 
     /* calls forward and backward projectors to calculate gradients */
-    void calc_gradient(dev_arrayc &model, dev_arrayf data, int ipad, float center,
-                         dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
+    void calc_gradient(dev_arrayc &model, dev_arrayf &data, int ipad, float center,
+                         dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
 
         // zero pad model
         addPadding(model, ipad, 2, stream);

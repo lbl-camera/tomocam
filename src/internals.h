@@ -19,7 +19,7 @@ namespace tomocam {
      *  @param int size of padding
      *  @param cudaStream_t for concurrencny
      */ 
-    void calc_error(dev_arrayc, dev_arrayf, int ipad, cudaStream_t);
+    void calc_error(dev_arrayc &, dev_arrayf &, int ipad, cudaStream_t);
 
     /**
      * Rescales output from cufft, by dividing by N^2
@@ -27,7 +27,7 @@ namespace tomocam {
      * @param DeviceArray<cuComplex_t> cufft output
      * @param cudaStream_t for concurrencny
      */ 
-    void rescale(dev_arrayc, cudaStream_t);
+    void rescale(dev_arrayc &, cudaStream_t);
 
     /**
      * Deconvolves the NUFFT output with the convolution kernel for forward projection
@@ -36,7 +36,7 @@ namespace tomocam {
      * @param kernel_t convolution kernel (Kaiser window)
      * @param cudaStream_t for concurrencny
      */ 
-    void deapodize1D(dev_arrayc, kernel_t, cudaStream_t);
+    void deapodize1D(dev_arrayc &, kernel_t, cudaStream_t);
 
     /**
      * Deconvolves the NUFFT output with the convolution kernel for backward projection
@@ -45,7 +45,7 @@ namespace tomocam {
      * @param kernel_t convolution kernel (Kaiser window)
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void deapodize2D(dev_arrayc, kernel_t, cudaStream_t);
+    void deapodize2D(dev_arrayc &, kernel_t, cudaStream_t);
 
     /**
      * Computes back projection from sinograms using NUFFT
@@ -57,7 +57,7 @@ namespace tomocam {
      * @param kernel_t convolution kernel (Kaiser window)
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void back_project(dev_arrayc, dev_arrayc, float, dev_arrayf, kernel_t, cudaStream_t);
+    void back_project(dev_arrayc &, dev_arrayc &, float, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Rconstructs voxels from sinograms (inverse radon transform)
@@ -70,7 +70,7 @@ namespace tomocam {
      * @param kernel_t Window function for convolution
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void stage_back_project(dev_arrayc, dev_arrayc &, int, float, dev_arrayf, kernel_t, cudaStream_t);
+    void stage_back_project(dev_arrayc &, dev_arrayc &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Wrapper to launch CUDA kernel for computing covolutions (Polar -> Cartesian)
@@ -80,7 +80,7 @@ namespace tomocam {
      * @param DeviceArray<float> Projection angles
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void polarsample_transpose(dev_arrayc , dev_arrayc, dev_arrayf, kernel_t, cudaStream_t);
+    void polarsample_transpose(dev_arrayc &, dev_arrayc &, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Computes forward projection from voxels using NUFFT
@@ -92,7 +92,7 @@ namespace tomocam {
      * @param kernel_t convolution kernel (Kaiser window)
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void fwd_project(dev_arrayc, dev_arrayc, float, dev_arrayf, kernel_t, cudaStream_t);
+    void fwd_project(dev_arrayc &, dev_arrayc &, float, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Computes projections (sinograms) from voxels (Radon transform)
@@ -105,7 +105,7 @@ namespace tomocam {
      * @param kernel_t Window function for convolution
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void stage_fwd_project(dev_arrayc, dev_arrayc &, int, float, dev_arrayf, kernel_t, cudaStream_t);
+    void stage_fwd_project(dev_arrayc &, dev_arrayc &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Wrapper to launch CUDA kernel for computing covolutions (Cartesian -> Polar)
@@ -115,7 +115,7 @@ namespace tomocam {
      * @param DeviceArray<float> Projection angles
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void polarsample(dev_arrayc, dev_arrayc, dev_arrayf, kernel_t, cudaStream_t);
+    void polarsample(dev_arrayc &, dev_arrayc &, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Calculates the gradients, in-place
@@ -128,7 +128,7 @@ namespace tomocam {
      * @param kernel_t Window function for convolution
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void calc_gradient(dev_arrayc &, dev_arrayf, int, float, dev_arrayf, kernel_t, cudaStream_t);
+    void calc_gradient(dev_arrayc &, dev_arrayf &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
 
     /**
      * Calculates constrains on the objective function, and updates gradients in-place
@@ -139,7 +139,7 @@ namespace tomocam {
      * @param float Surrogate model paramter
      * @param cudaStream_t for concurrencny
      */ 
-    void add_total_var(dev_arrayf, dev_arrayf, float, float, cudaStream_t);
+    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, cudaStream_t);
 
 } // namespace tomocam
 

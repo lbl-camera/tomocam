@@ -43,7 +43,7 @@ namespace tomocam {
         }
     }
 
-    void calc_error(dev_arrayc model, dev_arrayf data, int ipad, cudaStream_t stream) {
+    void calc_error(dev_arrayc &model, dev_arrayf &data, int ipad, cudaStream_t stream) {
         Grid grid(model.dims());
         calc_error_kernel<<<grid.blocks(), grid.threads(), 0, stream>>>(model, data, ipad);
     }

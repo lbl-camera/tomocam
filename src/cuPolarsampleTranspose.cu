@@ -63,8 +63,8 @@ namespace tomocam {
         }
     }
 
-    void polarsample_transpose(dev_arrayc input, dev_arrayc output,
-        dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
+    void polarsample_transpose(dev_arrayc &input, dev_arrayc &output,
+        dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
 
         // cuda kernel params
         Grid grid(input.dims());

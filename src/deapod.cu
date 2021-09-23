@@ -56,12 +56,12 @@ namespace tomocam {
     }
 
     // kernel wrappers 
-    void deapodize2D(dev_arrayc arr, kernel_t kernel, cudaStream_t stream) {
+    void deapodize2D(dev_arrayc &arr, kernel_t kernel, cudaStream_t stream) {
         Grid grid(arr.dims());
         deapodize2d_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, kernel);
     }
 
-    void deapodize1D(dev_arrayc arr, kernel_t kernel, cudaStream_t stream) {
+    void deapodize1D(dev_arrayc &arr, kernel_t kernel, cudaStream_t stream) {
         Grid grid(arr.dims());
         deapodize1d_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, kernel);
     }

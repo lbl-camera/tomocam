@@ -29,8 +29,8 @@
 
 namespace tomocam {
 
-    void fwd_project(dev_arrayc input,  dev_arrayc output, float center,
-            dev_arrayf angles, kernel_t kernel, cudaStream_t stream) {
+    void fwd_project(dev_arrayc &input,  dev_arrayc &output, float center,
+            dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
 
         // fftshift
         fftshift2D(input, stream);
