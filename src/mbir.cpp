@@ -50,7 +50,12 @@ namespace tomocam {
             float e = grad.norm();
             add_total_var(model, grad, p, sigma);
             opt.update(model, grad);
-            py::print("Iteration:  ", i, ", Error: ", e);
+   
+            #ifdef USE_PYBIND11_PRINT
+            py::print("iteration:  ", i, ", error: ", e);
+            #else
+            std::cout << "Iteration: " << i << ", Error: " << e << std::endl;
+            #endif
         }
     }
 
