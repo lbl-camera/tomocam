@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <omp.h>
-#include <thread>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -126,18 +125,17 @@ namespace tomocam {
         std::vector<Partition<float>> p2 = sinogram.create_partitions(nDevice);
 
         // launch all the available devices
-        std::vector<std::thread> threads;
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
-            threads.push_back(
-                std::thread(gradient_, p1[i], p2[i], center, over_sample, angles, i));
+            gradient_(p1[i], p2[i], center, over_sample, angles, i);
         }
 
         // wait for devices to finish
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
-            threads[i].join();
         }
         cudaHostUnregister(model.data());
         cudaHostUnregister(sinogram.data());
