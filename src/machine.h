@@ -45,8 +45,8 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-            nStreams_      = 12;
-            slcsPerStream_ = 4; // slices
+            nStreams_      = 8;
+            slcsPerStream_ = 16; // slices
         }
 
       public:
@@ -83,11 +83,11 @@ namespace tomocam {
 
         void update_work(int work, int & slices, int & n_streams) {
             if (work < nStreams_) {
-                slices = 1; 
-                n_streams = work;
+                slices = work; 
+                n_streams = 1;
             } else if ( work < slcsPerStream_ * nStreams_) {
-                slices = work / nStreams_;
-                n_streams = nStreams_;
+                slices = slcsPerStream_;
+                n_streams = work / slcsPerStream_;
             } else {
                 slices = slcsPerStream_;
                 n_streams = nStreams_;
