@@ -50,7 +50,12 @@ include_directories(${Python_INCLUDE_DIRS})
 #pybind11
 find_package(pybind11 REQUIRED) 
 include_directories(${pybind11_INCLUDE_DIR})
+option(USING_SETUP_PY "building through setup.py" OFF)
+if (USING_SETUP_PY)
+    add_definitions(-DUSE_PYBIND11_PRINT)
+endif(USING_SETUP_PY)
 
+# openmp
 find_package(OpenMP) 
 if (OpenMP_FOUND) 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
