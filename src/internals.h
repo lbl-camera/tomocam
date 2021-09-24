@@ -141,6 +141,24 @@ namespace tomocam {
      */ 
     void add_total_var(dev_arrayf &, dev_arrayf &, float, float, cudaStream_t);
 
+    /**
+     * Adds zero padding and typecast from float to cuComplex_t
+     *
+     * @param DeviceArray<float> input
+     * @param int3 padding
+     * @param cudaStream_t cuda stream for concurrencny
+     */
+    dev_arrayc add_paddingR2C(dev_arrayf &, int3, cudaStream_t);
+
+    /**
+     * Removes zero padding and typecast from cuComplex_t to float
+     *
+     * @param DeviceArray<cuComplex_t> input
+     * @param int3 padding
+     * @param cudaStream_t cuda stream for concurrencny
+     */
+    dev_arrayf remove_paddingC2R(dev_arrayc &, int3, cudaStream_t);
+
 } // namespace tomocam
 
 #endif // TOMOCAM_INTERNALS__H
