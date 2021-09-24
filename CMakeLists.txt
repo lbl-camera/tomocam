@@ -33,6 +33,7 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/src/rescale.cu
     ${PROJECT_SOURCE_DIR}/src/calc_error.cu
     ${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
+    ${PROJECT_SOURCE_DIR}/src/padding.cu
    )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
