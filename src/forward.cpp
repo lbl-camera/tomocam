@@ -45,7 +45,6 @@ namespace tomocam {
             throw error;
         }
         cudaStreamSynchronize(stream);
-        cufftDestroy(p1);
    
         // fftshift
         fftshift2D(input, stream);
@@ -72,7 +71,6 @@ namespace tomocam {
             throw error;
         }
         cudaStreamSynchronize(stream);
-        cufftDestroy(p2);
    
         // fftshift
         fftshift1D(output, stream);
@@ -81,5 +79,7 @@ namespace tomocam {
         // de-apodizing factor
         deapodize1D(output, kernel, stream);
         cudaStreamSynchronize(stream);
+        cufftDestroy(p1);
+        cufftDestroy(p2);
     }
 } // namespace tomocam
