@@ -18,6 +18,8 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <chrono>
+
 #include <iostream>
 
 #include "dev_array.h"
@@ -71,48 +73,39 @@ namespace tomocam {
 
             // current batch size
             int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayc> d_volms;
-            std::vector<dev_arrayc> d_sinos;
-
-            // asynchronously copy data to device
+            #pragma omp parallel for num_threads(n_sub)
             for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHostR2C(sub_inputs[i * nStreams + j], streams[j]);
-                d_volms.push_back(t1);
-            }
 
-            // create device arrays for output
-            for (int j = 0; j < n_sub; j++) {
+                // copy image data to device
+                auto d_volm = DeviceArray_fromHostR2C(sub_inputs[i * nStreams + j], streams[j]);
+
+                // create output array with padding
                 dim3_t d = sub_sinos[i * nStreams + j].dims();
-                dim3_t pad_odims = dim3_t(d.x, d.y, d.z + 2 * ipad);
-                auto t1 = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
-                d_sinos.push_back(t1);
-            }
+                d.z += 2 * ipad;
+                auto d_sino = DeviceArray_fromDims<cuComplex_t>(d, streams[j]);
 
-            // asynchronously launch kernels
-            for (int j = 0; j < n_sub; j++)
-               stage_fwd_project(d_volms[j], d_sinos[j], ipad, center, d_angles, kernel, streams[j]);
+                // asynchronously launch kernels
+                stage_fwd_project(d_volm, d_sino, ipad, center, d_angles, kernel, streams[j]);
 
-            // asynchronously copy data from device to host
-            for (int j = 0; j < n_sub; j++)
-                copy_fromDeviceArrayC2R(sub_sinos[i * nStreams + j], d_sinos[j], streams[j]);
+                copy_fromDeviceArrayC2R(sub_sinos[i * nStreams + j], d_sino, streams[j]);
 
-            // clean up
-            for (int j = 0; j < n_sub; j++) {
+                // clean up
                 cudaStreamSynchronize(streams[j]);
-                d_volms[j].free();
-                d_sinos[j].free();
+                d_volm.free();
+                d_sino.free();
             }
         }
 
-        for (auto s : streams) {
-            cudaStreamSynchronize(s);
+        for (auto s : streams)
             cudaStreamDestroy(s);
-        }
     }
 
     // inverse radon (Multi-GPU call)
     void radon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
+
+        // get timestamp
+        auto t1 = std::chrono::high_resolution_clock::now();
 
         // pin host memory
         cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
@@ -137,5 +130,10 @@ namespace tomocam {
         }
         cudaHostUnregister(input.data());
         cudaHostUnregister(output.data());
+
+        // get timestamp 2
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float, std::milli> dt = t2-t1;
+        std::cout << "time taken = " << dt.count() << std::endl;
     }
 } // namespace tomocam
