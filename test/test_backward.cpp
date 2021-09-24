@@ -5,6 +5,7 @@
 #include "dist_array.h"
 #include "tomocam.h"
 #include "reader.h"
+#include "timer.h"
 
 const char * FILENAME = "/home/dkumar/data/phantom_00017/phantom_00017.h5";
 const char * DATASET = "projs";
@@ -26,9 +27,12 @@ int main(int argc, char **argv) {
     float center = 640;
     float oversample = 2;
 
+    Timer t;
     tomocam::iradon(sino, recn, theta, center, oversample);
-  
-    std::fstream out("goutput.bin", std::fstream::out);
+    t.stop();
+    std::cout << "time taken(ms): " << t.millisec() << std::endl;
+ 
+    std::fstream out("backward.bin", std::fstream::out);
     out.write((char *) recn.data(), recn.bytes());
     out.close();
     return 0;
