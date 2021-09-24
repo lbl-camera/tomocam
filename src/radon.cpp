@@ -18,8 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <chrono>
-
 #include <iostream>
 
 #include "dev_array.h"
@@ -64,6 +62,8 @@ namespace tomocam {
 
         // calculate padding
         int ipad = (int) ((over_sample - 1) * idims.z / 2);
+        int3 pad1 = {0, ipad, ipad};
+        int3 pad2 = {0, 0, ipad};
         center += ipad;
 
         // run batches of nStreams
@@ -77,7 +77,8 @@ namespace tomocam {
             for (int j = 0; j < n_sub; j++) {
 
                 // copy image data to device
-                auto d_volm = DeviceArray_fromHostR2C(sub_inputs[i * nStreams + j], streams[j]);
+                auto dtemp1 = DeviceArray_fromHost<float>(sub_inputs[i * nStreams + j], streams[j]);
+                dev_arrayc d_volm = add_paddingR2C(dtemp1, pad1, streams[j]);
 
                 // create output array with padding
                 dim3_t d = sub_sinos[i * nStreams + j].dims();
@@ -85,9 +86,13 @@ namespace tomocam {
                 auto d_sino = DeviceArray_fromDims<cuComplex_t>(d, streams[j]);
 
                 // asynchronously launch kernels
-                stage_fwd_project(d_volm, d_sino, ipad, center, d_angles, kernel, streams[j]);
+                fwd_project(d_volm, d_sino, center, d_angles, kernel, streams[j]);
 
-                copy_fromDeviceArrayC2R(sub_sinos[i * nStreams + j], d_sino, streams[j]);
+                // remove padding from projections
+                dev_arrayf dtemp2 = remove_paddingC2R(d_sino, pad2, streams[j]);
+
+                // copy 
+                copy_fromDeviceArray(sub_sinos[i * nStreams + j], dtemp2, streams[j]);
 
                 // clean up
                 cudaStreamSynchronize(streams[j]);
@@ -103,9 +108,6 @@ namespace tomocam {
     // inverse radon (Multi-GPU call)
     void radon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
-
-        // get timestamp
-        auto t1 = std::chrono::high_resolution_clock::now();
 
         // pin host memory
         cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
@@ -130,10 +132,5 @@ namespace tomocam {
         }
         cudaHostUnregister(input.data());
         cudaHostUnregister(output.data());
-
-        // get timestamp 2
-        auto t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float, std::milli> dt = t2-t1;
-        std::cout << "time taken = " << dt.count() << std::endl;
     }
 } // namespace tomocam
