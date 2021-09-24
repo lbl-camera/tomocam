@@ -28,6 +28,11 @@ int main(int argc, char **argv) {
     float oversample = 2;
 
     tomocam::radon(image, sino, angles, center, oversample);
+
+
+    std::fstream fp("output.bin", std::ios::out | std::ios::binary);
+    fp.write((char *) sino.data(), sino.bytes());
+
     delete [] angles; 
     return 0;
 }
