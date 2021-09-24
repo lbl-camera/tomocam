@@ -27,3 +27,7 @@ add_test(test_backward backward)
 add_executable(forward test_forward.cpp)
 target_link_libraries(forward tomocam)
 add_test(test_forward forward)
+
+add_executable(padding test_padding.cpp)
+target_link_libraries(padding tomocam)
+add_test(test_padding padding)
