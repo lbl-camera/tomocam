@@ -73,12 +73,13 @@ namespace tomocam {
 
             // current batch size
             int n_sub = std::min(nStreams, n_parts - i * nStreams);
+
             #pragma omp parallel for num_threads(n_sub)
             for (int j = 0; j < n_sub; j++) {
 
                 // copy image data to device
-                auto dtemp1 = DeviceArray_fromHost<float>(sub_inputs[i * nStreams + j], streams[j]);
-                dev_arrayc d_volm = add_paddingR2C(dtemp1, pad1, streams[j]);
+                auto t1 = DeviceArray_fromHost<float>(sub_inputs[i * nStreams + j], streams[j]);
+                dev_arrayc d_volm = add_paddingR2C(t1, pad1, streams[j]);
 
                 // create output array with padding
                 dim3_t d = sub_sinos[i * nStreams + j].dims();
@@ -89,13 +90,15 @@ namespace tomocam {
                 fwd_project(d_volm, d_sino, center, d_angles, kernel, streams[j]);
 
                 // remove padding from projections
-                dev_arrayf dtemp2 = remove_paddingC2R(d_sino, pad2, streams[j]);
+                dev_arrayf t2 = remove_paddingC2R(d_sino, pad2, streams[j]);
 
                 // copy 
-                copy_fromDeviceArray(sub_sinos[i * nStreams + j], dtemp2, streams[j]);
+                copy_fromDeviceArray(sub_sinos[i * nStreams + j], t2, streams[j]);
 
                 // clean up
                 cudaStreamSynchronize(streams[j]);
+                t1.free();
+                t2.free();
                 d_volm.free();
                 d_sino.free();
             }

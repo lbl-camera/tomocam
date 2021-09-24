@@ -65,6 +65,8 @@ namespace tomocam {
 
         // padding for oversampling
         int ipad = (int) ((over_sample-1) * idims.z / 2);
+        int3 pad1 = {0, 0, ipad};
+        int3 pad2 = {0, ipad, ipad};
         center += ipad;
 
         // run batches of nStreams 
@@ -74,36 +76,34 @@ namespace tomocam {
 
             // current batch size 
             int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayc> d_sinos;
-            std::vector<dev_arrayc> d_recns;
 
-            // asynchronously copy data to device
+            #pragma omp parallel for num_threads(n_sub)
             for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHostR2C(sub_sinos[i * nStreams + j], streams[j]);
-                d_sinos.push_back(t1);
-            }
 
-            for (int j = 0; j < n_sub; j++) {
+                // asynchronously copy data to device
+                auto t1 = DeviceArray_fromHost(sub_sinos[i * nStreams + j], streams[j]);
+                dev_arrayc d_sino = add_paddingR2C(t1, pad1, streams[j]);
+
+                // allocate output array on device
                 dim3_t d = sub_outputs[i * nStreams + j].dims();
                 dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
-                auto t2 = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
-                d_recns.push_back(t2);
-            }
+                auto d_recn = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
 
-            // asynchronously launch kernels
-            for (int j = 0; j < n_sub; j++) 
-                stage_back_project(d_sinos[j], d_recns[j], ipad, center,
-                    d_angles, kernel, streams[j]);
+                // asynchronously launch kernels
+                back_project(d_sino, d_recn, center, d_angles, kernel, streams[j]);
 
-            // asynchronously copy data back to host
-            for (int j = 0; j < n_sub; j++) 
-                copy_fromDeviceArrayC2R(sub_outputs[i * nStreams + j], d_recns[j], streams[j]);
+                // remove padding
+                dev_arrayf t2 = remove_paddingC2R(d_recn, pad2, streams[j]);
 
-            // clean up
-            for (int j = 0; j < n_sub; j++) {
+                // asynchronously copy data back to host
+                copy_fromDeviceArray(sub_outputs[i * nStreams + j], t2, streams[j]);
+
+                // clean up
                 cudaStreamSynchronize(streams[j]);
-                d_sinos[j].free();
-                d_recns[j].free();
+                t1.free();
+                t2.free();
+                d_sino.free();
+                d_recn.free();
             }
         }
 
