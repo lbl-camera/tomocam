@@ -15,7 +15,7 @@ const int MAX_ITERS = 150;
 const char * FILENAME = "/home/dkumar/data/phantom_00017/phantom_00017.h5";
 const char * DATASET = "projs";
 const char * ANGLES = "angs";
-const int NSLICES = 8;
+const int NSLICES = 128;
 int main(int argc, char **argv) {
 
     // read data
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 	tomocam::DArray<float> model(d2);
 
-    int max_iters = 1;
+    int max_iters = 10;
     float center = 640;
     float oversample = 2;
     float sigma = 1;
@@ -50,7 +50,9 @@ int main(int argc, char **argv) {
     t.stop();
     std::cout << "time taken(ms): " << t.millisec() << std::endl;
 
-    std::fstream out("recon0.bin", std::fstream::out);
+    char foutname[16];
+    sprintf(foutname, "recon%6.4f.bin", sigma); 
+    std::fstream out(foutname, std::fstream::out);
     out.write((char *) model.data(), model.size() * sizeof(float));
 
     return 0;
