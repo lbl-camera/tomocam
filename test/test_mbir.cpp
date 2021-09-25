@@ -6,7 +6,7 @@
 #include "tomocam.h"
 
 #include "optimize.h"
-
+#include "timer.h"
 #include "reader.h"
 
 const float PI = M_PI;
@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     // read data
 	tomocam::H5Reader fp(FILENAME);
 	fp.setDataset(DATASET);
-	auto sino = fp.read_sinogram(64);
+	auto sino = fp.read_sinogram(8);
 	std::vector<float> angs = fp.read_angles(ANGLES);
 	float * angles = angs.data();
 
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 	tomocam::DArray<float> model(d2);
 
-    int max_iters = 2;
+    int max_iters = 1;
     float center = 640;
     float oversample = 2;
     float sigma = 1;
@@ -44,7 +44,10 @@ int main(int argc, char **argv) {
 	std::cout << "Smoothness: " << sigma << std::endl;
 	std::cout << "No. of iterations: " << max_iters << std::endl;
 
+    Timer t;
 	tomocam::mbir(sino, model, angles, center, max_iters, oversample, sigma, p);
+    t.stop();
+    std::cout << "time taken(ms): " << t.millisec() << std::endl;
 
     std::fstream out("output.bin", std::fstream::out);
     out.write((char *) model.data(), model.size() * sizeof(float));
