@@ -63,6 +63,7 @@ namespace tomocam {
 
         // padding on each end
         int ipad = (int)((over_sample - 1) * idims.z / 2);
+        int3 padding = {0, ipad, ipad};
         center += ipad;
 
         // run batches on nStreams
@@ -72,42 +73,35 @@ namespace tomocam {
 
             // current batch size
             int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayc> d_model;
-            std::vector<dev_arrayf> d_sino;
 
-            // asynchronously copy
+            #pragma omp parallel for num_threads(n_sub)
             for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHostR2C(sub_model[i * nStreams + j], streams[j]);
-                d_model.push_back(t1);
-            }
 
-            // copy data to device
-            for (int j = 0; j < n_sub; j++) {
-                auto t2 = DeviceArray_fromHost<float>(sub_sino[i * nStreams + j], streams[j]);
-                d_sino.push_back(t2);
-            }
+                // copy model to device
+                auto t1 = DeviceArray_fromHost<float>(sub_model[i * nStreams + j], streams[j]);
+                dev_arrayc d_model = add_paddingR2C(t1, padding, streams[j]);
 
-            // run concurrent cuda-kernels
-            for (int j = 0; j < n_sub; j++)
-                calc_gradient(d_model[j], d_sino[j], ipad, center, angles,
-                              kernel, streams[j]);
+                // copy data to device
+                auto d_sino = DeviceArray_fromHost<float>(sub_sino[i * nStreams + j], streams[j]);
 
-            // copy data back to host
-            for (int j = 0; j < n_sub; j++)
-                copy_fromDeviceArrayC2R(sub_model[i * nStreams + j], d_model[j], streams[j]);
+                // calculate gradients
+                calc_gradient(d_model, d_sino, ipad, center, angles, kernel, streams[j]);
 
-            // ... and delete device_arrays
-            for (int j = 0; j < n_sub; j++) {
+                // copy data back to host
+                dev_arrayf t2 = remove_paddingC2R(d_model, padding, streams[j]);
+                copy_fromDeviceArray(sub_model[i * nStreams + j], t2, streams[j]);
+
+                // delete device_arrays
                 cudaStreamSynchronize(streams[j]);
-                d_model[j].free();
-                d_sino[j].free();
+                t1.free();
+                t2.free();
+                d_model.free();
+                d_sino.free();
             }
         }
 
-        for (auto s : streams) {
-            cudaStreamSynchronize(s);
+        for (auto s : streams)
             cudaStreamDestroy(s);
-        }
     }
 
     // Multi-GPU calll
