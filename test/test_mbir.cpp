@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 	tomocam::DArray<float> model(d2);
 
-    int max_iters = 1;
+    int max_iters = 10;
     float center = 640;
     float oversample = 2;
     float sigma = 1;
