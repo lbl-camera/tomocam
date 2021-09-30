@@ -87,7 +87,7 @@ namespace tomocam {
                 n_streams = 1;
             } else if ( work < slcsPerStream_ * nStreams_) {
                 slices = slcsPerStream_;
-                n_streams = work / slcsPerStream_;
+                n_streams = std::max(work / slcsPerStream_, 1);
             } else {
                 slices = slcsPerStream_;
                 n_streams = nStreams_;
