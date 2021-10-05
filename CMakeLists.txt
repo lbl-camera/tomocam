@@ -88,7 +88,7 @@ install(TARGETS cTomocam
 
 if (${ENABLE_TESTS})
     add_library(tomocam STATIC ${SRC})
-    target_link_libraries(tomocam PRIVATE dummy cublas cufft)
+    target_link_libraries(tomocam PRIVATE dummy cufft)
     target_link_libraries(tomocam PRIVATE pybind11::module)
     target_link_libraries(tomocam PRIVATE ${Python_LIBRARIES})
     target_compile_features(tomocam PRIVATE cxx_std_17)
