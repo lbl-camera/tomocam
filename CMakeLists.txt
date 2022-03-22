@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
-
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 option(ENABLE_TESTS "Enable tests" OFF)
 
 
@@ -39,8 +39,13 @@ set(CUSRC
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # CUDA Stuff
-include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
+find_package(CUDAToolkit REQUIRED)
+include_directories(${CUDAToolkit_INCLUDE_DIRS})
+#if (NOT EXISTS "${CUDAToolkit_INCLUDE_DIRS}/cufft.h")
+#    include_directories("${CUDAToolkit_TARGET_DIR}/../../math_libs/include")
+#endif()
+include_directories(${CUDAToolkit_MATH_INCLUDE_DIR})
+link_directories(${CUDAToolkit_LIBRARY_DIR})
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #python
@@ -74,7 +79,7 @@ set_target_properties(cTomocam PROPERTIES
                       CXX_VISIBILITY_PRESET "hidden" 
                       PREFIX "${PYTHON_MODULE_PREFIX}" 
                       SUFFIX "${PYTHON_MODULE_EXTENSION}")
-target_link_libraries(cTomocam PRIVATE cufft)
+target_link_libraries(cTomocam PRIVATE CUDA::cufft)
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
 target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
