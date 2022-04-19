@@ -29,6 +29,10 @@ cd tomocam
 pip install .
 ```
 
+**Releases**
+
+[![DOI](https://zenodo.org/badge/140339129.svg)](https://zenodo.org/badge/latestdoi/140339129)
+
 
 **Copyright Notice**
 ---------------------
