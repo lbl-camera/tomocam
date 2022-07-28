@@ -25,62 +25,36 @@
 #include "fft.h"
 #include "internals.h"
 #include "types.h"
+#include "nufft.h"
 
 #include "debug.cuh"
 
 namespace tomocam {
 
-    void back_project(dev_arrayc &input, dev_arrayc &output, float center, 
-            dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
+    void back_project(dev_arrayc &sino, dev_arrayc &image, float center, 
+                NUFFTGrid &grid) {
 
+        // dims
+        dim3_t dims = image.dims();
+    
         // fftshift
-        fftshift1D(input, stream);
-        cudaStreamSynchronize(stream);
+        fftshift1D(sino, cudaStreamPerThread);
 
         // 1-D fft
-        cufftHandle p1 = fftPlan1D(input.dims());
-        cufftSetStream(p1, stream);
-        cufftResult error = cufftExecC2C(p1, input.dev_ptr(), input.dev_ptr(), CUFFT_FORWARD);
-        if (error != CUFFT_SUCCESS) {
-            std::cerr << "Error! failed to execute 1-D FWD Fourier transform. " << error << std::endl;
-            throw error;
-        }
-        cudaStreamSynchronize(stream);
-        cufftDestroy(p1);
-
-        // rescale FFT(X) / N
-        rescale(input, stream);
-        cudaStreamSynchronize(stream);
+        auto cufft_plan = fftPlan1D(sino.dims());
+        SAFE_CUFFT_CALL(cufftExecC2C(cufft_plan, sino.dev_ptr(), sino.dev_ptr(), CUFFT_FORWARD));
+        SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
 
         // center shift
-        ifftshift_center(input, center, stream);
-        cudaStreamSynchronize(stream);
+        fftshift_center(sino, center, cudaStreamPerThread);
 
-        // covolution with kernel
-        polarsample_transpose(input, output, angles, kernel, stream);
-        cudaStreamSynchronize(stream);
- 
-        // fftshift
-        fftshift2D(output, stream);
-        cudaStreamSynchronize(stream);
+        // normalize after FFT
+        rescale(sino, 1./static_cast<float>(dims.z), cudaStreamPerThread);
 
-        // 2-D ifft
-        cufftHandle p2 = fftPlan2D(output.dims());
-        cufftSetStream(p2, stream);
-        error = cufftExecC2C(p2, output.dev_ptr(), output.dev_ptr(), CUFFT_INVERSE);
-        if (error != CUFFT_SUCCESS) {
-            std::cerr << "Error! failed to execute 2-D INV Fourier transform. " << error << std::endl;
-            throw error;
-        }
-        cudaStreamSynchronize(stream);
-        cufftDestroy(p2);
-
-        // fftshift
-        fftshift2D(output, stream);
-        cudaStreamSynchronize(stream);
-        
-        // deconvolve the kernel
-        deapodize2D(output, kernel, stream);
-        cudaStreamSynchronize(stream);
+        // nufft type 1
+        cufinufftf_plan cufinufft_plan;
+        NUFFT_CALL(nufftPlan1(dims, grid, cufinufft_plan));
+        NUFFT_CALL(cufinufftf_execute(sino.dev_ptr(), image.dev_ptr(), cufinufft_plan));
+        NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
     }
 } // namespace tomocam
