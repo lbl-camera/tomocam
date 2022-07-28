@@ -25,30 +25,31 @@
 #include "internals.h"
 #include "kernel.h"
 #include "types.h"
+#include "nufft.h"
 
 namespace tomocam {
     /* calls forward and backward projectors to calculate gradients */
     void calc_gradient(dev_arrayc &model, dev_arrayf &sino, int ipad, float center,
-                         dev_arrayf &angles, kernel_t kernel, cudaStream_t stream) {
+                    NUFFTGrid &grid) {
 
         // create device_array for forward projection
         dim3_t dims = sino.dims();
 
         // z-dimension should be same as padded model dimension
         dims.z = model.dims().z;
-        auto proj = DeviceArray_fromDims<cuComplex_t>(dims, stream);
+        auto proj = DeviceArray_fromDims<cuComplex_t>(dims, cudaStreamPerThread);
 
         // do the forward projection
-        fwd_project(model, proj, center, angles, kernel, stream);
+        project(model, proj, center, grid);
 
         // overwrite projection with error and redo the zero-padding
-        calc_error(proj, sino, ipad, stream);
+        calc_error(proj, sino, ipad, cudaStreamPerThread);
 
         // set d_model to zero
-        cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), stream);
+        cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), cudaStreamPerThread);
 
         // backproject the error
-        back_project(proj, model, center, angles, kernel, stream);
+        back_project(proj, model, center, grid);
 
         // clean up
         proj.free();
