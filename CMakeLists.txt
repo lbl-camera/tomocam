@@ -25,8 +25,7 @@ set(SRC
    )
 
 set(CUSRC 
-    ${PROJECT_SOURCE_DIR}/src/cuPolarsampleTranspose.cu 
-    ${PROJECT_SOURCE_DIR}/src/cuPolarsample.cu 
+    ${PROJECT_SOURCE_DIR}/src/nufft_utils.cu
     ${PROJECT_SOURCE_DIR}/src/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/fftshift.cu
     ${PROJECT_SOURCE_DIR}/src/deapod.cu
@@ -41,6 +40,7 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 # CUDA Stuff
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
+set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #python
@@ -61,6 +61,22 @@ find_package(OpenMP)
 if (OpenMP_FOUND) 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
+
+#cufinufft
+find_path(cufinufft_INCLUDE_DIR
+    NAMES cufinufft.h
+    PATHS ${CUFINUFFT_DIR}/include ${CMAKE_SOURCE_DIR}/cufinufft/include
+    REQUIRED
+    )
+message(STATUS ${cufinufft_INCLUDE_DIR})
+include_directories(${cufinufft_INCLUDE_DIR})
+
+find_library(cufinufft_LIBRARY
+    NAMES cufinufft
+    PATHS ${CUFINUFFT_DIR}/lib ${CMAKE_SOURCE_DIR}/cufinufft/lib
+    REQUIRED
+    )
+message(STATUS ${cufinufft_LIBRARY})
 
 add_library(dummy STATIC ${CUSRC}) 
 set_target_properties(dummy PROPERTIES 
