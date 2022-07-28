@@ -29,7 +29,7 @@ namespace tomocam {
     class Optimizer {
       private:
         float lipschitz_;
-        DArray<float> t_;
+        float theta_;
         DArray<float> z_;
 
       public:
@@ -39,7 +39,7 @@ namespace tomocam {
             float cen,
             float over_samp,
             float sigma) :
-            t_(recon_dims), z_(recon_dims) {
+            theta_(0), z_(recon_dims) {
 
             dim3_t d1 = recon_dims;
             d1.x = 1;
@@ -60,12 +60,14 @@ namespace tomocam {
 
         template <typename T>
         void update(DArray<T> &recon, DArray<T> &gradient) {
-#pragma omp parallel for
+           
+            float step = 1.0 / lipschitz_;
+            #pragma omp parallel for
             for (int i = 0; i < recon.size(); i++) {
-                float z_new = recon[i] - lipschitz_ * gradient[i];
-                float t_new = 0.5 * (1 + std::sqrt(1 + 4 * t_[i] * t_[i]));
-                recon[i] = z_new + (t_[i] - 1) / t_new * (z_new - z_[i]);
-                t_[i] = t_new;
+                float z_new = recon[i] - step * gradient[i];
+                float t_new = 0.5 * (1 + std::sqrt(1 + 4 * theta_ * theta_));
+                recon[i] = z_new + (theta_ - 1) / t_new * (z_new - z_[i]);
+                theta_ = t_new;
                 z_[i] = z_new;
             }
         }
