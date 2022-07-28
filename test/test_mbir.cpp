@@ -15,7 +15,7 @@ const int MAX_ITERS = 150;
 const char * FILENAME = "/home/dkumar/data/phantom_00017/phantom_00017.h5";
 const char * DATASET = "projs";
 const char * ANGLES = "angs";
-const int NSLICES = 128;
+const int NSLICES = 16;
 int main(int argc, char **argv) {
 
     // read data
@@ -29,10 +29,10 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 	tomocam::DArray<float> model(d2);
 
-    int max_iters = 10;
+    int max_iters = 100;
     float center = 640;
     float oversample = 2;
-    float sigma = 1;
+    float sigma = 0.1;
     float p = 1.2;
 
     if (argc == 2) {
