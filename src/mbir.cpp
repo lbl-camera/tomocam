@@ -42,29 +42,24 @@ namespace tomocam {
         Optimizer opt(
             model.dims(), sino.dims(), angles, center, oversample, sigma);
 
+
         model.init(1.f);
         for (int i = 0; i < num_iters; i++) {
             DArray<T> grad = model;
             gradient(grad, sino, angles, center, oversample);
             MachineConfig::getInstance().synchronize();
-            float e = grad.norm();
+            float e = grad.norm() / grad.size();
             add_total_var(model, grad, p, sigma);
             opt.update(model, grad);
    
             #ifdef USE_PYBIND11_PRINT
-            py::print("iteration:  ", i, ", error: ", e);
+            py::print("iteration:  ", i, ", mean error: ", e);
             #else
-            std::cout << "Iteration: " << i << ", Error: " << e << std::endl;
+            std::cout << "Iteration: " << i << ", mean error: " << e << std::endl;
             #endif
         }
     }
 
-    template void mbir<float>(DArray<float> &,
-        DArray<float> &,
-        float *,
-        float,
-        int,
-        float,
-        float,
-        float);
+    template void mbir<float>(DArray<float> &, DArray<float> &,
+        float *, float, int, float, float, float);
 } // namespace tomocam
