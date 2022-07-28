@@ -52,8 +52,7 @@ namespace tomocam {
         int3 idx = Index3D();
         dim3_t dims = arr.dims();
         if (idx < dims) {
-            float z = (float) idx.z / dims.z;
-            float w = TWOPI * shift * z;
+            float w = (TWOPI * shift * idx.z) / (float) dims.z;
             arr[idx] = arr[idx] * expf_j(-w);
         }
     }
