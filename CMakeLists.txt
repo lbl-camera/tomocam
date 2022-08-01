@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
 
 option(ENABLE_TESTS "Enable tests" OFF)
-
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 set(SRC 
     ${PROJECT_SOURCE_DIR}/src/backward.cpp 
@@ -62,21 +62,8 @@ if (OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
 
-#cufinufft
-find_path(cufinufft_INCLUDE_DIR
-    NAMES cufinufft.h
-    PATHS ${CUFINUFFT_DIR}/include ${CMAKE_SOURCE_DIR}/cufinufft/include
-    REQUIRED
-    )
-message(STATUS ${cufinufft_INCLUDE_DIR})
+find_package(cufinufft REQUIRED)
 include_directories(${cufinufft_INCLUDE_DIR})
-
-find_library(cufinufft_LIBRARY
-    NAMES cufinufft
-    PATHS ${CUFINUFFT_DIR}/lib ${CMAKE_SOURCE_DIR}/cufinufft/lib
-    REQUIRED
-    )
-message(STATUS ${cufinufft_LIBRARY})
 
 add_library(dummy STATIC ${CUSRC}) 
 set_target_properties(dummy PROPERTIES 
