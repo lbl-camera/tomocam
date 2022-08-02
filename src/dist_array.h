@@ -170,6 +170,24 @@ namespace tomocam {
             return *this;
         }
 
+        // multiplication
+        DArray<T> operator*(const DArray<T> &rhs) {
+            DArray<T> rv(dims_);
+            #pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                rv.buffer_[i] = buffer_[i] * rhs.buffer_[i];
+            return rv;
+        }
+
+        // scaling
+        DArray<T> operator*(float m) {
+            DArray<T> rv(dims_);
+            #pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                rv.buffer_[i] = buffer_[i] * m;
+            return rv;
+        }
+
         // save array to file
         void to_file(const char * filename) {
             std::ofstream fout(filename, std::ios::binary);

@@ -21,11 +21,10 @@ namespace tomocam {
     void axpy(float, DArray<float> &, DArray<float> &);
 
 	template <typename T>
-    void mbir(DArray<T> &, DArray<T> &, float *, float, int, float, float, float);
+    DArray<T> mbir(DArray<T> &, float *, float, float, float, float, int);
 
     // specialize
-    extern template void mbir<float>(
-        DArray<float> &, DArray<float> &, float *, float, int, float, float, float);
+    extern template DArray<float> mbir<float>(DArray<float> &, float *, float, float, float, float, int);
 
     /**
      * TODO: document it

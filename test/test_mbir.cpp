@@ -27,9 +27,8 @@ int main(int argc, char **argv) {
 
     tomocam::dim3_t d1 = sino.dims();
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
-	tomocam::DArray<float> model(d2);
 
-    int max_iters = 100;
+    int max_iters = 10;
     float center = 640;
     float oversample = 2;
     float sigma = 0.1;
@@ -46,14 +45,14 @@ int main(int argc, char **argv) {
 	std::cout << "No. of iterations: " << max_iters << std::endl;
 
     Timer t;
-	tomocam::mbir(sino, model, angles, center, max_iters, oversample, sigma, p);
+	auto recon = tomocam::mbir(sino, angles, center, oversample, sigma, p, max_iters);
     t.stop();
     std::cout << "time taken(ms): " << t.millisec() << std::endl;
 
     char foutname[16];
     sprintf(foutname, "recon%6.4f.bin", sigma); 
     std::fstream out(foutname, std::fstream::out);
-    out.write((char *) model.data(), model.size() * sizeof(float));
+    out.write((char *) recon.data(), recon.size() * sizeof(float));
 
     return 0;
 }

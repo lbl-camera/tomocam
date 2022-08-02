@@ -102,15 +102,14 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     tomocam::DArray<float> sino(np_sino);
     tomocam::dim3_t dims = sino.dims();
 
-    // allocate return array
-    auto recn = py::array_t<float>({dims.x, dims.z, dims.z});
-    tomocam::DArray<float> model(recn);
-
     // get data pointer to angles
     float p = 1.2;
     float *angles = static_cast<float *>(np_angles.request().ptr);
-    tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma, p);
+    tomocam::DArray<float> temp = 
+        tomocam::mbir(sino, angles, center, oversample, sigma, p, num_iters);
 
+    // allocate return array
+    auto recn = py::array_t<float>({dims.x, dims.z, dims.z});
     // return numpy array
     return recn;
 }
