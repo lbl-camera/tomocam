@@ -45,7 +45,6 @@ namespace tomocam {
 
       public:
         DArray(dim3_t);
-        DArray(np_array_t<T>);
         ~DArray();
 
         //  copy and move
