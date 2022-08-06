@@ -23,7 +23,6 @@
 #include "dist_array.h"
 #include "fft.h"
 #include "internals.h"
-#include "kernel.h"
 #include "types.h"
 #include "nufft.h"
 

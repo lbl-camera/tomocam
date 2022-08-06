@@ -24,7 +24,6 @@
 #include "dev_array.h"
 #include "dist_array.h"
 #include "internals.h"
-#include "kernel.h"
 #include "machine.h"
 #include "types.h"
 

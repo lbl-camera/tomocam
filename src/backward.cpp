@@ -21,7 +21,6 @@
 #include <iostream>
 
 #include "dev_array.h"
-#include "kernel.h"
 #include "fft.h"
 #include "internals.h"
 #include "types.h"
