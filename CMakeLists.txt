@@ -1,3 +1,21 @@
+# -------------------------------------------------------------------------------
+# Tomocam Copyright (c) 2018
+#
+# The Regents of the University of California, through Lawrence Berkeley
+# National Laboratory (subject to receipt of any required approvals from the
+# U.S. Dept. of Energy). All rights reserved.
+#
+# If you have questions about your rights to use or distribute this software,
+# please contact Berkeley Lab's Innovation & Partnerships Office at
+# IPO@lbl.gov.
+#
+# NOTICE. This Software was developed under funding from the U.S. Department of
+# Energy and the U.S. Government consequently retains certain rights. As such,
+# the U.S. Government has been granted for itself and others acting on its
+# behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+# to reproduce, distribute copies to the public, prepare derivative works, and
+# perform publicly and display publicly, and to permit other to do so.
+#---------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.8)
 project(tomocam CXX CUDA) 
@@ -28,7 +46,6 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/src/nufft_utils.cu
     ${PROJECT_SOURCE_DIR}/src/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/fftshift.cu
-    ${PROJECT_SOURCE_DIR}/src/deapod.cu
     ${PROJECT_SOURCE_DIR}/src/rescale.cu
     ${PROJECT_SOURCE_DIR}/src/calc_error.cu
     ${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
@@ -81,6 +98,7 @@ target_link_libraries(cTomocam PRIVATE cufft)
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
 target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
+target_link_libraries(cTomocam PUBLIC ${cufinufft_LIBRARY})
 target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
