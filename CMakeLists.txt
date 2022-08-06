@@ -20,7 +20,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(tomocam CXX CUDA) 
 set(tomocam_VERSION_MAJOR 2) 
-set(tomocam_VERSION_MINOR 0)
+set(tomocam_VERSION_MINOR 5)
 
 #C++ 11 Stuff
 set(CMAKE_CXX_STANDARD 17) 
