@@ -26,47 +26,13 @@
 
 #include "types.h"
 #include "common.h"
+#include "partition.h"
 
 namespace tomocam {
 
     template <typename T>
-    class Partition {
-      private:
-        dim3_t dims_;
-        uint64_t size_;
-        T *first_;
-        int halo_[2];
-
-      public:
-        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
-            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
-            halo_[0] = 0;
-            halo_[1] = 0;
-        }
-
-        Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
-            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
-            halo_[0] = h[0];
-            halo_[1] = h[1];
-        }
-
-        dim3_t dims() const { return dims_; }
-        uint64_t size() const { return size_; }
-        size_t bytes() const { return size_ * sizeof(T); }
-        int  *halo() { return halo_; }
-
-        T *begin() { return first_; }
-        T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
-
-        // create sub-partions 
-        std::vector<Partition<T>> sub_partitions(int);
-        std::vector<Partition<T>> sub_partitions(int, int);
-    };
-
-    template <typename T>
     class DArray {
       private:
-        bool owns_buffer_; ///< Don't free buffer if not-owned
         dim3_t dims_; ///< [Slices, Rows, Colums]
         uint64_t size_;    ///< Size of the alloated array
         T *buffer_;   ///< Pointer to data buffer
@@ -144,49 +110,13 @@ namespace tomocam {
             return v;
         }
 
-        // addition operator
-        DArray<T> operator+(const DArray<T> & rhs) {
-            DArray<T> rv(dims_);
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                rv.buffer_[i] = buffer_[i] + rhs.buffer_[i];
-            return rv;
-        }
-         
-        // subtraction operator
-        DArray<T> operator-(const DArray<T> & rhs) {
-            DArray<T> rv(dims_);
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                rv.buffer_[i] = buffer_[i] - rhs.buffer_[i];
-            return rv;
-        }
 
-        // add-assign
-        DArray<T> & operator+=(const DArray<T> &rhs) {
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                buffer_[i] += rhs.buffer_[i];
-            return *this;
-        }
-
-        // multiplication
-        DArray<T> operator*(const DArray<T> &rhs) {
-            DArray<T> rv(dims_);
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                rv.buffer_[i] = buffer_[i] * rhs.buffer_[i];
-            return rv;
-        }
-
-        // scaling
-        DArray<T> operator*(float m) {
-            DArray<T> rv(dims_);
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                rv.buffer_[i] = buffer_[i] * m;
-            return rv;
-        }
+        // arithmatic operators
+        DArray<T> operator+(const DArray<T> &);
+        DArray<T> operator-(const DArray<T> &);
+        DArray<T> &operator+=(const DArray<T> &);
+        DArray<T> operator*(const DArray<T> &);
+        DArray<T> operator*(T );
 
         // save array to file
         void to_file(const char * filename) {
