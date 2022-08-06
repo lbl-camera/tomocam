@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d1 = sino.dims();
     tomocam::dim3_t d2(d1.x, d1.z, d1.z);
 
-    int max_iters = 10;
+    int max_iters = 100;
     float center = 640;
     float oversample = 2;
     float sigma = 0.1;
@@ -44,6 +44,8 @@ int main(int argc, char **argv) {
 	std::cout << "Smoothness: " << sigma << std::endl;
 	std::cout << "No. of iterations: " << max_iters << std::endl;
 
+    // normalize
+    sino = sino * (1./ sino.max());
     Timer t;
 	auto recon = tomocam::mbir(sino, angles, center, oversample, sigma, p, max_iters);
     t.stop();
