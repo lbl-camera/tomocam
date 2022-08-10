@@ -45,7 +45,7 @@ namespace tomocam {
         SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
 
         // center shift
-        fftshift_center(sino, center, cudaStreamPerThread);
+        ifftshift_center(sino, center, cudaStreamPerThread);
 
         // normalize after FFT
         rescale(sino, 1./static_cast<float>(dims.z), cudaStreamPerThread);

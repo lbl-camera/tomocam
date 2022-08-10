@@ -46,7 +46,7 @@ namespace tomocam {
         rescale(sino, 1./static_cast<float>(dims.z * dims.z), cudaStreamPerThread);
 
         // the center shift
-        ifftshift_center(sino, center, cudaStreamPerThread);
+        fftshift_center(sino, center, cudaStreamPerThread);
 
         // 1-D ifft
         // get a handle to cufft plan
