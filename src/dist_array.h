@@ -59,8 +59,15 @@ namespace tomocam {
         // create partitionng along slowest dimension with halo
         std::vector<Partition<T>> create_partitions(int, int);
 
-        // copy data to DArray
-        void init(T *values) {
+        // paste data to a buffer
+        void paste(T *buf) const {
+            #pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                buf[i] = buffer_[i];
+        }
+
+        // copy data from a buffer
+        void copy(T *values) {
             #pragma omp parallel for
             for (uint64_t i = 0; i < size_; i++)
                 buffer_[i] = values[i];
