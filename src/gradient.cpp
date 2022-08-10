@@ -20,95 +20,72 @@
 
 #include <iostream>
 #include <omp.h>
-#include <thread>
 
 #include "dev_array.h"
 #include "dist_array.h"
 #include "internals.h"
-#include "kernel.h"
 #include "machine.h"
 #include "types.h"
 
 namespace tomocam {
 
     void gradient_(Partition<float> model, Partition<float> sino, float center,
-        float over_sample, float *h_angles, int device_id) {
+        float over_sample, float *angles, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
 
         // input and output dimensions
-        dim3_t idims = model.dims();
-        dim3_t odims = sino.dims();
-
-        // copy angles to the device
-        auto angles = DeviceArray_fromHost<float>(dim3_t(1, 1, odims.y), h_angles, 0);
-
-        // interpolation kernel
-        float beta = 12.566370614359172f;
-        float radius = 2.f;
-        kernel_t kernel(radius, beta);
-
-        int nStreams = 0, slcs = 0;
-        MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
-        std::vector<Partition<float>> sub_model = model.sub_partitions(slcs);
-        std::vector<Partition<float>> sub_sino = sino.sub_partitions(slcs);
-
-        // create cudaStreams
-        std::vector<cudaStream_t> streams;
-        for (int i = 0; i < nStreams; i++) {
-            cudaStream_t temp;
-            cudaStreamCreate(&temp);
-            streams.push_back(temp);
-        }
+        dim3_t dims1 = model.dims();
+        dim3_t dims2 = sino.dims();
 
         // padding on each end
-        int ipad = (int)((over_sample - 1) * idims.z / 2);
+        int ipad = (int)((over_sample - 1) * dims2.z / 2);
+        int3 padding = {0, ipad, ipad};
         center += ipad;
 
-        // run batches on nStreams
-        int n_parts = sub_model.size();
-        int n_batch = ceili(n_parts, nStreams);
+        // create nufft grid
+        int ncols = dims2.z + 2 * ipad;
+        int nproj = dims2.y;
+        NUFFTGrid grid(ncols, nproj, angles, device_id);    
+
+        // sub-partitions
+        int nslcs = MachineConfig::getInstance().slicesPerStream();
+        auto p1 = model.sub_partitions(nslcs);
+        auto p2 = sino.sub_partitions(nslcs);
+        int n_batch = p1.size();
+        
+        // create cudaStreams
+        cudaStream_t istream, ostream;
+        cudaStreamCreate(&istream);
+        cudaStreamCreate(&ostream);
+
         for (int i = 0; i < n_batch; i++) {
-
-            // current batch size
-            int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayc> d_model;
-            std::vector<dev_arrayf> d_sino;
-
-            // asynchronously copy
-            for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHostR2C(sub_model[i * nStreams + j], streams[j]);
-                d_model.push_back(t1);
-            }
+ 
+            auto t1 = DeviceArray_fromHost<float>(p1[i], istream);
+            dev_arrayc d_model = add_paddingR2C(t1, padding, istream);
 
             // copy data to device
-            for (int j = 0; j < n_sub; j++) {
-                auto t2 = DeviceArray_fromHost<float>(sub_sino[i * nStreams + j], streams[j]);
-                d_sino.push_back(t2);
-            }
+            auto d_sino = DeviceArray_fromHost<float>(p2[i], istream);
 
-            // run concurrent cuda-kernels
-            for (int j = 0; j < n_sub; j++)
-                calc_gradient(d_model[j], d_sino[j], ipad, center, angles,
-                              kernel, streams[j]);
+            // gradients are enqued in per-thread-stream
+            calc_gradient(d_model, d_sino, ipad, center, grid);
+            cudaStreamSynchronize(cudaStreamPerThread);
 
             // copy data back to host
-            for (int j = 0; j < n_sub; j++)
-                copy_fromDeviceArrayC2R(sub_model[i * nStreams + j], d_model[j], streams[j]);
+            cudaStreamSynchronize(ostream);
+            dev_arrayf t2 = remove_paddingC2R(d_model, padding, ostream);
+            copy_fromDeviceArray(p1[i], t2, ostream);
 
-            // ... and delete device_arrays
-            for (int j = 0; j < n_sub; j++) {
-                cudaStreamSynchronize(streams[j]);
-                d_model[j].free();
-                d_sino[j].free();
-            }
+            // delete device_arrays
+            cudaStreamSynchronize(ostream);
+            t1.free();
+            t2.free();
+            d_model.free();
+            d_sino.free();
         }
-
-        for (auto s : streams) {
-            cudaStreamSynchronize(s);
-            cudaStreamDestroy(s);
-        }
+        cudaStreamDestroy(istream);
+        cudaStreamDestroy(ostream);
     }
 
     // Multi-GPU calll
@@ -126,18 +103,17 @@ namespace tomocam {
         std::vector<Partition<float>> p2 = sinogram.create_partitions(nDevice);
 
         // launch all the available devices
-        std::vector<std::thread> threads;
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
-            threads.push_back(
-                std::thread(gradient_, p1[i], p2[i], center, over_sample, angles, i));
+            gradient_(p1[i], p2[i], center, over_sample, angles, i);
         }
 
         // wait for devices to finish
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
-            threads[i].join();
         }
         cudaHostUnregister(model.data());
         cudaHostUnregister(sinogram.data());

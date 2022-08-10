@@ -1,3 +1,24 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ *National Laboratory (subject to receipt of any required approvals from the
+ *U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ *IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ *the U.S. Government has been granted for itself and others acting on its
+ *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ *to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
+
 #ifndef TOMOCAM__H
 #define TOMOCAM__H
 
@@ -21,11 +42,10 @@ namespace tomocam {
     void axpy(float, DArray<float> &, DArray<float> &);
 
 	template <typename T>
-    void mbir(DArray<T> &, DArray<T> &, float *, float, int, float, float, float);
+    DArray<T> mbir(DArray<T> &, float *, float, float, float, float, int);
 
     // specialize
-    extern template void mbir<float>(
-        DArray<float> &, DArray<float> &, float *, float, int, float, float, float);
+    extern template DArray<float> mbir<float>(DArray<float> &, float *, float, float, float, float, int);
 
     /**
      * TODO: document it

@@ -52,32 +52,31 @@ namespace tomocam {
         int3 idx = Index3D();
         dim3_t dims = arr.dims();
         if (idx < dims) {
-            float z = (float) idx.z / dims.z;
-            float w = TWOPI * shift * z;
+            float w = (TWOPI * shift * idx.z) / (float) dims.z;
             arr[idx] = arr[idx] * expf_j(-w);
         }
     }
 
     // multiply by -1^i
-    void fftshift1D(dev_arrayc arr, cudaStream_t stream) {
+    void fftshift1D(dev_arrayc &arr, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift1D_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr);
     }
 
     // multiply by 2-D chessboard pattern
-    void fftshift2D(dev_arrayc arr, cudaStream_t stream) {
+    void fftshift2D(dev_arrayc &arr, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift2D_kernel<<< grid.blocks(), grid.threads(), 0, stream>>>(arr);
     }
 
     // phase shift center
-    void fftshift_center(dev_arrayc arr, float center, cudaStream_t stream) {
+    void fftshift_center(dev_arrayc &arr, float center, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, center);
     }
 
     // undo phase shift center
-    void ifftshift_center(dev_arrayc arr, float center, cudaStream_t stream) {
+    void ifftshift_center(dev_arrayc &arr, float center, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, -center);
     }

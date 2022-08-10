@@ -42,6 +42,7 @@ class CMakeBuildExt(build_ext):
             build_type = 'Debug' if self.debug else 'Release'
             cmake_args = ['cmake',
                           ext.sourcedir,
+                          '-DUSING_SETUP_PY:BOOL=ON',
                           '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + output_dir,
                           '-DCMAKE_BUILD_TYPE=' + build_type,
                           '-DPYBIND11_PYTHON_VERSION=' + pyver,

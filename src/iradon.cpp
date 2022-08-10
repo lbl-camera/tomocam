@@ -19,11 +19,9 @@
  */
 
 #include <iostream>
-#include <thread>
 #include <omp.h>
 
 #include "dev_array.h"
-#include "kernel.h"
 #include "dist_array.h"
 #include "machine.h"
 #include "internals.h"
@@ -40,79 +38,60 @@ namespace tomocam {
         // input and output dimensions
         dim3_t idims  = sino.dims();
         dim3_t odims  = output.dims();
-
-        // copy angles to device memory
-        auto d_angles = DeviceArray_fromHost<float>(dim3_t(1, 1, idims.y), angles, 0);
-
-        // create kernel 
-        // TODO this should be somewhere else, with user input
-        float beta = 12.566370614359172f;
-        float radius  = 2.f;
-        kernel_t kernel(radius, beta);
-
-        // create smaller partitions
-        int nStreams = 0, slcs = 0;
-        MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
-        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(slcs);
-        std::vector<Partition<float>> sub_outputs = output.sub_partitions(slcs);
-
-        // create cudaStreams
-        std::vector<cudaStream_t> streams;
-        for (int i = 0; i < nStreams; i++) {
-            cudaStream_t temp;
-            cudaStreamCreate(&temp);
-            streams.push_back(temp);
-        }
-
+        
         // padding for oversampling
         int ipad = (int) ((over_sample-1) * idims.z / 2);
+        int3 pad1 = {0, 0, ipad};
+        int3 pad2 = {0, ipad, ipad};
         center += ipad;
 
-        // run batches of nStreams 
-        int n_parts = sub_sinos.size();
-        int n_batch = ceili(n_parts, nStreams);
+        // subpartitions
+        int nslcs = MachineConfig::getInstance().slicesPerStream();
+        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(nslcs);
+        std::vector<Partition<float>> sub_outputs = output.sub_partitions(nslcs);
+        int n_batch = sub_sinos.size();
+
+        // nufft grid
+        int ncols = idims.z + 2 * ipad;
+        int nproj = idims.y;
+        NUFFTGrid grid(ncols, nproj, angles, device);
+
+        // create cudaStreams
+        cudaStream_t istream, ostream;
+        cudaStreamCreate(&istream);
+        cudaStreamCreate(&ostream);
+
         for (int i = 0; i < n_batch; i++) {
 
-            // current batch size 
-            int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayc> d_sinos;
-            std::vector<dev_arrayc> d_recns;
-
             // asynchronously copy data to device
-            for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHostR2C(sub_sinos[i * nStreams + j], streams[j]);
-                d_sinos.push_back(t1);
-            }
+            auto t1 = DeviceArray_fromHost(sub_sinos[i], istream);
+            dev_arrayc d_sino = add_paddingR2C(t1, pad1, istream);
 
-            for (int j = 0; j < n_sub; j++) {
-                dim3_t d = sub_outputs[i * nStreams + j].dims();
-                dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
-                auto t2 = DeviceArray_fromDims<cuComplex_t>(pad_odims, streams[j]);
-                d_recns.push_back(t2);
-            }
+            // allocate output array on device
+            dim3_t d = sub_outputs[i].dims();
+            dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
+            auto d_recn = DeviceArray_fromDims<cuComplex_t>(pad_odims, istream);
 
             // asynchronously launch kernels
-            for (int j = 0; j < n_sub; j++) 
-                stage_back_project(d_sinos[j], d_recns[j], ipad, center,
-                    d_angles, kernel, streams[j]);
+            cudaStreamSynchronize(istream);
+            back_project(d_sino, d_recn, center, grid);
+            cudaStreamSynchronize(cudaStreamPerThread);
+
+            // remove padding
+            dev_arrayf t2 = remove_paddingC2R(d_recn, pad2, ostream);
 
             // asynchronously copy data back to host
-            for (int j = 0; j < n_sub; j++) 
-                copy_fromDeviceArrayC2R(sub_outputs[i * nStreams + j], d_recns[j], streams[j]);
-
-            // clean up
-            for (int j = 0; j < n_sub; j++) {
-                cudaStreamSynchronize(streams[j]);
-                d_sinos[j].free();
-                d_recns[j].free();
-            }
+            copy_fromDeviceArray(sub_outputs[i], t2, ostream);
+            cudaStreamSynchronize(ostream);
+           
+            t1.free();
+            t2.free();
+            d_sino.free();
+            d_recn.free();
         }
 
-        for (auto s : streams) {
-            cudaStreamSynchronize(s);
-            cudaStreamDestroy(s);
-        }
-
+        cudaStreamDestroy(istream);
+        cudaStreamDestroy(ostream);
         cudaDeviceSynchronize();
     }
 
@@ -131,16 +110,16 @@ namespace tomocam {
         std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
 
         // launch all the available devices
-        std::vector<std::thread> threads;
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            threads.push_back(std::thread(iradon_, p1[i], p2[i], center, over_sample, angles, i));
+            iradon_(p1[i], p2[i], center, over_sample, angles, i);
         }
         
         // wait for devices to finish
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
-            threads[i].join();
         }
         cudaHostUnregister(input.data());
         cudaHostUnregister(output.data());

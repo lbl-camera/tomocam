@@ -20,6 +20,7 @@
  */
 
 #include <iostream>
+#include <utility>
 #include <pybind11/pybind11.h>
 
 #include "dist_array.h"
@@ -30,36 +31,21 @@
 namespace tomocam {
 
     template <typename T>
-    void mbir(DArray<T> &sino,
-        DArray<T> &model,
+    DArray<T> mbir(DArray<T> &sino,
         float *angles,
         float center,
-        int num_iters,
         float oversample,
         float sigma,
-        float p) {
+        float p,
+        int num_iters) {
 
-        Optimizer opt(
-            model.dims(), sino.dims(), angles, center, oversample, sigma);
+        dim3_t dims = sino.dims();
+        dims.y = dims.z;
 
-        model.init(1.f);
-        for (int i = 0; i < num_iters; i++) {
-            DArray<T> grad = model;
-            gradient(grad, sino, angles, center, oversample);
-            MachineConfig::getInstance().synchronize();
-            float e = grad.norm();
-            add_total_var(model, grad, p, sigma);
-            opt.update(model, grad);
-            py::print("Iteration:  ", i, ", Error: ", e);
-        }
+        Optimizer<T> opt(dims, num_iters);
+        return opt.minimize(sino, angles, center, oversample, p, sigma);
     }
 
-    template void mbir<float>(DArray<float> &,
-        DArray<float> &,
-        float *,
-        float,
-        int,
-        float,
-        float,
-        float);
+    template DArray<float> mbir<float>(DArray<float> &, 
+        float *, float, float, float, float, int);
 } // namespace tomocam

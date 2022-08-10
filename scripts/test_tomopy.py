@@ -7,19 +7,16 @@ import os
 import dxchange as dx
 from tomopy.prep.normalize import normalize
 
-dataset=os.path.join(os.environ['HOME'], 'data', '20130807_234356_OIM121R_SAXS_5x.h5')
-tomo, flats, darks, floc = dx.read_als_832h5(dataset,sino=(1000, 1003, 1))
+DATADIR = '/home/dkumar/data'
+FILENAME = 'tomo_00025/tomo_00025.h5'
+dataset = os.path.join(DATADIR, FILENAME)
+tomo, flat, dark, theta = dx.read_aps_32id(dataset,sino=(1000, 1016, 1))
 
-print('Displaying  sinogram')
-plt.imshow(tomo[:,0,:])
-plt.show()
-
-theta = tomopy.angles(tomo.shape[0])
-tomo = normalize(tomo, flats, darks)
+tomo = normalize(tomo, flat, dark)
 tomo = tomopy.remove_stripe_fw(tomo)
-rec = tomopy.recon(tomo, theta, center=1294,algorithm='gridrec')
-rec = tomopy.circ_mask(rec, 0)
+rec = tomopy.recon(tomo, theta, center=952,algorithm='gridrec')
+rec = tomopy.circ_mask(rec, axis=0, ratio=0.95)
 
 for i in range(3):
-    plt.imshow(rec[i])
+    plt.imshow(rec[i], origin='lower', cmap='gray')
     plt.show()

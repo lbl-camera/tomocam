@@ -172,7 +172,7 @@ namespace tomocam {
         }
     }
 
-    void add_total_var(dev_arrayf model, dev_arrayf objfn, float p, float sigma, cudaStream_t stream) {
+    void add_total_var(dev_arrayf &model, dev_arrayf &objfn, float p, float sigma, cudaStream_t stream) {
 
         // CUDA kernel parameters
         Grid grid(objfn.dims());

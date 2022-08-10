@@ -27,7 +27,7 @@ def radon(volume, angles, center, over_sample=1.5):
     return cTomocam.radon(volume, angles, center, over_sample)
 
 
-def iradon(sinogram, angles, center, over_sample=1.5):
+def radon_adj(sinogram, angles, center, over_sample=1.5):
     """Computes the inverse-radon transform using nufft.
 
     Parameters
@@ -50,4 +50,4 @@ def iradon(sinogram, angles, center, over_sample=1.5):
         raise ValueError('input data-type must be single precision')
    
     # create appropriate data-structures 
-    return cTomocam.iradon(sinogram, angles, center, over_sample)
+    return cTomocam.radon_adj(sinogram, angles, center, over_sample)
