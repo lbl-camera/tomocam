@@ -12,7 +12,8 @@ target_link_libraries(tvd tomocam)
 add_test(test_tvd tvd)
 
 add_executable(read test_reader.cpp)
-target_link_libraries(read ${HDF5_LIBRARIES})
+target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(read PRIVATE ${Python_LIBRARIES})
 add_test(test_reader read)
 
 add_executable(mbir test_mbir.cpp)
