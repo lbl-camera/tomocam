@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     // nufft grid
     int ncols = d1.z + 2 * ipad;
     int nproj = d1.y;
-    tomocam::NUFFTGrid grid(ncols, nproj, theta, center, 0);
+    tomocam::NUFFTGrid grid(ncols, nproj, theta, 0);
 
     // create partitions
     auto part1 = sino.create_partitions(1);
