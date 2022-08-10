@@ -47,7 +47,7 @@ namespace tomocam {
         // create nufft grid
         int ncols = dims2.z + 2 * ipad;
         int nproj = dims2.y;
-        NUFFTGrid grid(ncols, nproj, angles, center, device_id);    
+        NUFFTGrid grid(ncols, nproj, angles, device_id);    
 
         // sub-partitions
         int nslcs = MachineConfig::getInstance().slicesPerStream();

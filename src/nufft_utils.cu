@@ -39,7 +39,7 @@ namespace tomocam {
     }
 
     void nufft_grid(int ncols, int nproj, float *x, float *y,
-            float *angles, float center) {
+            float *angles) {
         // copy angles to device
         float *d_angles;
         SAFE_CALL(cudaMalloc(&d_angles, sizeof(float) * nproj));
@@ -50,6 +50,7 @@ namespace tomocam {
         int n2 = ceili(nproj, 16);
         dim3 threads(16, 16, 1);
         dim3 blocks(n1, n2, 1);
+        float center = static_cast<float>(ncols) / 2.;
 
         // calculate grid-positions
         nufft_grid_kernel <<< blocks, threads >>> (ncols, nproj, x, y, d_angles, center);

@@ -134,7 +134,7 @@ namespace tomocam {
     }
 
     // declaration of nufft-grid kernel
-    void nufft_grid(int, int, float *, float *, float *, float);
+    void nufft_grid(int, int, float *, float *, float *);
 
 } // namespace tomocam
 #endif // TOMOCAM_UTILS__CUH

@@ -45,13 +45,13 @@ namespace tomocam {
         float *x;
         float *y;
 
-        NUFFTGrid(int nc, int np, float *angles, float center, int gid) {
+        NUFFTGrid(int nc, int np, float *angles, int gid) {
             M = nc * np;
             gpu_device_id = gid;
             size_t bytes = nc * np * sizeof(float);
             SAFE_CALL(cudaMalloc(&x, bytes));
             SAFE_CALL(cudaMalloc(&y, bytes));
-            nufft_grid(nc, np, x, y, angles, center);
+            nufft_grid(nc, np, x, y, angles);
         }
 
         ~NUFFTGrid() {

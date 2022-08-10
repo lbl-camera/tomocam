@@ -54,7 +54,7 @@ namespace tomocam {
         // nufft grid
         int ncols = idims.z + 2 * ipad;
         int nproj = idims.y;
-        NUFFTGrid grid(ncols, nproj, angles, center, device);
+        NUFFTGrid grid(ncols, nproj, angles, device);
 
         // create cudaStreams
         cudaStream_t istream, ostream;
