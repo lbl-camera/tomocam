@@ -24,6 +24,7 @@
 
 #include "dist_array.h"
 #include "tomocam.h"
+#include "machine.h"
 
 const float inf = std::numeric_limits<float>::infinity();
 
@@ -36,8 +37,8 @@ namespace tomocam {
     inline DArray<T> calc_gradient(DArray<T> &x, DArray<T> &sino,
             float * angles, float center, float oversample, 
             float p, float sigma) {
-        DArray g = x;
-        gradient(x, sino, angles, center, oversample);
+        DArray<T> g = x;
+        gradient(g, sino, angles, center, oversample);
         add_total_var(x, g, p, sigma);
         return g;
     }
@@ -46,12 +47,22 @@ namespace tomocam {
     inline T calc_lipschitz(DArray<T> &x, DArray<T> &sino,
             float * angles, float center, float oversample, 
             float p, float sigma) {
-        DArray g = x;
-        gradient(x, sino, angles, center, oversample);
-        add_total_var(x, g, p, sigma);
+        DArray<T> g(x.dims());
+        DArray<T> y(sino.dims());
+        radon(x, y, angles, center, oversample);
+        iradon(y, g, angles, center, oversample);
         add_tv_hessian(g, sigma);
-        return (2 * g.max());
+        return g.max();
     }
+
+    template <typename T>
+    inline T error(DArray<T> &x, DArray<T> &sino, 
+            float * angles, float center, float oversample) {
+        DArray<T> g(sino.dims());
+        radon(x, g, angles, center, oversample);
+        return (g - sino).norm();
+    }
+
     template<typename T>
     class Optimizer {
       private:
@@ -78,26 +89,29 @@ namespace tomocam {
             T tnew = 1; 
             // compute Lipschitz
             T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
-
             // gradient step size
-            T step = 1./lipschitz_;
-
+            T step = 0.5/lipschitz_;
+            T e_old = inf;
             for (int iter = 0; iter < max_iters_; iter++) {
-                float beta = tnew * (1./t - 1);
+                T beta = tnew * (1/t - 1);
                 y = x + (x - xold) * beta;
                 auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
                 xold = x;
-                x = y -  g * step;
-                auto e = g.norm() / static_cast<float>(g.size());
-            
+                x = y - g * step; 
                 // update theta
-                float temp = 0.5 * (std::sqrt(std::pow(t,4) 
+                T temp = 0.5 * (std::sqrt(std::pow(t,4) 
                             + 4 * std::pow(t,2))
                         - std::pow(t,2));
                 t = tnew;
                 tnew = temp;
-
-                std::cout << "tnew = " << tnew << std::endl;
+               
+                T e = error(x, sino, angles, center, oversample);
+                if (e > e_old) {
+                    g = calc_gradient(xold, sino, angles, center, oversample, p, sigma);
+                    x = xold - g * step;
+                    e = error(x, sino, angles, center, oversample);
+                }
+                e_old = e;
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
             }
             return x;
