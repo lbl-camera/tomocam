@@ -72,6 +72,9 @@ namespace tomocam {
             calc_gradient(d_model, d_sino, ipad, center, grid);
             cudaStreamSynchronize(cudaStreamPerThread);
 
+            // apply ramp like filte to gradient
+            //filter_gradient(d_model, cudaStreamPerThread);
+
             // copy data back to host
             cudaStreamSynchronize(ostream);
             dev_arrayf t2 = remove_paddingC2R(d_model, padding, ostream);

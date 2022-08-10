@@ -116,6 +116,13 @@ namespace tomocam {
      */
     dev_arrayf remove_paddingC2R(dev_arrayc &, int3, cudaStream_t);
 
+
+    /**
+     *
+     * still testing
+     */
+    void filter_gradient(dev_arrayc &, cudaStream_t);
+
 } // namespace tomocam
 
 #endif // TOMOCAM_INTERNALS__H

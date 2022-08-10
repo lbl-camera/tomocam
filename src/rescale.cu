@@ -36,4 +36,23 @@ namespace tomocam {
         Grid grid(arr.dims()); 
         rescale_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, scale);
     }
+
+
+    __global__ void filter_gradient_kernel(DeviceArray<cuComplex_t> arr) {
+        int3 idx = Index3D();
+        dim3_t dims = arr.dims();
+        if (idx < dims) {
+            float x0 = dims.z / 2.;
+            float y0 = dims.y / 2.;
+            float qx = (idx.z - x0) / idx.z;
+            float qy = (idx.y - y0) / idx.y;
+            float q = sqrt(qx*qx + qy*qy);
+            arr[idx] = arr[idx] * q;
+        }
+    }
+
+    void filter_gradient(DeviceArray<cuComplex_t> &arr, cudaStream_t stream) {
+        Grid grid(arr.dims());
+        filter_gradient_kernel <<<grid.blocks(), grid.threads(), 0, stream >>>(arr);
+    }
 } // namespace tomocam
