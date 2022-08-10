@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     tomocam::dim3_t d1 = {1, ncols, ncols};
     tomocam::dim3_t d2 = {1, nproj, ncols};
     tomocam::DArray<float> image(d1);
-    image.init(data);
+    image.copy(data);
     tomocam::DArray<float> sino(d2);
     
     float center = 256;
