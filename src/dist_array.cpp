@@ -81,7 +81,7 @@ namespace tomocam {
         return *this;
     }
 
-    // addition operator
+    // addition operators
     template <typename T>
     DArray<T> DArray<T>::operator+(const DArray<T> & rhs) {
         DArray<T> rv(dims_);
@@ -90,14 +90,30 @@ namespace tomocam {
             rv.buffer_[i] = buffer_[i] + rhs.buffer_[i];
         return rv;
     }
-         
-    // subtraction operator
+    template <typename T>
+    DArray<T> DArray<T>::operator+(T rhs) {
+        DArray<T> rv(dims_);
+        #pragma omp parallel for
+        for (uint64_t i = 0; i < size_; i++)
+            rv.buffer_[i] = buffer_[i] + rhs;
+        return rv;
+    }
+     
+    // subtraction operators
     template <typename T>
     DArray<T> DArray<T>::operator-(const DArray<T> & rhs) {
         DArray<T> rv(dims_);
         #pragma omp parallel for
         for (uint64_t i = 0; i < size_; i++)
             rv.buffer_[i] = buffer_[i] - rhs.buffer_[i];
+        return rv;
+    }
+    template <typename T>
+    DArray<T> DArray<T>::operator-(T rhs) {
+        DArray<T> rv(dims_);
+        #pragma omp parallel for
+        for (uint64_t i = 0; i < size_; i++)
+            rv.buffer_[i] = buffer_[i] - rhs;
         return rv;
     }
 
@@ -120,6 +136,16 @@ namespace tomocam {
         return rv;
     }
 
+    // division
+    template <typename T>
+    DArray<T> DArray<T>::operator/(const DArray<T> &rhs) {
+        DArray<T> rv(dims_);
+        #pragma omp parallel for
+        for (uint64_t i = 0; i < size_; i++)
+            rv.buffer_[i] = buffer_[i] / rhs.buffer_[i];
+        return rv;
+    }
+
     // scaling
     template <typename T>
     DArray<T> DArray<T>::operator*(T m) {
@@ -127,6 +153,14 @@ namespace tomocam {
         #pragma omp parallel for
         for (uint64_t i = 0; i < size_; i++)
             rv.buffer_[i] = buffer_[i] * m;
+        return rv;
+    }
+    template <typename T>
+    DArray<T> DArray<T>::operator/(T m) {
+        DArray<T> rv(dims_);
+        #pragma omp parallel for
+        for (uint64_t i = 0; i < size_; i++)
+            rv.buffer_[i] = buffer_[i] / m;
         return rv;
     }
 

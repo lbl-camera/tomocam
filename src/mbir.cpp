@@ -42,6 +42,11 @@ namespace tomocam {
         dim3_t dims = sino.dims();
         dims.y = dims.z;
 
+        // normalize
+        T minv = sino.min();
+        T maxv = sino.max();
+        sino = (sino - minv) / (maxv - minv);
+
         Optimizer<T> opt(dims, num_iters);
         return opt.minimize(sino, angles, center, oversample, p, sigma);
     }

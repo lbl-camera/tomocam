@@ -119,10 +119,14 @@ namespace tomocam {
 
         // arithmatic operators
         DArray<T> operator+(const DArray<T> &);
+        DArray<T> operator+(T);
         DArray<T> operator-(const DArray<T> &);
+        DArray<T> operator-(T);
         DArray<T> &operator+=(const DArray<T> &);
         DArray<T> operator*(const DArray<T> &);
         DArray<T> operator*(T );
+        DArray<T> operator/(const DArray<T> &);
+        DArray<T> operator/(T );
 
         // save array to file
         void to_file(const char * filename) {
