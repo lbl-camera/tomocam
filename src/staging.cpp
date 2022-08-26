@@ -44,6 +44,9 @@ namespace tomocam {
         // overwrite projection with error and redo the zero-padding
         calc_error(proj, sino, ipad, cudaStreamPerThread);
 
+        // apply radial filter
+        filter_gradient(proj, grid, cudaStreamPerThread);
+
         // set d_model to zero
         cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), cudaStreamPerThread);
 
