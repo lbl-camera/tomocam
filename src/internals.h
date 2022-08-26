@@ -121,7 +121,7 @@ namespace tomocam {
      *
      * still testing
      */
-    void filter_gradient(dev_arrayc &, cudaStream_t);
+    void filter_gradient(dev_arrayc &, NUFFTGrid &, cudaStream_t);
 
 } // namespace tomocam
 
