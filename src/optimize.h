@@ -116,6 +116,61 @@ namespace tomocam {
             }
             return x;
         }
+
+        DArray<T> minimize2(DArray<T> &sino, float *angles, float center,
+                float oversample, float p, float sigma) {
+
+            // initialize 
+            DArray<T> x(dims_);
+            x.init(1.);
+            DArray<T> xold(dims_);
+            xold.init(1.);
+            DArray<T> y(dims_);
+
+            T t = 1;
+            T tnew = 1; 
+            // compute Lipschitz
+            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
+
+            // gradient step size
+            T step = 0.5/lipschitz_;
+            T step_prev = step;
+
+            for (int iter = 0; iter < max_iters_; iter++) {
+                while (true) {
+
+                    // update theta
+                    T beta = tnew * (1/t - 1);
+                    T a2 = t * t * step / step_prev;
+                    tnew = 0.5 * (std::sqrt(std::pow(t,4) 
+                             + 4 * std::pow(t,2))
+                         - std::pow(t,2));
+
+                    // update y
+                    y = x + (x - xold) * beta;
+                    auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
+                   
+                    // update x
+                    x = y - g * step; 
+                 
+                    // check if step size is small enough
+                    T fx = error(x, sino, angles, center, oversample);
+                    T fy = error(y, sino, angles, center, oversample);
+                    T gy = 0.5 * step * g.norm();
+                    if (fx > (fy + gy))
+                        step *= 0.9;
+                    else {
+                        step_prev = step;
+                        t = tnew;
+                        xold = x;
+                        break;
+                    }
+                }
+                T e = error(x, sino, angles, center, oversample);
+                std::cout << "iter: " << iter << ", error: " << e << std::endl;
+            }
+            return x;
+        }
     };
 
 } // namespace tomocam
