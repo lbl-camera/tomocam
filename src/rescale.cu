@@ -24,6 +24,7 @@
 #include "dev_array.h"
 #include "types.h"
 #include "utils.cuh"
+#include "nufft.h"
 
 namespace tomocam {
     __global__ void rescale_kernel(DeviceArray<cuComplex_t> arr, float scale) {
@@ -38,21 +39,18 @@ namespace tomocam {
     }
 
 
-    __global__ void filter_gradient_kernel(DeviceArray<cuComplex_t> arr) {
+    __global__ void filter_gradient_kernel(DeviceArray<cuComplex_t> arr, float *x, float *y) {
         int3 idx = Index3D();
         dim3_t dims = arr.dims();
         if (idx < dims) {
-            float x0 = dims.z / 2.;
-            float y0 = dims.y / 2.;
-            float qx = (idx.z - x0) / idx.z;
-            float qy = (idx.y - y0) / idx.y;
-            float q = sqrt(qx*qx + qy*qy);
-            arr[idx] = arr[idx] * q;
+            int j = idx.y * dims.z + idx.z;
+            float w = sqrt(x[j] * x[j] + y[j] * y[j]);
+            arr[idx] = arr[idx] * w;
         }
     }
 
-    void filter_gradient(DeviceArray<cuComplex_t> &arr, cudaStream_t stream) {
+    void filter_gradient(DeviceArray<cuComplex_t> &arr, NUFFTGrid &nugrid, cudaStream_t stream) {
         Grid grid(arr.dims());
-        filter_gradient_kernel <<<grid.blocks(), grid.threads(), 0, stream >>>(arr);
+        filter_gradient_kernel <<<grid.blocks(), grid.threads(), 0, stream >>>(arr, nugrid.x, nugrid.y);
     }
 } // namespace tomocam
