@@ -28,21 +28,18 @@
 
 namespace tomocam {
     /* calls forward and backward projectors to calculate gradients */
-    void calc_gradient(dev_arrayc &model, dev_arrayf &sino, int ipad, float center,
+    void calc_gradient(dev_arrayZ &model, dev_arrayF &sino, float center,
                     NUFFTGrid &grid) {
 
         // create device_array for forward projection
         dim3_t dims = sino.dims();
-
-        // z-dimension should be same as padded model dimension
-        dims.z = model.dims().z;
         auto proj = DeviceArray_fromDims<cuComplex_t>(dims, cudaStreamPerThread);
 
         // do the forward projection
         project(model, proj, center, grid);
 
         // overwrite projection with error and redo the zero-padding
-        calc_error(proj, sino, ipad, cudaStreamPerThread);
+        calc_error(proj, sino, cudaStreamPerThread);
 
         // set d_model to zero
         cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), cudaStreamPerThread);
@@ -50,7 +47,5 @@ namespace tomocam {
         // backproject the error
         back_project(proj, model, center, grid);
 
-        // clean up
-        proj.free();
     }
 } // namespace tomocam
