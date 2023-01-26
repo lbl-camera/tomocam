@@ -30,7 +30,7 @@
 
 namespace tomocam {
 
-    void back_project(dev_arrayc &sino, dev_arrayc &image, float center, 
+    void back_project(dev_arrayZ &sino, dev_arrayZ &image, float center,
                 NUFFTGrid &grid) {
 
         // dims
