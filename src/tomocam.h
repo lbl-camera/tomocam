@@ -38,9 +38,6 @@ namespace tomocam {
     // TODO document
     void add_total_var(DArray<float> &, DArray<float> &, float, float);
 
-    // TODO document
-    void axpy(float, DArray<float> &, DArray<float> &);
-
 	template <typename T>
     DArray<T> mbir(DArray<T> &, float *, float, float, float, float, int);
 
