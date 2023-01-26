@@ -38,14 +38,8 @@ namespace tomocam {
         dim3_t idims = input.dims();
         dim3_t odims = sino.dims();
 
-        // calculate padding
-        int ipad = (int) ((over_sample - 1) * idims.z / 2);
-        int3 pad1 = {0, ipad, ipad};
-        int3 pad2 = {0, 0, ipad};
-        center += ipad;
-
         // create grid for CUFINUFFT
-        int ncols = odims.z + 2 * ipad;
+        int ncols = odims.z;
         int nproj = odims.y;
         NUFFTGrid grid(ncols, nproj, angles, device);
 
@@ -64,11 +58,10 @@ namespace tomocam {
 
             // copy image data to device
             auto t1 = DeviceArray_fromHost<float>(sub_inputs[i], istream);
-            dev_arrayc d_volm = add_paddingR2C(t1, pad1, istream);
+            dev_arrayZ d_volm = real_to_cmplx(t1, istream);
 
             // create output array with padding
             dim3_t d = sub_sinos[i].dims();
-            d.z += 2 * ipad;
             auto d_sino = DeviceArray_fromDims<cuComplex_t>(d, istream);
 
             // asynchronously launch kernels
@@ -77,17 +70,11 @@ namespace tomocam {
             cudaStreamSynchronize(ostream);
             cudaStreamSynchronize(cudaStreamPerThread);
 
-            // remove padding from projections
-            dev_arrayf t2 = remove_paddingC2R(d_sino, pad2, ostream);
+            // cast to real data
+            dev_arrayF t2 = cmplx_to_real(d_sino, ostream);
 
             // copy 
             copy_fromDeviceArray(sub_sinos[i], t2, ostream);
-
-            // clean up
-            t1.free();
-            t2.free();
-            d_volm.free();
-            d_sino.free();
         }
         cudaStreamDestroy(istream);
         cudaStreamDestroy(ostream);
