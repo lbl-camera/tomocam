@@ -27,7 +27,7 @@
 
 namespace tomocam {
 
-    __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma) {
+    __global__ void tvd_update_kernel(dev_memoryF model, dev_memoryF objfn, float p, float sigma) {
 
         // thread ids
         int i = threadIdx.z;
@@ -172,7 +172,7 @@ namespace tomocam {
         }
     }
 
-    void add_total_var(dev_arrayf &model, dev_arrayf &objfn, float p, float sigma, cudaStream_t stream) {
+    void add_total_var(dev_arrayF &model, dev_arrayF &objfn, float p, float sigma, cudaStream_t stream) {
 
         // CUDA kernel parameters
         Grid grid(objfn.dims());
