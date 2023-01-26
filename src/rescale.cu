@@ -26,13 +26,13 @@
 #include "utils.cuh"
 
 namespace tomocam {
-    __global__ void rescale_kernel(DeviceArray<cuComplex_t> arr, float scale) {
+    __global__ void rescale_kernel(dev_memoryZ arr, float scale) {
         int3 idx = Index3D();
         if (idx < arr.dims()) 
             arr[idx] = arr[idx]*scale;
     }
 
-    void rescale(dev_arrayc &arr, float scale, cudaStream_t stream) {
+    void rescale(dev_arrayZ &arr, float scale, cudaStream_t stream) {
         Grid grid(arr.dims()); 
         rescale_kernel <<< grid.blocks(), grid.threads(), 0, stream >>> (arr, scale);
     }
