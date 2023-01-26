@@ -39,13 +39,8 @@ namespace tomocam {
         dim3_t dims1 = model.dims();
         dim3_t dims2 = sino.dims();
 
-        // padding on each end
-        int ipad = (int)((over_sample - 1) * dims2.z / 2);
-        int3 padding = {0, ipad, ipad};
-        center += ipad;
-
         // create nufft grid
-        int ncols = dims2.z + 2 * ipad;
+        int ncols = dims2.z;
         int nproj = dims2.y;
         NUFFTGrid grid(ncols, nproj, angles, device_id);    
 
@@ -63,26 +58,22 @@ namespace tomocam {
         for (int i = 0; i < n_batch; i++) {
  
             auto t1 = DeviceArray_fromHost<float>(p1[i], istream);
-            dev_arrayc d_model = add_paddingR2C(t1, padding, istream);
+            dev_arrayZ d_model = real_to_cmplx(t1, istream);
 
             // copy data to device
             auto d_sino = DeviceArray_fromHost<float>(p2[i], istream);
 
             // gradients are enqued in per-thread-stream
-            calc_gradient(d_model, d_sino, ipad, center, grid);
+            calc_gradient(d_model, d_sino, center, grid);
             cudaStreamSynchronize(cudaStreamPerThread);
 
             // copy data back to host
             cudaStreamSynchronize(ostream);
-            dev_arrayf t2 = remove_paddingC2R(d_model, padding, ostream);
+            dev_arrayF t2 = cmplx_to_real(d_model, ostream);
             copy_fromDeviceArray(p1[i], t2, ostream);
 
             // delete device_arrays
             cudaStreamSynchronize(ostream);
-            t1.free();
-            t2.free();
-            d_model.free();
-            d_sino.free();
         }
         cudaStreamDestroy(istream);
         cudaStreamDestroy(ostream);
