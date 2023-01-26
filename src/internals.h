@@ -34,14 +34,14 @@
 namespace tomocam {
 
     /**
-     * Calculates differene between model and data, and resets zero-padding in model
+     * Calculates differene between model and data
      *
      *  @param DeviceArray<cuComplex_t> model as complex array on device
      *  @param DeviceArray<float> sinogram data as array on device
      *  @param int size of padding
      *  @param cudaStream_t for concurrencny
      */ 
-    void calc_error(dev_arrayc &, dev_arrayf &, int ipad, cudaStream_t);
+    void calc_error(dev_arrayZ &, dev_arrayF &, cudaStream_t);
 
     /**
      * Rescales output from cufft, by dividing by N^2
@@ -50,7 +50,7 @@ namespace tomocam {
      * @param float scalar
      * @param cudaStream_t for concurrencny
      */ 
-    void rescale(dev_arrayc &, float, cudaStream_t);
+    void rescale(dev_arrayZ &, float, cudaStream_t);
 
 
     /**
@@ -61,7 +61,7 @@ namespace tomocam {
      * @param float correction to the center of rotation
      * @param NUFFTGrid non-unifrom grid on which NUFFT is computed
      */ 
-    void back_project(dev_arrayc &, dev_arrayc &, float, NUFFTGrid &);
+    void back_project(dev_arrayZ &, dev_arrayZ &, float, NUFFTGrid &);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
@@ -71,7 +71,7 @@ namespace tomocam {
      * @param float correction to the center of rotation
      * @param NUFFTGrid non-unifrom grid on which NUFFT is computed
      */ 
-    void project(dev_arrayc &, dev_arrayc &, float, NUFFTGrid &);
+    void project(dev_arrayZ &, dev_arrayZ &, float, NUFFTGrid &);
 
 
     /**
@@ -79,13 +79,12 @@ namespace tomocam {
      *
      * @param DeviceArray<cuComplex_t> Model
      * @param DeviceArray<float> Data
-     * @param int Padding for oversampling the FFT
      * @param float Center correction (+ padding/2)
      * @param DeviceArray<float> Projection angles
      * @param kernel_t Window function for convolution
      * @param cudaStream_t CUDA stream for concurrencny
      */ 
-    void calc_gradient(dev_arrayc &, dev_arrayf &, int, float, NUFFTGrid &);
+    void calc_gradient(dev_arrayZ &, dev_arrayF &, float, NUFFTGrid &);
 
     /**
      * Calculates constrains on the objective function, and updates gradients in-place
@@ -96,25 +95,23 @@ namespace tomocam {
      * @param float Surrogate model paramter
      * @param cudaStream_t for concurrencny
      */ 
-    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, cudaStream_t);
+    void add_total_var(dev_arrayF &, dev_arrayF &, float, float, cudaStream_t);
 
     /**
-     * Adds zero padding and typecast from float to cuComplex_t
+     * Typecast from float to cuComplex_t
      *
      * @param DeviceArray<float> input
-     * @param int3 padding
      * @param cudaStream_t cuda stream for concurrencny
      */
-    dev_arrayc add_paddingR2C(dev_arrayf &, int3, cudaStream_t);
+    dev_arrayZ real_to_cmplx(dev_arrayF &, cudaStream_t);
 
     /**
-     * Removes zero padding and typecast from cuComplex_t to float
+     * Typecast from cuComplex_t to float
      *
      * @param DeviceArray<cuComplex_t> input
-     * @param int3 padding
      * @param cudaStream_t cuda stream for concurrencny
      */
-    dev_arrayf remove_paddingC2R(dev_arrayc &, int3, cudaStream_t);
+    dev_arrayF cmplx_to_real(dev_arrayZ &, cudaStream_t);
 
 } // namespace tomocam
 
