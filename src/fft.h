@@ -74,13 +74,13 @@ namespace tomocam {
         return plan;
     }
 
-    void fftshift_center(dev_arrayc &, float, cudaStream_t);
+    void fftshift_center(dev_arrayZ &, float, cudaStream_t);
 
-    void ifftshift_center(dev_arrayc &, float, cudaStream_t);
+    void ifftshift_center(dev_arrayZ &, float, cudaStream_t);
 
-    void fftshift1D(dev_arrayc &, cudaStream_t);
+    void fftshift1D(dev_arrayZ &, cudaStream_t);
 
-    void fftshift2D(dev_arrayc &, cudaStream_t);
+    void fftshift2D(dev_arrayZ &, cudaStream_t);
 
 } // namespace tomocam
 #endif // TOMOCAM_FFT__H
