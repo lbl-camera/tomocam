@@ -30,7 +30,7 @@ namespace tomocam {
     __device__ const float TWOPI = 6.283185307179586;
 
     __global__ 
-    void fftshift1D_kernel(dev_arrayc arr) {
+    void fftshift1D_kernel(dev_memoryZ arr) {
         int3 idx = Index3D();
         if (idx < arr.dims()) {
             float a = powf(-1.f, idx.z & 1);
@@ -39,7 +39,7 @@ namespace tomocam {
     }
 
     __global__ 
-    void fftshift2D_kernel(dev_arrayc arr) {
+    void fftshift2D_kernel(dev_memoryZ arr) {
         int3 idx = Index3D();
         if (idx < arr.dims()) {
             float a = powf(-1.f, (idx.y + idx.z) & 1);
@@ -48,7 +48,7 @@ namespace tomocam {
     }
 
     __global__ 
-    void fftshift_center_kernel(dev_arrayc arr, float shift) {
+    void fftshift_center_kernel(dev_memoryZ arr, float shift) {
         int3 idx = Index3D();
         dim3_t dims = arr.dims();
         if (idx < dims) {
@@ -58,25 +58,25 @@ namespace tomocam {
     }
 
     // multiply by -1^i
-    void fftshift1D(dev_arrayc &arr, cudaStream_t stream) {
+    void fftshift1D(dev_arrayZ &arr, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift1D_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr);
     }
 
     // multiply by 2-D chessboard pattern
-    void fftshift2D(dev_arrayc &arr, cudaStream_t stream) {
+    void fftshift2D(dev_arrayZ &arr, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift2D_kernel<<< grid.blocks(), grid.threads(), 0, stream>>>(arr);
     }
 
     // phase shift center
-    void fftshift_center(dev_arrayc &arr, float center, cudaStream_t stream) {
+    void fftshift_center(dev_arrayZ &arr, float center, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, center);
     }
 
     // undo phase shift center
-    void ifftshift_center(dev_arrayc &arr, float center, cudaStream_t stream) {
+    void ifftshift_center(dev_arrayZ &arr, float center, cudaStream_t stream) {
         Grid grid(arr.dims());
         fftshift_center_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(arr, -center);
     }
