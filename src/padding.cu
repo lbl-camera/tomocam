@@ -26,51 +26,46 @@
 
 namespace tomocam {
     __global__ 
-    void real_to_complex_kernel(dev_arrayf input, dev_arrayc output, int3 padding) {
+    void real_to_complex_kernel(dev_memoryF input, dev_memoryZ output) {
         int3 idx = Index3D();
         if (idx < input.dims()) {
-            int3 idx2 = {idx.x + padding.x, idx.y + padding.y, idx.z + padding.z};
-            output[idx2].x = input[idx];
+            output[idx].x = input[idx];
         }
     }
 
     __global__ 
-    void complex_to_real_kernel(dev_arrayc input, dev_arrayf output, int3 padding) {
+    void complex_to_real_kernel(dev_memoryZ input, dev_memoryF output) {
         int3 idx = Index3D();
         if (idx < output.dims()) {
-            int3 idx2 = {idx.x + padding.x, idx.y + padding.y, idx.z + padding.z};
-            output[idx] = input[idx2].x;
+            output[idx] = input[idx].x;
         }
     }
 
-    // cast to complex and add padding
-    dev_arrayc add_paddingR2C(dev_arrayf &input, int3 padding, cudaStream_t stream) {
-        // input dims
+    // cast to complex
+    dev_arrayZ real_to_cmplx(dev_arrayF &input, cudaStream_t stream) {
+
+        // dimensions
         auto dims = input.dims();
 
-        // output dims 
-        dim3_t padded = {dims.x+2*padding.x, dims.y+2*padding.y, dims.z+2*padding.z};
-
-        // allocate padded complex array
-        dev_arrayc output = DeviceArray_fromDims<cuComplex_t>(padded, stream);
+        // allocate complex array
+        dev_arrayZ output = DeviceArray_fromDims<cuComplex_t>(dims, stream);
 
         Grid grid(dims);
-        real_to_complex_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(input, output, padding);
+        real_to_complex_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(input, output);
         return output;
     }
 
-    // remove padding and typecast to real
-    dev_arrayf remove_paddingC2R(dev_arrayc &input, int3 padding, cudaStream_t stream) {
+    // typecast to real
+    dev_arrayF cmplx_to_real(dev_arrayZ &input, cudaStream_t stream) {
 
-        // get dimensions
-        auto d = input.dims();
+        // dimensions
+        auto dims = input.dims();
 
-        // allocate updadded real array
-        dim3_t dims = {d.x - 2*padding.x, d.y - 2*padding.y, d.z - 2*padding.z};
-        dev_arrayf output = DeviceArray_fromDims<float>(dims, stream);
+        // allocate real array
+        dev_arrayF output = DeviceArray_fromDims<float>(dims, stream);
         
         Grid grid(dims);
-        complex_to_real_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(input, output, padding);
+        complex_to_real_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(input, output);
         return output;
     }
 } // namespace tomocam
