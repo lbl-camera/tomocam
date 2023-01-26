@@ -25,13 +25,16 @@
 #include <stdexcept>
 
 #include <cuda.h>
-#include <cuda_runtime.h>
 
 #include "types.h"
 #include "common.h"
 #include "dist_array.h"
 #include "utils.cuh"
 
+#ifdef __NVCC__
+#include "dev_memory.cuh"
+#endif // __NVCC__
+     
 namespace tomocam {
 
     template <typename T>
@@ -49,7 +52,21 @@ namespace tomocam {
         int2 halo_;
 
       public:
-        DeviceArray() : dev_ptr_(NULL) {}
+        DeviceArray() = default;
+
+        // Allocate space 
+        DeviceArray(dim3_t d): dims_(d) {
+            halo_ = {0, 0};
+            size_ = d.x * d.y * d.z;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+        }
+
+        // Allocate space with halo
+        DeviceArray(dim3_t d, int *h): dims_(d) {
+            halo_ = {h[0], h[1]};
+            size_ = (d.x + h[0] + h[1]) * d.y * d.z;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+        }
 
         // does not check if the pointer is a valid device memory
         DeviceArray(dim3_t d, T *ptr): dims_(d), dev_ptr_(ptr) {
@@ -64,64 +81,45 @@ namespace tomocam {
             size_ = dims_.x * dims_.y * dims_.z;
         }
 
-        // explicit destructor
-        void free() { if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_)); }
+        // destructor
+        ~DeviceArray() { if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_)); }
 
-        // reset dims
-        void dims(dim3_t d) { 
-            dims_ = d; 
-            size_ = dims_.x * dims_.y * dims_.z;
+        //  copy constructor
+        DeviceArray(const DeviceArray<T> &rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            halo_ = rhs.halo_;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, sizeof(T) * size_, cudaMemcpyDeviceToDevice));
         }
 
-        // reset dev_ptr
-        void dev_ptr(T * p) { dev_ptr_ = p; }
+        // assignment operator
+        DeviceArray<T> operator=(const DeviceArray & rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            halo_ = rhs.halo_;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, sizeof(T) * size_, cudaMemcpyDeviceToDevice));
+            return *this;
+        }
 
-        // at some point we'll need access to the pointer
-        __host__ __device__ 
+        #ifdef __NVCC__
+        // convert to DeviceMemory
+        operator  DeviceMemory<T>() {
+            return DeviceMemory<T>(dims_, halo_, dev_ptr_);
+        }
+        #endif
+                
+        // access to the devie-pointer
         T *dev_ptr() { return dev_ptr_; }
 
         // size of the array
-        __host__ __device__
         size_t size() const { return size_; }
 
         // get array dims
-        __host__ __device__ 
         dim3_t dims() const { return dims_; }
 
-        // indexing 1-D
-        __device__ 
-        T & operator[](int i) {
-            return dev_ptr_[i];
-        }
-  
-        // indexing 3-D
-        __device__
-        T & operator[](int3 i) {
-            return dev_ptr_[i.x * dims_.y * dims_.z + i.y * dims_.z + i.z];
-        }
-
-        // indexing 3-D
-        __device__ 
-        T & operator() (int i, int j, int k) {
-            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
-        }
-
-        // indexing ...
-        // -- with halo excluded
-        // -- check for bounds, return 0 if outside
-        __device__
-        T at(int ii, int j, int k) {
-            int i = ii + halo_.x;
-            if ((i < 0) || (i > dims_.x - 1)) 
-                return 0;
-            if ((j < 0) || (j > dims_.y - 1))
-                return 0;
-            if ((k < 0) || (k > dims_.z - 1))
-                return 0;
-            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
-        }
-
-        __host__ 
+        // dump to a binary file
         void tofile(const char *filename) {
             T * h_ptr = new T[size_];
             SAFE_CALL(cudaMemcpy(h_ptr, dev_ptr_, sizeof(T) * size_, cudaMemcpyDeviceToHost));
@@ -131,8 +129,9 @@ namespace tomocam {
             delete [] h_ptr;
         }
     };
-    typedef DeviceArray<float> dev_arrayf;
-    typedef DeviceArray<cuComplex_t> dev_arrayc;
+    typedef DeviceArray<int> dev_arrayI;
+    typedef DeviceArray<float> dev_arrayF;
+    typedef DeviceArray<cuComplex_t> dev_arrayZ;
 
     // create DeviceArray from Partition
     template <typename T>
@@ -169,6 +168,7 @@ namespace tomocam {
     void copy_fromDeviceArray(Partition<T> dst, DeviceArray<T> src, cudaStream_t stream) {
         SAFE_CALL(cudaMemcpyAsync(dst.begin(), src.dev_ptr(), sizeof(T) * dst.size(), cudaMemcpyDeviceToHost, stream));
     }
+
 } // namespace tomocam
 
 #endif // TOMOCAM_DEV_ARRAY__H
