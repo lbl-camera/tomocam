@@ -58,6 +58,7 @@ namespace tomocam {
             SAFE_CALL(cudaFree(x));
             SAFE_CALL(cudaFree(y));
         }
+        int size() const { return M; }
     };
 
     inline int nufft_setgrid(NUFFTGrid &grid, cufinufftf_plan &plan) {
