@@ -39,12 +39,6 @@ namespace tomocam {
         dim3_t idims  = sino.dims();
         dim3_t odims  = output.dims();
         
-        // padding for oversampling
-        int ipad = (int) ((over_sample-1) * idims.z / 2);
-        int3 pad1 = {0, 0, ipad};
-        int3 pad2 = {0, ipad, ipad};
-        center += ipad;
-
         // subpartitions
         int nslcs = MachineConfig::getInstance().slicesPerStream();
         std::vector<Partition<float>> sub_sinos = sino.sub_partitions(nslcs);
@@ -52,7 +46,7 @@ namespace tomocam {
         int n_batch = sub_sinos.size();
 
         // nufft grid
-        int ncols = idims.z + 2 * ipad;
+        int ncols = idims.z;
         int nproj = idims.y;
         NUFFTGrid grid(ncols, nproj, angles, device);
 
@@ -65,29 +59,23 @@ namespace tomocam {
 
             // asynchronously copy data to device
             auto t1 = DeviceArray_fromHost(sub_sinos[i], istream);
-            dev_arrayc d_sino = add_paddingR2C(t1, pad1, istream);
+            dev_arrayZ d_sino = real_to_cmplx(t1, istream);
 
             // allocate output array on device
             dim3_t d = sub_outputs[i].dims();
-            dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
-            auto d_recn = DeviceArray_fromDims<cuComplex_t>(pad_odims, istream);
+            auto d_recn = DeviceArray_fromDims<cuComplex_t>(d, istream);
 
             // asynchronously launch kernels
             cudaStreamSynchronize(istream);
             back_project(d_sino, d_recn, center, grid);
             cudaStreamSynchronize(cudaStreamPerThread);
 
-            // remove padding
-            dev_arrayf t2 = remove_paddingC2R(d_recn, pad2, ostream);
+            // cast to real data
+            dev_arrayF t2 = cmplx_to_real(d_recn, ostream);
 
             // asynchronously copy data back to host
             copy_fromDeviceArray(sub_outputs[i], t2, ostream);
             cudaStreamSynchronize(ostream);
-           
-            t1.free();
-            t2.free();
-            d_sino.free();
-            d_recn.free();
         }
 
         cudaStreamDestroy(istream);
