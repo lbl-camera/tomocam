@@ -65,8 +65,8 @@ namespace tomocam {
           
             // current batch size
             int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayf> d_model;
-            std::vector<dev_arrayf> d_objfn;
+            std::vector<dev_arrayF> d_model;
+            std::vector<dev_arrayF> d_objfn;
 
             // copy model to device array
             for (int j = 0; j < n_sub; j++) {
@@ -88,8 +88,6 @@ namespace tomocam {
             for (int j = 0; j < n_sub; j++) {
                 cudaStreamSynchronize(streams[j]);
                 copy_fromDeviceArray<float>(objs[i * nStreams + j], d_objfn[j], streams[j]);
-                d_model[j].free();
-                d_objfn[j].free();
             }
         }
             
