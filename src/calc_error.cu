@@ -25,26 +25,19 @@
 #include "utils.cuh"
 
 namespace tomocam {
-    __global__ void calc_error_kernel(dev_arrayc model, dev_arrayf data, int ipad) {
+    __global__ void calc_error_kernel(dev_memoryZ model, dev_memoryF data) {
 
         int3 idx = Index3D();
         dim3_t d1 = model.dims();
         dim3_t d2 = data.dims();
-        int n2 = d2.z - 1 + ipad;
         if (idx < d1) {
-            int ipad = (d1.z - d2.z) / 2;
-            if ((idx.z < ipad) || (idx.z > n2)) {
-                model[idx].x = 0.f;
-                model[idx].y = 0.f;
-            } else {
-                model[idx].x = model[idx].x - data(idx.x, idx.y, idx.z - ipad);
-                model[idx].y = 0.f;
-            }
+            model[idx].x = model[idx].x - data[idx];
+            model[idx].y = 0.f;
         }
     }
 
-    void calc_error(dev_arrayc &model, dev_arrayf &data, int ipad, cudaStream_t stream) {
+    void calc_error(dev_arrayZ &model, dev_arrayF &data, cudaStream_t stream) {
         Grid grid(model.dims());
-        calc_error_kernel<<<grid.blocks(), grid.threads(), 0, stream>>>(model, data, ipad);
+        calc_error_kernel<<<grid.blocks(), grid.threads(), 0, stream>>>(model, data);
     }
 } // namespace tomocam
