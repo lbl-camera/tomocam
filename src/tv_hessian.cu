@@ -31,7 +31,7 @@
 
 namespace tomocam {
 
-    __global__ void hessian_zero_kernel(dev_arrayf hessian, float sigma) {
+    __global__ void hessian_zero_kernel(dev_memoryF hessian, float sigma) {
 
         int3 idx = Index3D();
 
