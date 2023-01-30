@@ -27,7 +27,7 @@
 
 namespace tomocam {
 
-    __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma) {
+    __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma, float lambda) {
 
         // thread ids
         int i = threadIdx.z;
@@ -165,20 +165,23 @@ namespace tomocam {
             float v = s_val[i + 1][j + 1][k + 1];
             float temp = 0.f;
             for (int ix = 0; ix < 3; ix++)
-                for (int iy = 0; iy < 3; iy++)
-                    for (int iz = 0; iz < 3; iz++)
-                        temp += weight(ix, iy, iz) * d_pot_func(v - s_val[i + ix][j + iy][k + iz], p, sigma);
-            objfn(x, y, z) += temp;
+                for (int jy = 0; jy < 3; jy++)
+                    for (int kz = 0; kz < 3; kz++) {
+                        float delta = v - s_val[i+ix][j+jy][k+kz];
+                        temp += weight(ix, jy, kz) * d_pot_func(delta, p, sigma);
+                    }
+            objfn(x, y, z) += lambda * temp;
         }
     }
 
-    void add_total_var(dev_arrayf &model, dev_arrayf &objfn, float p, float sigma, cudaStream_t stream) {
+    void add_total_var(dev_arrayf &model, dev_arrayf &objfn, float p, float sigma, float lambda, cudaStream_t stream) {
 
         // CUDA kernel parameters
         Grid grid(objfn.dims());
 
         // update gradients of objective function inplace
-        tvd_update_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(model, objfn, p, sigma);
+        tvd_update_kernel<<< grid.blocks(), grid.threads(), 0, stream >>>(model, objfn, p, sigma, lambda);
+
     }
 
 } // namespace tomocam
