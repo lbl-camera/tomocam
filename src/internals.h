@@ -88,15 +88,28 @@ namespace tomocam {
     void calc_gradient(dev_arrayc &, dev_arrayf &, int, float, NUFFTGrid &);
 
     /**
-     * Calculates constrains on the objective function, and updates gradients in-place
+     * Calculates gradient of constraint on the objective function, and updates gradients in-place
      *
-     * @param DeviceArray<float> Gradients of obj. function
      * @param DeviceArray<float> Model
-     * @param float Surrogate model paramter
-     * @param float Surrogate model paramter
+     * @param DeviceArray<float> Gradients of obj. function
+     * @param float Surrogate model paramter p
+     * @param float Surrogate model paramter sigma
+     * @param float Surrogate model paramter lambda
      * @param cudaStream_t for concurrencny
      */ 
-    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, cudaStream_t);
+    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, float, cudaStream_t);
+
+    /**
+     * Calculates constraint on the objective function, and adds to objective function
+     *
+     * @param DeviceArray<float> Model
+     * @param DeviceArray<float> Obj. function
+     * @param float Surrogate model paramter p
+     * @param float Surrogate model paramter sigma
+     * @param float Surrogate model paramter lambda
+     * @param cudaStream_t for concurrencny
+     */
+    void add_tv_func(dev_arrayf &, dev_arrayf &, float, float, float, cudaStream_t);
 
     /**
      * Adds zero padding and typecast from float to cuComplex_t
