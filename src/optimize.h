@@ -36,30 +36,32 @@ namespace tomocam {
     template <typename T>
     inline DArray<T> calc_gradient(DArray<T> &x, DArray<T> &sino,
             float * angles, float center, float oversample, 
-            float p, float sigma) {
+            float p, float sigma, float lam) {
         DArray<T> g = x;
         gradient(g, sino, angles, center, oversample);
-        add_total_var(x, g, p, sigma);
+        add_total_var(x, g, p, sigma, lam);
         return g;
     }
 
     template <typename T>
     inline T calc_lipschitz(DArray<T> &x, DArray<T> &sino,
             float * angles, float center, float oversample, 
-            float p, float sigma) {
+            float p, float sigma, float lam) {
         DArray<T> g(x.dims());
         DArray<T> y(sino.dims());
         radon(x, y, angles, center, oversample);
         iradon(y, g, angles, center, oversample);
-        add_tv_hessian(g, sigma);
+        add_total_var(x, g, p, sigma, lam);
         return g.max();
     }
 
     template <typename T>
     inline T error(DArray<T> &x, DArray<T> &sino, 
-            float * angles, float center, float oversample) {
+            float * angles, float center, float oversample,
+            float p, float sigma, float lam) {
         DArray<T> g(sino.dims());
         radon(x, g, angles, center, oversample);
+        add_tv_func(x, g, p, sigma, lam);
         return (g - sino).norm();
     }
 
@@ -76,7 +78,7 @@ namespace tomocam {
             dims_(d), max_iters_(niters), tol_(tol) {}
 
         DArray<T> minimize(DArray<T> &sino, float *angles, float center,
-                float oversample, float p, float sigma) {
+                float oversample, float p, float sigma, float lam) {
 
             // initialize 
             DArray<T> x(dims_);
@@ -88,14 +90,14 @@ namespace tomocam {
             T t = 1;
             T tnew = 1; 
             // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
+            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma, lam);
             // gradient step size
-            T step = 0.5/lipschitz_;
+            T step = 0.1/lipschitz_;
             T e_old = inf;
             for (int iter = 0; iter < max_iters_; iter++) {
                 T beta = tnew * (1/t - 1);
                 y = x + (x - xold) * beta;
-                auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
+                auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma, lam);
                 xold = x;
                 x = y - g * step; 
                 // update theta
@@ -105,11 +107,11 @@ namespace tomocam {
                 t = tnew;
                 tnew = temp;
                
-                T e = error(x, sino, angles, center, oversample);
+                T e = error(x, sino, angles, center, oversample, p, sigma, lam);
                 if (e > e_old) {
-                    g = calc_gradient(xold, sino, angles, center, oversample, p, sigma);
+                    g = calc_gradient(xold, sino, angles, center, oversample, p, sigma, lam);
                     x = xold - g * step;
-                    e = error(x, sino, angles, center, oversample);
+                    e = error(x, sino, angles, center, oversample, p, sigma, lam);
                 }
                 e_old = e;
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
@@ -118,7 +120,7 @@ namespace tomocam {
         }
 
         DArray<T> minimize2(DArray<T> &sino, float *angles, float center,
-                float oversample, float p, float sigma) {
+                float oversample, float p, float sigma, float lam) {
 
             // initialize 
             DArray<T> x(dims_);
@@ -130,10 +132,10 @@ namespace tomocam {
             T t = 1;
             T tnew = 1; 
             // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
+            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma, lam);
 
             // gradient step size
-            T step = 0.5/lipschitz_;
+            T step = 0.1/lipschitz_;
             T step_prev = step;
 
             for (int iter = 0; iter < max_iters_; iter++) {
@@ -148,14 +150,14 @@ namespace tomocam {
 
                     // update y
                     y = x + (x - xold) * beta;
-                    auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
+                    auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma, lam);
                    
                     // update x
                     x = y - g * step; 
                  
                     // check if step size is small enough
-                    T fx = error(x, sino, angles, center, oversample);
-                    T fy = error(y, sino, angles, center, oversample);
+                    T fx = error(x, sino, angles, center, oversample, p, sigma, lam);
+                    T fy = error(y, sino, angles, center, oversample, p, sigma, lam);
                     T gy = 0.5 * step * g.norm();
                     if (fx > (fy + gy))
                         step *= 0.9;
@@ -166,7 +168,7 @@ namespace tomocam {
                         break;
                     }
                 }
-                T e = error(x, sino, angles, center, oversample);
+                T e = error(x, sino, angles, center, oversample, p, sigma, lam);
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
             }
             return x;
