@@ -41,7 +41,7 @@ def update_total_variation(model, gradients, smoothness=1.0E-03):
     cTomocam.total_variation(gradients, model, smoothness) 
 
 
-def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1.0E-03):
+def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1, lambda_weight=1):
     """Computes the Model-based Iterative reconstruction using nufft.
 
     Parameters
@@ -58,6 +58,8 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
         Zero padding to be added to signal for fft
     smoothness: float (>= 0)
         Controls smoothness of reconstruction
+    lambda_weight: float
+        Controls strength of the total-variation constriant
 
     Returns
     --------
@@ -71,4 +73,4 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
         raise ValueError('smoothness value must be greater than 0')
     sigma = 1./smoothness
 
-    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma)
+    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma, lambda_weight);
