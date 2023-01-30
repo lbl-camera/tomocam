@@ -104,7 +104,8 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     float center,
     int num_iters,
     float oversample,
-    float sigma) {
+    float sigma,
+    float lam) {
 
     // create DArray from numpy
     tomocam::DArray<float> sino(from_numpy<float>(np_sino));
@@ -114,7 +115,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     float p = 1.2;
     float *angles = static_cast<float *>(np_angles.request().ptr);
     tomocam::DArray<float> recon = 
-        tomocam::mbir(sino, angles, center, oversample, sigma, p, num_iters);
+        tomocam::mbir(sino, angles, center, oversample, sigma, p, lam, num_iters);
 
     // return numpy array
     return to_numpy<float>(recon);
