@@ -3,7 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 
 
 
-find_package(HDF5 REQUIRED COMPONENTS CXX)
+find_package(HDF5 CONFIG REQUIRED)
 include_directories(${HDF5_INCLUDE_DIRS})
 
 
