@@ -61,8 +61,8 @@ namespace tomocam {
 
     __devhstI__ float d_pot_func(float delta, float p, float sigma) {
         float c = MRF_C;
-        float g = fabs(delta) / MRF_SIGMA;
-        float gprime = sgnf(delta) / MRF_SIGMA;
+        float g = fabs(delta) / sigma;
+        float gprime = sgnf(delta) / sigma;
 
         float temp0 = powf(g, 2.f - p);
         float numer = g * gprime * (2.f * c + p * temp0);

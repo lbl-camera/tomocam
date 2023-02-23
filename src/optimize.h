@@ -61,7 +61,6 @@ namespace tomocam {
             float p, float sigma, float lam) {
         DArray<T> g(sino.dims());
         radon(x, g, angles, center, oversample);
-        add_tv_func(x, g, p, sigma, lam);
         return (g - sino).norm();
     }
 
