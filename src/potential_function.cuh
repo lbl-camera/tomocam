@@ -31,6 +31,7 @@ namespace tomocam {
     const int NX = 1;
     const int NY = 16;
     const int NZ = 16;
+    const float MRF_C = 0.0001f;
 
     __device__ const float FILTER[3][3][3] = {
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
@@ -48,42 +49,31 @@ namespace tomocam {
     /*
      *            (|d| / sigma)^q
      *  f(d) =  -------------------
-     *          1 + (|d| / sigma)^(q-p)
+     *          c + (|d| / sigma)^(q-p)
      */
-    __devhstI__ float pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        float g = fabs(delta) / MRF_SIGMA;
-        float numer = powf(g, 2);
-        float denom = (1 + powf(g, 2-MRF_P));
+    __devhstI__ float pot_func(float delta, float p, float sigma) {
+        float c = MRF_C;
+        float g = fabs(delta) / sigma;
+        float numer = powf(g, 2.f);
+        float denom = (c + powf(g, 2.f - p));
         return (numer/denom);
     }
 
-    __devhstI__ float d_pot_func(float delta, float MRF_P, float MRF_SIGMA) {
+    __devhstI__ float d_pot_func(float delta, float p, float sigma) {
+        float c = MRF_C;
         float g = fabs(delta) / MRF_SIGMA;
         float gprime = sgnf(delta) / MRF_SIGMA;
 
-        float temp0 = powf(g, 2-MRF_P);
-        float numer = g * gprime * (2 + MRF_P * temp0);
-        float denom = powf(1 + temp0, 2);
+        float temp0 = powf(g, 2.f - p);
+        float numer = g * gprime * (2.f * c + p * temp0);
+        float denom = powf(c + temp0, 2.f);
         return (numer/denom);
     }
 
     /*Second Derivative of the potential function at zero */
-    __devhstI__ float dd_pot_func0(float MRF_SIGMA) {
-        return (2.f / MRF_SIGMA / MRF_SIGMA);
+    __devhstI__ float dd_pot_func0(float sigma) {
+        return (2.f / sigma / sigma / MRF_C);
     }
-
-    /*Second Derivative of the potential function */
-    __devhstI__ float dd_pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        float g = fabs(delta) / MRF_SIGMA;
-        float gpsq = 1.f / powf(MRF_SIGMA, 2);
-        float g_2mp = powf(g, 2-MRF_P);
-        float numer1 = 2.f + MRF_P * (3.f - MRF_P)*g_2mp;
-        float numer2 = (4.f - 2.f * MRF_P)*(2.f + MRF_P * g_2mp) * g_2mp;
-        float denom1 = powf(1.f + g_2mp, 2);
-        float denom2 = powf(1.f + g_2mp, 3);
-        return (gpsq * ((numer1/denom1) - (numer2/denom2)));
-    }
-
 } // namespace tomocam
 
 
