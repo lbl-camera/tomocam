@@ -1,4 +1,4 @@
-Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
+tomoCAM: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
 
 **Dependencies**
 ----------------
