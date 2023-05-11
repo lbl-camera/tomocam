@@ -21,6 +21,7 @@
 #include <iostream>
 
 #include <pybind11/operators.h>
+#include <pybind11/iostream.h>
 
 #include "dist_array.h"
 #include "machine.h"
@@ -120,10 +121,14 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     return to_numpy<float>(recon);
 }
 
+
+
+
 /* setup methods table */
 PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
+ 
     // set gpu paramters
     m.def("set_num_of_gpus", [](int num) {
         tomocam::MachineConfig::getInstance().setNumOfGPUs(num);
@@ -144,5 +149,8 @@ PYBIND11_MODULE(cTomocam, m) {
     m.def("radon_adj", &iradon_wrapper);
 
     // mbir
-    m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
+    //m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
+    m.def("mbir", &mbir_wrapper,
+            py::call_guard<py::scoped_ostream_redirect,
+            py::scoped_estream_redirect>());
 }
