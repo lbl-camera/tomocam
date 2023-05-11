@@ -25,6 +25,7 @@ set(tomocam_VERSION_MINOR 5)
 #C++ 11 Stuff
 set(CMAKE_CXX_STANDARD 17) 
 set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_ARCHITECTURE 80)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
@@ -56,6 +57,7 @@ set(CUSRC
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # CUDA Stuff
+find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
@@ -95,11 +97,11 @@ set_target_properties(cTomocam PROPERTIES
                       CXX_VISIBILITY_PRESET "hidden" 
                       PREFIX "${PYTHON_MODULE_PREFIX}" 
                       SUFFIX "${PYTHON_MODULE_EXTENSION}")
-target_link_libraries(cTomocam PRIVATE ${CUDA_cufft_LIBRARY})
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
 target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
 target_link_libraries(cTomocam PUBLIC ${cufinufft_LIBRARY})
+target_link_libraries(cTomocam PRIVATE CUDA::cufft)
 target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
@@ -110,9 +112,9 @@ install(TARGETS cTomocam
 
 if (${ENABLE_TESTS})
     add_library(tomocam STATIC ${SRC})
-    target_link_libraries(tomocam PRIVATE dummy ${CUDA_cufft_LIBRARY})
-    target_link_libraries(tomocam PRIVATE pybind11::module)
-    target_link_libraries(tomocam PRIVATE ${Python_LIBRARIES})
+    target_link_libraries(tomocam PRIVATE dummy) 
+    target_link_libraries(tomocam PUBLIC ${cufinufft_LIBRARY})
+    target_link_libraries(tomocam PRIVATE CUDA::cufft)
     target_compile_features(tomocam PRIVATE cxx_std_17)
     add_subdirectory(test)
 endif()
