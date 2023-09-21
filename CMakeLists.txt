@@ -40,6 +40,8 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
+    ${PROJECT_SOURCE_DIR}/src/upsample.cpp
+    ${PROJECT_SOURCE_DIR}/src/downsample.cpp
    )
 
 set(CUSRC 
@@ -50,6 +52,7 @@ set(CUSRC
     ${PROJECT_SOURCE_DIR}/src/calc_error.cu
     ${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/padding.cu
+    ${PROJECT_SOURCE_DIR}/src/resample.cu
    )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)

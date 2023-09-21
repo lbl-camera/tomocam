@@ -27,6 +27,11 @@
 namespace tomocam {
 
     // TODO document
+    template <typename T> DArray<T> upSample(DArray<T> &);
+    template <typename T> DArray<T> downSample(DArray<T> &, int);
+    
+
+    // TODO document
     void iradon(DArray<float> &, DArray<float> &, float *, float, float);
 
     // TODO document

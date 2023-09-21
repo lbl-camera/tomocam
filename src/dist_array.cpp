@@ -52,7 +52,10 @@ namespace tomocam {
     template <typename T>
     DArray<T>& DArray<T>::operator=(const DArray<T> & other) {
         if (this == &other) return *this;
-        if (size_ != other.size_) throw std::runtime_error("error: size mismatch!");
+
+        dims_ = other.dims_;
+        size_ = other.size_;
+        buffer_ = new T [size_];
         std::copy(other.buffer_, other.buffer_ + size_, buffer_);
         return *this;
     }

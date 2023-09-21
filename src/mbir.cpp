@@ -22,7 +22,6 @@
 #include <iostream>
 #include <utility>
 #include <pybind11/pybind11.h>
-
 #include "dist_array.h"
 #include "optimize.h"
 #include "tomocam.h"
@@ -39,16 +38,47 @@ namespace tomocam {
         float p,
         int num_iters) {
 
-        dim3_t dims = sino.dims();
+
+        auto data = downSample(sino, 4);
+        float cor = center / 4;
+        dim3_t dims = data.dims();
+        int nproj = dims.y;
         dims.y = dims.z;
 
-        // normalize
-        T minv = sino.min();
-        T maxv = sino.max();
-        sino = (sino - minv) / (maxv - minv);
+        // angles
+        float *theta = new float[nproj];
+        for (int i =0; i < nproj; i++)
+            theta[i] = angles[4*i];
 
-        Optimizer<T> opt(dims, num_iters);
-        return opt.minimize(sino, angles, center, oversample, p, sigma);
+        DArray<T> x0(dims);
+        x0.init(1.f);
+        Optimizer<T> opt0(dims, num_iters);
+        auto sol =  opt0.minimize2(x0, data, theta, cor, oversample, p, sigma);
+        delete [] theta; 
+
+        
+        // upsample solution
+        data = downSample(sino, 2);
+        auto d2 = data.dims();
+        cor = center / 2;
+        nproj = d2.y;
+        // angles 
+        float *theta1 = new float[nproj];
+        for (int i = 0; i < nproj; i++)
+            theta1[i] = angles[2*i];
+
+        x0 = upSample(sol);
+       
+        //x0.init(1.f); 
+        Optimizer<T> opt1(x0.dims(), num_iters);
+        sol = opt1.minimize2(x0, data, theta1, cor, oversample, p, sigma);
+        delete [] theta1; 
+        
+       
+        // last one
+        x0 = upSample(sol);
+        Optimizer<T> opt2(x0.dims(), num_iters);
+        return opt2.minimize2(x0, sino, angles, center, oversample, p, sigma);
     }
 
     template DArray<float> mbir<float>(DArray<float> &, 

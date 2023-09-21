@@ -117,14 +117,11 @@ namespace tomocam {
             return x;
         }
 
-        DArray<T> minimize2(DArray<T> &sino, float *angles, float center,
+        DArray<T> minimize2(DArray<T> x, DArray<T> &sino, float *angles, float center,
                 float oversample, float p, float sigma) {
 
             // initialize 
-            DArray<T> x(dims_);
-            x.init(1.);
-            DArray<T> xold(dims_);
-            xold.init(1.);
+            DArray<T> xold = x;
             DArray<T> y(dims_);
 
             T t = 1;
@@ -133,7 +130,7 @@ namespace tomocam {
             T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
 
             // gradient step size
-            T step = 0.5/lipschitz_;
+            T step = 0.1/lipschitz_;
             T step_prev = step;
 
             for (int iter = 0; iter < max_iters_; iter++) {
