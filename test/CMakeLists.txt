@@ -10,6 +10,9 @@ pkg_check_modules(HDF5 hdf5 hdf5_cpp)
 include_directories(${HDF5_INCLUDE_DIRS})
 link_directories(${HDF5_LIBRARY_DIRS})
 
+#find JSON
+find_package(nlohmann_json REQUIRED)
+
 add_executable(tvd test_tvd.cpp)
 target_link_libraries(tvd tomocam)
 add_test(test_tvd tvd)
@@ -21,6 +24,7 @@ add_test(test_reader read)
 add_executable(mbir test_mbir.cpp)
 target_link_libraries(mbir PRIVATE tomocam)
 target_link_libraries(mbir PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(mbir PUBLIC nlohmann_json::nlohmann_json)
 add_test(test_mbir mbir)
 
 add_executable(backward test_backward.cpp)
