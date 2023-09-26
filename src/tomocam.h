@@ -27,8 +27,8 @@
 namespace tomocam {
 
     // TODO document
-    template <typename T> DArray<T> upSample(DArray<T> &);
-    template <typename T> DArray<T> downSample(DArray<T> &, int);
+    DArray<float> upSample(DArray<float> &);
+    DArray<float> downSample(DArray<float> &, int);
     
 
     // TODO document

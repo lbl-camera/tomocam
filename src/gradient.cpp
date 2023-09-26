@@ -79,10 +79,6 @@ namespace tomocam {
 
             // delete device_arrays
             cudaStreamSynchronize(ostream);
-            t1.free();
-            t2.free();
-            d_model.free();
-            d_sino.free();
         }
         cudaStreamDestroy(istream);
         cudaStreamDestroy(ostream);
@@ -91,10 +87,6 @@ namespace tomocam {
     // Multi-GPU calll
     void gradient(DArray<float> &model, DArray<float> &sinogram, float *angles,
                   float center, float over_sample) {
-
-        // pin host memory
-        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(sinogram.data(), sinogram.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         if (nDevice > model.slices()) nDevice = model.slices();
@@ -115,8 +107,6 @@ namespace tomocam {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
         }
-        cudaHostUnregister(model.data());
-        cudaHostUnregister(sinogram.data());
     }
 
 } // namespace tomocam

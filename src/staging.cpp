@@ -50,7 +50,5 @@ namespace tomocam {
         // backproject the error
         back_project(proj, model, center, grid);
 
-        // clean up
-        proj.free();
     }
 } // namespace tomocam

@@ -27,6 +27,8 @@
 #include "tomocam.h"
 #include "machine.h"
 
+//#define RESAMPLE
+
 namespace tomocam {
 
     template <typename T>
@@ -38,7 +40,7 @@ namespace tomocam {
         float p,
         int num_iters) {
 
-
+#ifdef RESAMPLE
         auto data = downSample(sino, 4);
         float cor = center / 4;
         dim3_t dims = data.dims();
@@ -54,6 +56,7 @@ namespace tomocam {
         x0.init(1.f);
         Optimizer<T> opt0(dims, num_iters);
         auto sol =  opt0.minimize2(x0, data, theta, cor, oversample, p, sigma);
+        num_iters /= 2;
         delete [] theta; 
 
         
@@ -68,15 +71,19 @@ namespace tomocam {
             theta1[i] = angles[2*i];
 
         x0 = upSample(sol);
-       
-        //x0.init(1.f); 
         Optimizer<T> opt1(x0.dims(), num_iters);
         sol = opt1.minimize2(x0, data, theta1, cor, oversample, p, sigma);
+        num_iters /= 2;
         delete [] theta1; 
-        
        
         // last one
         x0 = upSample(sol);
+#else
+        auto dims = sino.dims();
+        dims.y = dims.z;
+        DArray<float> x0(dims);
+        x0.init(1.f);
+#endif 
         Optimizer<T> opt2(x0.dims(), num_iters);
         return opt2.minimize2(x0, sino, angles, center, oversample, p, sigma);
     }

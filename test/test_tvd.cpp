@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
     fout.close();
 
     // data
-    tomocam::dim3_t dims = {4, 1024, 1024};
+    tomocam::dim3_t dims = {16, 512, 512};
     tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
@@ -99,9 +99,6 @@ int main(int argc, char **argv) {
     add_total_var(a, b, p, sigma);
     cpuTotalVar(a, c, sigma, p);
     auto d = c - b;
-
-    b.to_file("gpu.bin");
-    c.to_file("cpu.bin");
     std::cout << "Max error: " << d.max() << std::endl;        
     std::cout << "L2 error: " << d.norm() / d.size() << std::endl;        
 

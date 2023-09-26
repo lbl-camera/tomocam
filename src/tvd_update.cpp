@@ -88,8 +88,6 @@ namespace tomocam {
             for (int j = 0; j < n_sub; j++) {
                 cudaStreamSynchronize(streams[j]);
                 copy_fromDeviceArray<float>(objs[i * nStreams + j], d_objfn[j], streams[j]);
-                d_model[j].free();
-                d_objfn[j].free();
             }
         }
             
@@ -105,8 +103,6 @@ namespace tomocam {
         if (nDevice > model.slices()) nDevice = model.slices();
         int halo = 1;
 
-        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(objfn.data(), objfn.bytes(), cudaHostRegisterPortable);
         std::vector<Partition<float>> m = model.create_partitions(nDevice, halo);
         std::vector<Partition<float>> f = objfn.create_partitions(nDevice);
 
@@ -116,12 +112,9 @@ namespace tomocam {
             total_var_(m[i], f[i], p, sigma, i);
         }
 
-        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
         }
-        cudaHostUnregister(model.data());
-        cudaHostUnregister(objfn.data());
     }
 } // namespace tomocam

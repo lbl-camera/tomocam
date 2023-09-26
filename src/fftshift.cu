@@ -30,7 +30,7 @@ namespace tomocam {
     __device__ const float TWOPI = 6.283185307179586;
 
     __global__ 
-    void fftshift1D_kernel(dev_arrayc arr) {
+    void fftshift1D_kernel(DeviceMemoryC arr) {
         int3 idx = Index3D();
         if (idx < arr.dims()) {
             float a = powf(-1.f, idx.z & 1);
@@ -39,7 +39,7 @@ namespace tomocam {
     }
 
     __global__ 
-    void fftshift2D_kernel(dev_arrayc arr) {
+    void fftshift2D_kernel(DeviceMemoryC arr) {
         int3 idx = Index3D();
         if (idx < arr.dims()) {
             float a = powf(-1.f, (idx.y + idx.z) & 1);
@@ -48,7 +48,7 @@ namespace tomocam {
     }
 
     __global__ 
-    void fftshift_center_kernel(dev_arrayc arr, float shift) {
+    void fftshift_center_kernel(DeviceMemoryC arr, float shift) {
         int3 idx = Index3D();
         dim3_t dims = arr.dims();
         if (idx < dims) {

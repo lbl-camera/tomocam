@@ -26,7 +26,7 @@
 #include "utils.cuh"
 
 namespace tomocam {
-    __global__ void rescale_kernel(DeviceArray<cuComplex_t> arr, float scale) {
+    __global__ void rescale_kernel(DeviceMemoryC arr, float scale) {
         int3 idx = Index3D();
         if (idx < arr.dims()) 
             arr[idx] = arr[idx]*scale;

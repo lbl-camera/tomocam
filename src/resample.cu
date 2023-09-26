@@ -4,9 +4,8 @@
 
 namespace tomocam {
 
-    template <typename T>
     __global__ void 
-    upsample_kernel(DeviceArray<T> inp, DeviceArray<T> out) {
+    upsample_kernel(DeviceMemory<float> inp, DeviceMemory<float> out) {
 
         // global indices
         auto z = blockDim.x * blockIdx.x + threadIdx.x;
@@ -28,17 +27,13 @@ namespace tomocam {
         }
     } // upsample_kernel
 
-    template <typename T>
-    void upsample(DeviceArray<T> &inp, DeviceArray<T> &out) {
+    void upsample(DeviceArray<float> &inp, DeviceArray<float> &out) {
         Grid grid(inp.dims()); 
         upsample_kernel<<<grid.blocks(), grid.threads()>>>(inp, out);
     }
-    template void upsample(DeviceArray<float> &, DeviceArray<float> &);
 
 
-    template <typename T>
-    __global__ void 
-    downsample_kernel(DeviceArray<T> inp, DeviceArray<T> out, int n) {
+    __global__ void downsample_kernel(DeviceMemory<float> inp, DeviceMemory<float> out, int n) {
 
         auto idx = Index3D();
         int3 idx0 = {n*idx.x, n*idx.y, n*idx.z};  
@@ -47,11 +42,9 @@ namespace tomocam {
         }
     }
 
-    template <typename T>
-    void downsample(DeviceArray<T> &inp, DeviceArray<T> &out, int n) {
+    void downsample(DeviceArray<float> &inp, DeviceArray<float> &out, int n) {
         Grid grid(out.dims()); 
         downsample_kernel<<<grid.blocks(), grid.threads()>>>(inp, out, n);
     }
-    template void downsample(DeviceArray<float> &, DeviceArray<float> &, int n);
 
 } // namespace

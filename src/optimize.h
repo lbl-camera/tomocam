@@ -44,15 +44,21 @@ namespace tomocam {
     }
 
     template <typename T>
-    inline T calc_lipschitz(DArray<T> &x, DArray<T> &sino,
+    inline T calc_lipschitz(int nproj, int ncol,
             float * angles, float center, float oversample, 
             float p, float sigma) {
-        DArray<T> g(x.dims());
-        DArray<T> y(sino.dims());
-        radon(x, y, angles, center, oversample);
-        iradon(y, g, angles, center, oversample);
-        add_tv_hessian(g, sigma);
-        return g.max();
+        dim3_t xdim = {1, ncol, ncol};
+        dim3_t bdim = {1, nproj, ncol};
+
+        DArray<T> x(xdim);
+        x.init(1);
+        DArray<T> b(bdim);
+        b.init(0);
+     
+        radon(x, b, angles, center, oversample);
+        iradon(b, x, angles, center, oversample);
+        add_tv_hessian(x, sigma);
+        return x.max();
     }
 
     template <typename T>
@@ -87,8 +93,11 @@ namespace tomocam {
 
             T t = 1;
             T tnew = 1; 
+
             // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
+            int nprojs = sino.rows();
+            int ncols = sino.cols();
+            T lipschitz_ = calc_lipschitz<float>(nprojs, ncols, angles, center, oversample, p, sigma);
             // gradient step size
             T step = 0.5/lipschitz_;
             T e_old = inf;
@@ -127,8 +136,9 @@ namespace tomocam {
             T t = 1;
             T tnew = 1; 
             // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
-
+            int nprojs = sino.rows();
+            int ncols = sino.cols();
+            T lipschitz_ = calc_lipschitz<float>(nprojs, ncols, angles, center, oversample, p, sigma);
             // gradient step size
             T step = 0.1/lipschitz_;
             T step_prev = step;
@@ -165,6 +175,7 @@ namespace tomocam {
                 }
                 T e = error(x, sino, angles, center, oversample);
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
+                //if (e < 1641.f) break;
             }
             return x;
         }

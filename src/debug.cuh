@@ -23,7 +23,8 @@ namespace tomocam {
         std::ofstream fq("imag.out", std::fstream::out);
         fq.write((char *) imag, SIZE * sizeof(float));
         fq.close();
-    
+        delete [] real;
+        delete [] imag;
         exit(1);
     }
 }

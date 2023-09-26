@@ -31,8 +31,7 @@
 
 namespace tomocam {
 
-    template <typename T>
-    void up_sample(Partition<T> input, Partition<T> output, int device_id) {
+    void up_sample(Partition<float> input, Partition<float> output, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -55,8 +54,8 @@ namespace tomocam {
         for (int i = 0; i < n_batch; i++) {
  
             // copy data to device
-            auto inp = DeviceArray_fromHost<T>(p1[i], istream);
-            auto out = DeviceArray_fromDims<T>(p2[i].dims(), cudaStreamPerThread);
+            auto inp = DeviceArray_fromHost<float>(p1[i], istream);
+            auto out = DeviceArray_fromDims<float>(p2[i].dims(), cudaStreamPerThread);
 
             upsample(inp, out);
 
@@ -66,16 +65,13 @@ namespace tomocam {
 
             // delete device_arrays
             cudaStreamSynchronize(ostream);
-            inp.free();
-            out.free();
         }
         cudaStreamDestroy(istream);
         cudaStreamDestroy(ostream);
     }
 
     // Multi-GPU calll
-    template <typename T>
-    DArray<T> upSample(DArray<T> &input) { 
+    DArray<float> upSample(DArray<float> &input) { 
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         if (nDevice > input.slices()) nDevice = input.slices();
@@ -83,7 +79,7 @@ namespace tomocam {
         // Allocate output array
         auto d = input.dims();
         dim3_t dims2(2*d.x, 2*d.y, 2*d.z);
-        DArray<T> output(dims2);
+        DArray<float> output(dims2);
 
     
         auto p1 = input.create_partitions(nDevice);
@@ -103,5 +99,4 @@ namespace tomocam {
         return output;
     }
 
-    template DArray<float> upSample(DArray<float> &);
 } // namespace tomocam

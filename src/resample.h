@@ -4,10 +4,8 @@
 #include "dev_array.h"
 
 namespace tomocam {
-    template <typename T> 
-    void upsample(DeviceArray<T> &, DeviceArray<T> &);
+    void upsample(DeviceArray<float> &, DeviceArray<float> &);
 
-    template <typename T>
-    void downsample(DeviceArray<T> &, DeviceArray<T> &, int);
+    void downsample(DeviceArray<float> &, DeviceArray<float> &, int);
 } // namespace
 #endif 

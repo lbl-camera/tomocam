@@ -27,7 +27,7 @@
 
 namespace tomocam {
 
-    __global__ void tvd_update_kernel(dev_arrayf model, dev_arrayf objfn, float p, float sigma) {
+    __global__ void tvd_update_kernel(DeviceMemoryF model, DeviceMemoryF objfn, float p, float sigma) {
 
         // thread ids
         int i = threadIdx.z;

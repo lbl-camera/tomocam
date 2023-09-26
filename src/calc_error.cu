@@ -25,7 +25,7 @@
 #include "utils.cuh"
 
 namespace tomocam {
-    __global__ void calc_error_kernel(dev_arrayc model, dev_arrayf data, int ipad) {
+    __global__ void calc_error_kernel(DeviceMemoryC model, DeviceMemoryF data, int ipad) {
 
         int3 idx = Index3D();
         dim3_t d1 = model.dims();

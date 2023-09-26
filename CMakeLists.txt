@@ -31,6 +31,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 option(ENABLE_TESTS "Enable tests" OFF)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+option(ENABLE_HIERARCHICAL "Enable hierarchical reconstrution" OFF)
+if (${ENABLE_HIERARCHICAL})
+add_definitions(-DRESAMPLE)
+endif()
+
 set(SRC 
     ${PROJECT_SOURCE_DIR}/src/backward.cpp 
     ${PROJECT_SOURCE_DIR}/src/forward.cpp

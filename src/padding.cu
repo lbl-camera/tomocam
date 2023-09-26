@@ -26,7 +26,7 @@
 
 namespace tomocam {
     __global__ 
-    void real_to_complex_kernel(dev_arrayf input, dev_arrayc output, int3 padding) {
+    void real_to_complex_kernel(DeviceMemoryF input, DeviceMemoryC output, int3 padding) {
         int3 idx = Index3D();
         if (idx < input.dims()) {
             int3 idx2 = {idx.x + padding.x, idx.y + padding.y, idx.z + padding.z};
@@ -35,7 +35,7 @@ namespace tomocam {
     }
 
     __global__ 
-    void complex_to_real_kernel(dev_arrayc input, dev_arrayf output, int3 padding) {
+    void complex_to_real_kernel(DeviceMemoryC input, DeviceMemoryF output, int3 padding) {
         int3 idx = Index3D();
         if (idx < output.dims()) {
             int3 idx2 = {idx.x + padding.x, idx.y + padding.y, idx.z + padding.z};

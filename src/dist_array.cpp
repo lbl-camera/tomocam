@@ -26,15 +26,13 @@ namespace tomocam {
     DArray<T>::DArray(dim3_t dim) {
         dims_     = dim;
         size_     = dims_.x * dims_.y * static_cast<uint64_t>(dims_.z);
-
-        // allocate memory for the array
         buffer_ = new T [size_];
     }
 
     /* destructor */
     template <typename T>
     DArray<T>::~DArray() {
-        if (buffer_) delete [] buffer_;
+        delete [] buffer_;
     }
 
     /* copy constructor */
@@ -52,6 +50,7 @@ namespace tomocam {
     template <typename T>
     DArray<T>& DArray<T>::operator=(const DArray<T> & other) {
         if (this == &other) return *this;
+        if (buffer_) delete [] buffer_;
 
         dims_ = other.dims_;
         size_ = other.size_;

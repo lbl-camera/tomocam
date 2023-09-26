@@ -28,37 +28,37 @@
 namespace tomocam {
 
     template <typename T>
-    __global__ void _add_vecs(DeviceArray<T> a, DeviceArray<T> b, DeviceArray<T> res) {
+    __global__ void _add_vecs(DeviceMemory<T> a, DeviceMemory<T> b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] + b[idx];
     }
 
     template <typename T>
-    __global__ void _subtract_vecs(DeviceArray<T> a, DeviceArray<T> b, DeviceArray<T> res) {
+    __global__ void _subtract_vecs(DeviceMemory<T> a, DeviceMemory<T> b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] - b[idx];
     }
 
     template <typename T>
-    __global__ void _multiply_vecs(DeviceArray<T> a, DeviceArray<T> b, DeviceArray<T> res) {
+    __global__ void _multiply_vecs(DeviceMemory<T> a, DeviceMemory<T> b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] * b[idx];
     }
 
     template <typename T>
-    __global__ void _divide_vecs(DeviceArray<T> a, DeviceArray<T> b, DeviceArray<T> res) {
+    __global__ void _divide_vecs(DeviceMemory<T> a, DeviceMemory<T> b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] / b[idx];
     }
 
     template <typename T>
-    __global__ void _scale_vecs(DeviceArray<T> a, T b, DeviceArray<T> res) {
+    __global__ void _scale_vecs(DeviceMemory<T> a, T b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] * b;
     }
 
     template <typename T>
-    __global__ void _shift_vecs(DeviceArray<T> a, T b, DeviceArray<T> res) {
+    __global__ void _shift_vecs(DeviceMemory<T> a, T b, DeviceMemory<T> res) {
         int idx = Index1D();
         if (idx < a.size()) res[idx] = a[idx] + b;
     }

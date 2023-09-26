@@ -83,11 +83,6 @@ namespace tomocam {
             // copy 
             copy_fromDeviceArray(sub_sinos[i], t2, ostream);
 
-            // clean up
-            t1.free();
-            t2.free();
-            d_volm.free();
-            d_sino.free();
         }
         cudaStreamDestroy(istream);
         cudaStreamDestroy(ostream);
@@ -96,10 +91,6 @@ namespace tomocam {
     // inverse radon (Multi-GPU call)
     void radon(DArray<float> &input, DArray<float> &output, float * angles,
                 float center, float over_sample) {
-
-        // pin host memory
-        cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(output.data(), output.bytes(), cudaHostRegisterPortable);
 
         int nDevice = MachineConfig::getInstance().num_of_gpus();
         if (nDevice > input.slices()) nDevice = input.slices();
@@ -113,12 +104,9 @@ namespace tomocam {
             radon_(p1[i], p2[i], center, over_sample, angles, i);
 
         // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
         }
-        cudaHostUnregister(input.data());
-        cudaHostUnregister(output.data());
     }
 } // namespace tomocam
