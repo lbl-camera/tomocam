@@ -59,7 +59,7 @@ namespace tomocam {
         // DeviceArray from dims
         DeviceArray(dim3_t dims): dims_(dims) {
             halo_ = {0, 0};
-            size_ = dims_.x * dims_.y * dims_.z;
+            size_ = dims_.x * dims_.y * static_cast<size_t>(dims_.z);
             SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
         }
 
@@ -67,7 +67,7 @@ namespace tomocam {
         DeviceArray(dim3_t d, int *h) : dims_(d) {
             halo_.x = h[0];
             halo_.y = h[1];
-            size_ = dims_.x * dims_.y * dims_.z;
+            size_ = dims_.x * dims_.y * static_cast<size_t>(dims_.z);
             SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
         }
 
@@ -110,11 +110,7 @@ namespace tomocam {
 #ifdef __NVCC__
         // convert to DeviceMemory
         operator DeviceMemory<T>() {
-            return DeviceMemory<T>(dims_, halo_, dev_ptr_);
-        }
-
-        operator DeviceMemory<T>() const {
-            return DeviceMemory<T>(dims_, halo_, dev_ptr_);
+            return DeviceMemory<T>(dims_, size_, halo_, dev_ptr_);
         }
 #endif
     };
@@ -124,8 +120,8 @@ namespace tomocam {
     // create DeviceArray from Partition
     template <typename T>
     DeviceArray<T> DeviceArray_fromHost(Partition<T> p, cudaStream_t stream) {
-        DeviceArray<T> d_arr(p.dims());
-        size_t bytes = sizeof(T) * p.size();
+        DeviceArray<T> d_arr(p.dims(), p.halo());
+        size_t bytes = p.bytes();
         SAFE_CALL(cudaMemcpyAsync(
             d_arr.dev_ptr(), p.begin(), bytes, cudaMemcpyHostToDevice, stream));
         return d_arr;
