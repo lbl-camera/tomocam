@@ -47,9 +47,8 @@ namespace tomocam {
 
       public:
 
-        DeviceMemory(dim3_t d, int2 h, T *ptr): dims_(d), halo_(h), dev_ptr_(ptr) {
-            size_ = (d.x + h.x + h.y) * d.y * d.z;
-        }
+        DeviceMemory(dim3_t d, size_t s, int2 h, T *ptr): 
+            dims_(d), size_(s), halo_(h), dev_ptr_(ptr) {}
 
         __host__ __device__
         T *dev_ptr() { return dev_ptr_; }
