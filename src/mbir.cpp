@@ -48,36 +48,26 @@ namespace tomocam {
         dims.y = dims.z;
 
         // angles
-        float *theta = new float[nproj];
-        for (int i =0; i < nproj; i++)
-            theta[i] = angles[4*i];
-
         DArray<T> x0(dims);
         x0.init(1.f);
         Optimizer<T> opt0(dims, num_iters);
-        auto sol =  opt0.minimize2(x0, data, theta, cor, oversample, p, sigma);
-        num_iters /= 2;
-        delete [] theta; 
+        auto sol =  opt0.minimize2(x0, data, angles, cor, oversample, p, sigma);
 
-        
         // upsample solution
         data = downSample(sino, 2);
         auto d2 = data.dims();
         cor = center / 2;
         nproj = d2.y;
-        // angles 
-        float *theta1 = new float[nproj];
-        for (int i = 0; i < nproj; i++)
-            theta1[i] = angles[2*i];
-
         x0 = upSample(sol);
-        Optimizer<T> opt1(x0.dims(), num_iters);
-        sol = opt1.minimize2(x0, data, theta1, cor, oversample, p, sigma);
         num_iters /= 2;
-        delete [] theta1; 
+        Optimizer<T> opt1(x0.dims(), num_iters);
+        sol = opt1.minimize2(x0, data, angles, cor, oversample, p, sigma);
+
        
         // last one
         x0 = upSample(sol);
+        num_iters /= 2;
+        sigma *= 0.6;
 #else
         auto dims = sino.dims();
         dims.y = dims.z;
