@@ -36,7 +36,7 @@ namespace tomocam {
     __global__ void downsample_kernel(DeviceMemory<float> inp, DeviceMemory<float> out, int n) {
 
         auto idx = Index3D();
-        int3 idx0 = {n*idx.x, n*idx.y, n*idx.z};  
+        int3 idx0 = {n*idx.x, idx.y, n*idx.z};  
         if (idx < out.dims()) {
             out[idx] = inp[idx0];
         }

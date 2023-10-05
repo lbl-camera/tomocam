@@ -76,7 +76,7 @@ namespace tomocam {
 
         // Allocate output array
         auto d = input.dims();
-        dim3_t dims2(d.x/n, d.y/n, d.z/n);
+        dim3_t dims2(d.x/n, d.y, d.z/n);
         DArray<float> output(dims2);
         if (nDevice > output.slices()) nDevice = output.slices();
 
