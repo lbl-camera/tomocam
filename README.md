@@ -1,36 +1,67 @@
-Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
+# Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
 
-**Dependencies**
+## Dependencies
 ----------------
 
 1. CUDA (with cufft and cublas)
-2. pybind11
+2. [pybind11](https://github.com/pybind/pybind11)
 3. numpy
 4. cmake
-5. cufinufft (https://github.com/flatironinstitute/cufinufft)
+5. [finufft](https://github.com/flatironinstitute/finufft)
 
-**Installation**
+## Installation (NERSC Perlmutter)
 -----------------
-Make sure `CUDA`, `cmake`, and `pybind11` are installed.
-
-**Recommended**
-
-
+### Environment
 ```
-install cufinufft
-edit setup.cfg to reflect location of cufinufft
-pip install virtualenv
-virtualenv -p /usr/bin/python3 tomocam-venv
-source tomocam-venv/bin/activate
+module load cudatoolkit
+module load PrgEnv-gnu
+module load cpe-cuda
+module load cmake/3.24.3
+module load cray-hdf5
 ```
 
-with or without virtualenv
-
+### pybind11
 ```
-pip install numpy
+git clone https://github.com/pybind/pybind11.git
+cd pybind11
+mkdir build
+cd build 
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/pybind11 -DPYBIND11_TEST=OFF -DPYBIND11_FINDPYTHON=OFF ..
+make install
+```
+
+### finufft
+```
+git clone https://github.com/flatironinstitute/finufft.git
+cd finufft
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/finufft
+make && make install
+```
+
+### TomoCAM
+```
+git clone https://github.com/lbl-camera/tomocam
 cd tomocam
+git checkout perlmutter
+module load python
+mamba create -n tomocam_env
+mamba activate tomocam_env
 pip install .
 ```
+
+### Recomended (while in mamba invironment)
+```
+mamba install numpy matplotlib
+mamba install -c conda-forge tomopy
+mamba install -c dxchange
+```
+
+### For Jupyter
+
+```
+python -m ipykernel install --user --name tomocam_env --display-name TomoCAM
 
 
 **Copyright Notice**
