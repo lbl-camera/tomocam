@@ -63,10 +63,11 @@ link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
+
 #python
-set(Python_FIND_VIRTUALENV FIRST)
-find_package(Python COMPONENTS Interpreter Development REQUIRED) 
-include_directories(${Python_INCLUDE_DIRS})
+set(Python3_FIND_VIRTUALENV FIRST)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED) 
+include_directories(${Python3_INCLUDE_DIRS})
 
 #pybind11
 find_package(pybind11 REQUIRED) 
@@ -90,7 +91,7 @@ set_target_properties(dummy PROPERTIES
                       POSITION_INDEPENDENT_CODE ON 
                       CUDA_VISIBILITY_PRESET "hidden"
                      )
-set_property(TARGET dummy PROPERTY CUDA_ARCHITECTURES 60)
+set_property(TARGET dummy PROPERTY CUDA_ARCHITECTURES 80)
 
 add_library(cTomocam MODULE src/pyTomocam.cpp ${SRC})
 set_target_properties(cTomocam PROPERTIES 
@@ -100,8 +101,10 @@ set_target_properties(cTomocam PROPERTIES
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
 target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
-target_link_libraries(cTomocam PUBLIC ${cufinufft_LIBRARY})
+target_link_libraries(cTomocam PRIVATE ${cufinufft_LIBRARY})
 target_link_libraries(cTomocam PRIVATE CUDA::cufft)
+target_link_libraries(cTomocam PRIVATE CUDA::cudart)
+target_link_libraries(cTomocam PRIVATE CUDA::cuda_driver)
 target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
@@ -113,7 +116,7 @@ install(TARGETS cTomocam
 if (${ENABLE_TESTS})
     add_library(tomocam STATIC ${SRC})
     target_link_libraries(tomocam PRIVATE dummy) 
-    target_link_libraries(tomocam PUBLIC ${cufinufft_LIBRARY})
+    target_link_libraries(tomocam PRIVATE ${cufinufft_LIBRARY})
     target_link_libraries(tomocam PRIVATE CUDA::cufft)
     target_compile_features(tomocam PRIVATE cxx_std_17)
     add_subdirectory(test)
