@@ -39,7 +39,7 @@ namespace tomocam {
         // nufft type 2
         cufinufftf_plan cufinufft_plan;
         NUFFT_CALL(nufftPlan2(dims, grid, cufinufft_plan));
-        NUFFT_CALL(cufinufftf_execute(sino.dev_ptr(), image.dev_ptr(), cufinufft_plan));
+        NUFFT_CALL(cufinufftf_execute(cufinufft_plan, sino.dev_ptr(), image.dev_ptr()));
         NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
 
         // normalize
