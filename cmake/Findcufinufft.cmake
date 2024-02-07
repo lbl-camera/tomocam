@@ -1,11 +1,11 @@
 
 set(cufinufft_SEARCH_PATHS
-    /global/common/software/als/cufinufft
     /usr/local
     /opt/local
     /usr
     /opt
-    ~/cufinufft
+    /global/cfs/cdirs/m4055/finufft
+    ~/finufft
 )
 
 find_path(cufinufft_INCLUDE_DIR
