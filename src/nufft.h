@@ -61,26 +61,25 @@ namespace tomocam {
     };
 
     inline int nufft_setgrid(NUFFTGrid &grid, cufinufftf_plan &plan) {
-        int ier = cufinufftf_setpts(grid.M, grid.x, grid.y, NULL, 0, NULL, NULL, NULL, plan);
+        int ier = cufinufftf_setpts(plan, grid.M, grid.x, grid.y, NULL, 0, NULL, NULL, NULL);
         return ier;
     }
    
     inline int nufftPlan1(dim3_t dims, NUFFTGrid &grid, cufinufftf_plan &plan) {
         int type = 1;
         int ndim = 2;
-        int nmodes[] = {dims.z, dims.z, 1};
+        int64_t nmodes[] = {dims.z, dims.z, 1};
         int iflag = 1;
         int ntransf = dims.x;
         float tol = 1.e-06;
-
         int err;
+
         // multi-gpu
         cufinufft_opts opts;
-        err = cufinufft_default_opts(type, ndim, &opts);
-        if (err != 0) return err;
+        cufinufft_default_opts(&opts);
 
         opts.gpu_device_id = grid.gpu_device_id;
-        err = cufinufftf_makeplan(type, ndim, nmodes, iflag, ntransf, tol, 0, &plan, &opts);
+        err = cufinufftf_makeplan(type, ndim, nmodes, iflag, ntransf, tol, &plan, &opts);
         if (err != 0) return err;
 
         err = nufft_setgrid(grid, plan);
@@ -90,7 +89,7 @@ namespace tomocam {
     inline int nufftPlan2(dim3_t dims, NUFFTGrid &grid, cufinufftf_plan &plan) {
         int type = 2;
         int ndim = 2;
-        int nmodes[] = {dims.z, dims.z, 1};
+        int64_t nmodes[] = {dims.z, dims.z, 1};
         int iflag = -1;
         int ntransf = dims.x;
         float tol = 1.e-06;
@@ -98,11 +97,11 @@ namespace tomocam {
         int err;
         // multi-gpu
         cufinufft_opts opts;
-        err = cufinufft_default_opts(type, ndim, &opts);
-        if (err != 0) return err;
+        cufinufft_default_opts(&opts);
+
         // set device
         opts.gpu_device_id = grid.gpu_device_id; 
-        err = cufinufftf_makeplan(type, ndim, nmodes, iflag, ntransf, tol, 0, &plan, &opts);
+        err = cufinufftf_makeplan(type, ndim, nmodes, iflag, ntransf, tol, &plan, &opts);
 
         // get grid points
         err = nufft_setgrid(grid, plan);

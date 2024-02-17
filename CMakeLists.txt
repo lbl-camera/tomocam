@@ -79,8 +79,8 @@ if (OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
 
-find_package(cufinufft REQUIRED)
-include_directories(${cufinufft_INCLUDE_DIR})
+find_package(finufft REQUIRED)
+include_directories(${finufft_INCLUDE_DIR})
 
 add_library(dummy STATIC ${CUSRC}) 
 set_target_properties(dummy PROPERTIES 
@@ -98,7 +98,7 @@ target_link_libraries(cTomocam PRIVATE cufft)
 target_link_libraries(cTomocam PRIVATE dummy)
 target_link_libraries(cTomocam PRIVATE pybind11::module)
 target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
-target_link_libraries(cTomocam PUBLIC ${cufinufft_LIBRARY})
+target_link_libraries(cTomocam PRIVATE finufft::finufft)
 target_compile_features(cTomocam PRIVATE cxx_std_17)
 
 install(TARGETS cTomocam 
