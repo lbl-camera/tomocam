@@ -33,12 +33,6 @@ namespace tomocam {
     const int NZ = 16;
     const float MRF_Q = 2.f;
     const float MRF_C = 0.0001f;
-||||||| fac178d
-    const float MRF_Q = 2.f;
-    const float MRF_C = 0.001f;
-=======
-    const float MRF_C = 0.0001f;
->>>>>>> c4669c5e617f9da04c6a3a5b42579aa14a661f54
 
     __device__ const float FILTER[3][3][3] = {
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
