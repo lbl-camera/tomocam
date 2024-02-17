@@ -32,7 +32,7 @@ namespace tomocam {
     const int NY = 16;
     const int NZ = 16;
     const float MRF_Q = 2.f;
-    const float MRF_C = 0.001f;
+    const float MRF_C = 0.0001f;
 
     __device__ const float FILTER[3][3][3] = {
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
