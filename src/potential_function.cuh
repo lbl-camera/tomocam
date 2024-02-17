@@ -33,6 +33,12 @@ namespace tomocam {
     const int NZ = 16;
     const float MRF_Q = 2.f;
     const float MRF_C = 0.0001f;
+||||||| fac178d
+    const float MRF_Q = 2.f;
+    const float MRF_C = 0.001f;
+=======
+    const float MRF_C = 0.0001f;
+>>>>>>> c4669c5e617f9da04c6a3a5b42579aa14a661f54
 
     __device__ const float FILTER[3][3][3] = {
         {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
@@ -41,38 +47,40 @@ namespace tomocam {
 
     __deviceI__ float weight(int i, int j, int k) { return FILTER[i][j][k]; }
 
+    __devhstI__ float sgnf(float v) {
+        float u = fabs(v);
+        if (u > 0) return (v/u);
+        else return 0;
+    }
+
     /*
      *            (|d| / sigma)^q
      *  f(d) =  -------------------
      *          c + (|d| / sigma)^(q-p)
      */
-    __deviceI__ float pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        return ((powf(fabs(delta) / MRF_SIGMA, MRF_Q)) / (MRF_C + powf(fabs(delta) / MRF_SIGMA, MRF_Q - MRF_P)));
+    __devhstI__ float pot_func(float delta, float p, float sigma) {
+        float c = MRF_C;
+        float g = fabs(delta) / sigma;
+        float numer = powf(g, 2.f);
+        float denom = (c + powf(g, 2.f - p));
+        return (numer/denom);
     }
 
-    __deviceI__ float d_pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
-        float MRF_SIGMA_Q_P = powf(MRF_SIGMA, MRF_Q - MRF_P);
+    __devhstI__ float d_pot_func(float delta, float p, float sigma) {
+        float c = MRF_C;
+        float g = fabs(delta) / sigma;
+        float gprime = sgnf(delta) / sigma;
 
-        float temp1 = powf(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA_Q_P;
-        float temp2 = powf(fabs(delta), MRF_Q - 1);
-        float temp3 = MRF_C + temp1;
-
-        if (delta < 0.f) {
-            return ((-1 * temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
-        } else if (delta > 0.f) {
-            return ((temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
-        } else {
-            return 0; // MRF_Q / (MRF_SIGMA_Q*MRF_C);
-        }
+        float temp0 = powf(g, 2.f - p);
+        float numer = g * gprime * (2.f * c + p * temp0);
+        float denom = powf(c + temp0, 2.f);
+        return (numer/denom);
     }
 
     /*Second Derivative of the potential function at zero */
-    __deviceI__ float d2_pot_func_zero(float MRF_SIGMA) {
-        float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
-        return MRF_Q / (MRF_SIGMA_Q * MRF_C);
+    __devhstI__ float dd_pot_func0(float sigma) {
+        return (2.f / sigma / sigma / MRF_C);
     }
-
 } // namespace tomocam
 
 

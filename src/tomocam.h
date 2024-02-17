@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #ifndef TOMOCAM__H
 #define TOMOCAM__H
 
@@ -36,21 +35,26 @@ namespace tomocam {
     void gradient(DArray<float> &, DArray<float> &, float *, float, float);
 
     // TODO document
-    void add_total_var(DArray<float> &, DArray<float> &, float, float);
+    void add_total_var(DArray<float> &, DArray<float> &, float, float, float);
+
+    // TODO document
+    void add_tv_func(DArray<float> &, DArray<float> &, float, float, float);
 
     // TODO document
     void axpy(float, DArray<float> &, DArray<float> &);
 
-	template <typename T>
-    DArray<T> mbir(DArray<T> &, float *, float, float, float, float, int);
+    template <typename T>
+    DArray<T> mbir(
+        DArray<T> &, float *, float, float, float, float, float, int);
 
     // specialize
-    extern template DArray<float> mbir<float>(DArray<float> &, float *, float, float, float, float, int);
+    extern template DArray<float> mbir<float>(
+        DArray<float> &, float *, float, float, float, float, float, int);
 
     /**
      * TODO: document it
      */
-    void add_tv_hessian(DArray<float> &, float);
+    void add_tv_hessian(DArray<float> &, float, float);
 
 } // namespace tomocam
 

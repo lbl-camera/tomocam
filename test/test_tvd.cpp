@@ -15,23 +15,19 @@ namespace tomocam {
             {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
         };
 
-    const float MRF_Q = 2.f;
-    const float MRF_C = 0.001;
+    float sgnf(float v) {
+        if (fabs(v) > 0) return v / fabs(v);
+        else return 0;
+    }
 
-    float d_potfun(float delta, float sigma, float p) {
-        float sigma_q   = std::pow(sigma, MRF_Q);
-        float sigma_q_p = std::pow(sigma, MRF_Q - p);
+    float d_potfun(float delta, float MRF_P, float MRF_SIGMA) {
+        float g = fabs(delta) / MRF_SIGMA;
+        float gprime = sgnf(delta) / MRF_SIGMA;
 
-        float temp1 = std::pow(std::abs(delta), MRF_Q - p) / sigma_q_p;
-        float temp2 = std::pow(std::abs(delta), MRF_Q - 1);
-        float temp3 = MRF_C + temp1;
-
-        if (delta > 0.f) 
-            return ((temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
-        else if (delta < 0.f) 
-            return ((-1 * temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
-        else 
-            return 0; 
+        float temp0 = powf(g, 2-MRF_P);
+        float numer = g * gprime * (2 + MRF_P * temp0);
+        float denom = powf(1 + temp0, 2);
+        return (numer/denom);
     }
 
     // calculate contraints on CPU 
@@ -44,36 +40,32 @@ namespace tomocam {
         int ncol = dims.z;
 
         #pragma omp parallel for
-        for (int i = 0; i < nslc; i++) {
-            for (int j = 0; j < nrow; j++) {
+        for (int i = 0; i < nslc; i++) 
+            for (int j = 0; j < nrow; j++) 
                 for (int k = 0; k < ncol; k++) {
+
                     float u = input(i, j, k);
-                    float v = 0.f;
-                    for (int z = 0; z < 3; z++) {
-                        for (int y = 0; y < 3; y++) {
-                            for (int x = 0; x < 3; x++) {
-                                float d = u - input.padded(i + z - 1, j + y -1, k + x -1);
-                                v += weight[z][y][x] * d_potfun(d, sigma, mrf_p);
+                    for (int x = 0; x < 3; x++) 
+                        for (int y = 0; y < 3; y++) 
+                            for (int z = 0; z < 3; z++) {
+                                float d = u - input.padded(i+x-1, j+y-1, k+z-1);
+                                output(i,j,k) += weight[x][y][z] * d_potfun(d, mrf_p, sigma);
                             }
-                        }
-                    }
-                    output(i, j, k) = v;
                 }
-            }
-        }
     }
 } // namespace tomocam
 
 int main(int argc, char **argv) {
 
     float p = 1.2;
-    float sigma = 0.1;
+    float sigma = 0.0001;
     constexpr int n = 1024;
 
     float * x = new float[n];
     float * y = new float[n];
+    float dx = 2.0 / static_cast<float>(n);
     for (int i = 0; i < n; i++) {
-        x[i] = static_cast<float>(i) / static_cast<float>(n-1);
+        x[i] = -1.0 + i*dx;
         y[i] = tomocam::d_potfun(x[i], sigma, p);
     }
     std::ofstream fout("dpotfunc.txt");
@@ -82,7 +74,8 @@ int main(int argc, char **argv) {
     fout.close();
 
     // data
-    tomocam::dim3_t dims = {4, 1024, 1024};
+    int nrows = 1024;
+    tomocam::dim3_t dims = {4, nrows, nrows};
     tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
@@ -96,7 +89,7 @@ int main(int argc, char **argv) {
     b.init(0.f);
     c.init(0.f);
 
-    add_total_var(a, b, p, sigma);
+    add_total_var(a, b, p, sigma, 1.0);
     cpuTotalVar(a, c, sigma, p);
     auto d = c - b;
 

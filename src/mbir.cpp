@@ -37,6 +37,7 @@ namespace tomocam {
         float oversample,
         float sigma,
         float p,
+        float lambda,
         int num_iters) {
 
         dim3_t dims = sino.dims();
@@ -48,9 +49,9 @@ namespace tomocam {
         sino = (sino - minv) / (maxv - minv);
 
         Optimizer<T> opt(dims, num_iters);
-        return opt.minimize(sino, angles, center, oversample, p, sigma);
+        return opt.minimize(sino, angles, center, oversample, p, sigma, lambda);
     }
 
     template DArray<float> mbir<float>(DArray<float> &, 
-        float *, float, float, float, float, int);
+        float *, float, float, float, float, float, int);
 } // namespace tomocam

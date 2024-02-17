@@ -39,12 +39,14 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/radon.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
+    ${PROJECT_SOURCE_DIR}/src/tv_funcval.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
    )
 
 set(CUSRC 
     ${PROJECT_SOURCE_DIR}/src/nufft_utils.cu
     ${PROJECT_SOURCE_DIR}/src/cuTVD.cu
+    ${PROJECT_SOURCE_DIR}/src/cuTVF.cu
     ${PROJECT_SOURCE_DIR}/src/fftshift.cu
     ${PROJECT_SOURCE_DIR}/src/rescale.cu
     ${PROJECT_SOURCE_DIR}/src/calc_error.cu

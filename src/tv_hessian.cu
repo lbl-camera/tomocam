@@ -31,7 +31,7 @@
 
 namespace tomocam {
 
-    __global__ void hessian_zero_kernel(dev_arrayf hessian, float sigma) {
+    __global__ void hessian_zero_kernel(dev_arrayf hessian, float sigma, float lambda) {
 
         int3 idx = Index3D();
 
@@ -40,17 +40,21 @@ namespace tomocam {
             for (int ix = 0; ix < 3; ix++)
                 for (int iy = 0; iy < 3; iy++)
                     for (int iz = 0; iz < 3; iz++)
-                        temp += weight(ix, iy, iz) * d2_pot_func_zero(sigma);
-            hessian[idx] += temp;
+                        temp += weight(ix, iy, iz) * dd_pot_func0(sigma);
+            hessian[idx] += lambda*temp;
         }
     }
 
-    void add_tv_hessian(DArray<float> &grad, float sigma) {
+    void add_tv_hessian(DArray<float> &grad, float sigma, float lambda) {
 
         // there is only one slice so we dont need multi-gpu machinary
         // move data to gpu
-        auto dev_g = DeviceArray_fromHost<float>(grad.dims(), grad.data(), 0);
+        auto dev_g = DeviceArray_fromHost<float>(grad.dims(), grad.data(), cudaStreamPerThread);
         Grid grid(dev_g.dims());
-        hessian_zero_kernel<<<grid.blocks(), grid.threads()>>>(dev_g, sigma);
+        hessian_zero_kernel<<<grid.blocks(), grid.threads()>>>(dev_g, sigma, lambda);
+
+        // copy data back to host
+        SAFE_CALL(cudaMemcpyAsync(grad.data(), dev_g.dev_ptr(), sizeof(float)*dev_g.size(), 
+                    cudaMemcpyDeviceToHost, cudaStreamPerThread));
     }
 } // namespace tomocam

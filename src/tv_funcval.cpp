@@ -30,7 +30,7 @@
 
 namespace tomocam {
 
-    void total_var_(Partition<float> model, Partition<float> objfn, 
+    void tv_func_(Partition<float> model, Partition<float> objfn, 
         float p, float sigma, float lam, int device) {
 
         cudaError_t status;
@@ -83,7 +83,7 @@ namespace tomocam {
 
             // calcuate constraints and update the objective function in-place
             for (int j = 0; j < n_sub; j++)
-                add_total_var(d_model[j], d_objfn[j], p, sigma, lam, streams[j]);
+                add_tv_func(d_model[j], d_objfn[j], p, sigma, lam, streams[j]);
 
             // copy data back to host memeory
             for (int j = 0; j < n_sub; j++) {
@@ -100,11 +100,10 @@ namespace tomocam {
     }
 
     // multi-GPU call
-    void add_total_var(DArray<float> &model, DArray<float> &objfn,
+    void add_tv_func(DArray<float> &model, DArray<float> &objfn,
             float p, float sigma, float lam) {
 
-        //int nDevice = MachineConfig::getInstance().num_of_gpus();
-        int nDevice = 1;
+        int nDevice = MachineConfig::getInstance().num_of_gpus();
         if (nDevice > model.slices()) nDevice = model.slices();
         int halo = 1;
 
@@ -113,13 +112,13 @@ namespace tomocam {
         std::vector<Partition<float>> m = model.create_partitions(nDevice, halo);
         std::vector<Partition<float>> f = objfn.create_partitions(nDevice);
 
-        //#pragma omp parallel for num_threads(nDevice)
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++){
             cudaSetDevice(i);
-            total_var_(m[i], f[i], p, sigma, lam, i);
+            tv_func_(m[i], f[i], p, sigma, lam, i);
         }
 
-        //#pragma omp parallel for num_threads(nDevice)
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
