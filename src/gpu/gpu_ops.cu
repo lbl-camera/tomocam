@@ -24,7 +24,7 @@
 #include "gpu_ops.cuh"
 
 namespace tomocam {
-    namespace gpu_ops {
+    namespace gpu {
         /**************************
          * Add device arrays      *
          **************************/
@@ -42,7 +42,17 @@ namespace tomocam {
 
         // specialize
         template void add_arrays(const float *, const float *, float *, int, cudaStream_t);
-        template void add_arrays(const cuComplex_t *, const cuComplex_t *, cuComplex_t *, int, cudaStream_t);
+        template void add_arrays(const gpu::complex_t<float> *,
+            const gpu::complex_t<float> *,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void add_arrays(const double *, const double *, double *, int, cudaStream_t);
+        template void add_arrays(const gpu::complex_t<double> *,
+            const gpu::complex_t<double> *,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /**************************
          * subtract device arrays *
@@ -61,7 +71,17 @@ namespace tomocam {
 
         // specialize
         template void subtract_arrays(const float *, const float *, float *, int, cudaStream_t);
-        template void subtract_arrays(const cuComplex_t *, const cuComplex_t *, cuComplex_t *, int, cudaStream_t);
+        template void subtract_arrays(const gpu::complex_t<float> *,
+            const gpu::complex_t<float> *,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void subtract_arrays(const double *, const double *, double *, int, cudaStream_t);
+        template void subtract_arrays(const gpu::complex_t<double> *,
+            const gpu::complex_t<double> *,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /**************************
          * multiply device arrays *
@@ -80,8 +100,17 @@ namespace tomocam {
 
         // specialize
         template void multiply_arrays(const float *, const float *, float *, int, cudaStream_t);
-        template void multiply_arrays(const cuComplex_t *, const cuComplex_t *, cuComplex_t *, int, cudaStream_t);
-
+        template void multiply_arrays(const gpu::complex_t<float> *,
+            const gpu::complex_t<float> *,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void multiply_arrays(const double *, const double *, double *, int, cudaStream_t);
+        template void multiply_arrays(const gpu::complex_t<double> *,
+            const gpu::complex_t<double> *,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /*************************
          * broadcast and multiply
@@ -97,13 +126,22 @@ namespace tomocam {
         }
 
         template <typename T>
-        void broadcast_multiply(const T *a, const T *b, T *c, dim3_t d, cudaStream_t stream) {
-            int3 dims = to_int3(d);
+        void broadcast_multiply(const T *a, const T *b, T *c, dim3_t dims, cudaStream_t stream) {
             Grid grid(dims);
             gpu_broadcast_multiply<<<grid.blocks(), grid.threads(), 0, stream>>>(a, b, c, dims);
         } 
         template void broadcast_multiply(const float *, const float *, float *, dim3_t, cudaStream_t);
-        template void broadcast_multiply(const cuComplex_t *, const cuComplex_t *, cuComplex_t *, dim3_t, cudaStream_t);
+        template void broadcast_multiply(const gpu::complex_t<float> *,
+            const gpu::complex_t<float> *,
+            gpu::complex_t<float> *,
+            dim3_t,
+            cudaStream_t);
+        template void broadcast_multiply(const double *, const double *, double *, dim3_t, cudaStream_t);
+        template void broadcast_multiply(const gpu::complex_t<double> *,
+            const gpu::complex_t<double> *,
+            gpu::complex_t<double> *,
+            dim3_t,
+            cudaStream_t);
 
         /**************************
          * divide device arrays *
@@ -122,7 +160,17 @@ namespace tomocam {
 
         // specialize
         template void divide_arrays(const float *, const float *, float *, int, cudaStream_t);
-        template void divide_arrays(const cuComplex_t *, const cuComplex_t *, cuComplex_t *, int, cudaStream_t);
+        template void divide_arrays(const gpu::complex_t<float> *,
+            const gpu::complex_t<float> *,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void divide_arrays(const double *, const double *, double *, int, cudaStream_t);
+        template void divide_arrays(const gpu::complex_t<double> *,
+            const gpu::complex_t<double> *,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /******************************
          * multiply array with scalar *
@@ -141,7 +189,17 @@ namespace tomocam {
 
         // specialize
         template void scale_array(const float *, float, float *, int, cudaStream_t);
-        template void scale_array(const cuComplex_t *, cuComplex_t, cuComplex_t *, int, cudaStream_t);
+        template void scale_array(const gpu::complex_t<float> *,
+            gpu::complex_t<float>,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void scale_array(const double *, double, double *, int, cudaStream_t);
+        template void scale_array(const gpu::complex_t<double> *,
+            gpu::complex_t<double>,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /**************************
          * add array and a scalar *
@@ -160,7 +218,17 @@ namespace tomocam {
 
         // specialize
         template void shift_array(const float *, float, float *, int, cudaStream_t);
-        template void shift_array(const cuComplex_t *, cuComplex_t, cuComplex_t *, int, cudaStream_t);
+        template void shift_array(const gpu::complex_t<float> *,
+            gpu::complex_t<float>,
+            gpu::complex_t<float> *,
+            int,
+            cudaStream_t);
+        template void shift_array(const double *, double, double *, int, cudaStream_t);
+        template void shift_array(const gpu::complex_t<double> *,
+            gpu::complex_t<double>,
+            gpu::complex_t<double> *,
+            int,
+            cudaStream_t);
 
         /***************************
          * initialize device array *
@@ -179,18 +247,24 @@ namespace tomocam {
 
         // specialize
         template void init_array(float *, float, int, cudaStream_t);
-        template void init_array(cuComplex_t *, cuComplex_t, int, cudaStream_t);
-
+        template void init_array(
+            gpu::complex_t<float> *, gpu::complex_t<float>, int, cudaStream_t);
+        template void init_array(double *, double, int, cudaStream_t);
+        template void init_array(gpu::complex_t<double> *,
+            gpu::complex_t<double>,
+            int,
+            cudaStream_t);
 
         /***************************
          * dot product
          ***************************/
+        template <typename T>
         __global__ void
-        gpu_dot(const float *a, const float *b, float *c, int size) {
+        gpu_dot(const T *a, const T *b, T *c, int size) {
 
             int idx = Index1D();
             int tid = threadIdx.x;
-            extern __shared__ float temp[];
+            T * temp = SharedMemory<T>();
 
             if (idx < size) {
                 temp[tid] = a[idx] * b[idx];
@@ -205,19 +279,70 @@ namespace tomocam {
             }
         }
 
-        float dot(const float *a,  const float *b, int size, cudaStream_t stream) {
+        template <typename T>
+        T dot(const T *a,  const T *b, int size, cudaStream_t stream) {
 
             Grid grid(size);
-            float result;
-            float *d_result; 
+            T result;
+            T *d_result; 
 
-            SAFE_CALL(cudaMalloc(&d_result, sizeof(float)));
-            SAFE_CALL(cudaMemsetAsync(d_result, 0, sizeof(float), stream));
-            size_t shamem = grid.threads().x * sizeof(float);
+            SAFE_CALL(cudaMalloc(&d_result, sizeof(T)));
+            SAFE_CALL(cudaMemsetAsync(d_result, 0, sizeof(T), stream));
+            size_t shamem = grid.threads().x * sizeof(T);
             gpu_dot<<<grid.blocks(), grid.threads(), shamem, stream>>>(a, b, d_result, size);
-            SAFE_CALL(cudaMemcpyAsync(&result, d_result, sizeof(float), cudaMemcpyDeviceToHost, stream));
+            SAFE_CALL(cudaMemcpyAsync(&result, d_result, sizeof(T), cudaMemcpyDeviceToHost, stream));
             return result;
         }
+        // explicit instantiation
+        template float dot(const float *, const float *, int, cudaStream_t);
+        template double dot(const double *, const double *, int, cudaStream_t);
 
-    } // namespace gpu_ops
+        /***************************
+         * cast  real to complex
+         ***************************/
+        template <typename T>
+        __global__ void gpu_cast_array_to_complex(
+            const T *a, gpu::complex_t<T> *b, int size) {
+            int idx = Index1D();
+            if (idx < size) b[idx] = gpu::complex_t<T>(a[idx], 0);
+        }
+
+        template <typename T>
+        void cast_array_to_complex(
+            const T *a, gpu::complex_t<T> *b, int size, cudaStream_t stream) {
+            Grid grid(size);
+            gpu_cast_array_to_complex<T>
+                <<<grid.blocks(), grid.threads(), 0, stream>>>(a, b, size);
+        }
+
+        // specialize
+        template void cast_array_to_complex(
+            const float *, gpu::complex_t<float> *, int, cudaStream_t);
+        template void cast_array_to_complex(
+            const double *, gpu::complex_t<double> *, int, cudaStream_t);
+
+        /***************************
+         * cast  complex to real
+         ***************************/
+        template <typename T>
+        __global__ void gpu_cast_array_to_real(
+            const gpu::complex_t<T> *a, T *b, int size) {
+            int idx = Index1D();
+            if (idx < size) b[idx] = a[idx].real();
+        }
+
+        template <typename T>
+        void cast_array_to_real(
+            const gpu::complex_t<T> *a, T *b, int size, cudaStream_t stream) {
+            Grid grid(size);
+            gpu_cast_array_to_real<T>
+                <<<grid.blocks(), grid.threads(), 0, stream>>>(a, b, size);
+        }
+        // specialize
+        template void cast_array_to_real(
+            const gpu::complex_t<float> *, float *, int, cudaStream_t);
+        template void cast_array_to_real(
+            const gpu::complex_t<double> *, double *, int, cudaStream_t);
+
+    } // namespace gpu
 } // namespace tomocam
