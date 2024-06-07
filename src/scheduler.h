@@ -2,29 +2,31 @@
  * Tomocam Copyright (c) 2018
  *
  * The Regents of the University of California, through Lawrence Berkeley
- *National Laboratory (subject to receipt of any required approvals from the
- *U.S. Dept. of Energy). All rights reserved.
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
  *
  * If you have questions about your rights to use or distribute this software,
  * please contact Berkeley Lab's Innovation & Partnerships Office at
- *IPO@lbl.gov.
+ * IPO@lbl.gov.
  *
  * NOTICE. This Software was developed under funding from the U.S. Department of
  * Energy and the U.S. Government consequently retains certain rights. As such,
- *the U.S. Government has been granted for itself and others acting on its
- *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
- *to reproduce, distribute copies to the public, prepare derivative works, and
- * perform publicly and display publicly, and to permit other to do so.
+ * the U.S. Government has been granted for itself and others acting on its
+ * behalf a paid-up, nonexclusive, irrevocable, worldwide license in the
+ * Software to reproduce, distribute copies to the public, prepare derivative
+ * works, and perform publicly and display publicly, and to permit other to do
+ * so.
  *---------------------------------------------------------------------------------
  */
 
+#include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <optional>
+#include <queue>
 #include <thread>
 #include <tuple>
 #include <vector>
-#include <queue>
-#include <condition_variable>
 
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
@@ -39,7 +41,7 @@ namespace tomocam {
         std::queue<std::tuple<int, Device_t, Types...>> pending_work_;
         std::mutex m_;
         std::condition_variable cv_;
-        bool all_done_;
+        std::atomic<bool> all_done_;
 
       public:
         Scheduler() : all_done_(false) {}
@@ -74,7 +76,10 @@ namespace tomocam {
         }
 
         // check if queue has work
-        bool has_work() const { return (!all_done_ || !pending_work_.empty()); }
+        bool has_work() const {
+            std::lock_guard<std::mutex> lock(m_);
+            return (!all_done_ || !pending_work_.empty());
+        }
 
       private:
         // enqueue one std::vector of Host_t
@@ -92,7 +97,7 @@ namespace tomocam {
             }).detach();
         }
 
-        // enqueue two std::vector of Host_t
+        // enqueue two std::vectors of Host_t
         void enqueue(std::vector<Host_t> h_arr1, std::vector<Host_t> h_arr2) {
             std::thread([this, h_arr1, h_arr2]() {
                 for (int i = 0; i < h_arr1.size(); i++) {
@@ -109,7 +114,6 @@ namespace tomocam {
             }).detach();
         }
     };
-
 } // namespace tomocam
 
 #endif // SCHEDULER_H
