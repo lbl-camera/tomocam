@@ -46,7 +46,7 @@ namespace tomocam {
         // hdf5 complex data type
         template <typename T>
         hid_t makeComplexType() {
-            if (std::is_same<T, float>::value) {
+            if (std::is_convertible<T, std::complex<float>>::value) {
                 hid_t cmplx_id =
                     H5Tcreate(H5T_COMPOUND, sizeof(cmplx_t<float>));
                 H5Tinsert(cmplx_id, "r", HOFFSET(cmplx_t<float>, re),
@@ -54,7 +54,7 @@ namespace tomocam {
                 H5Tinsert(cmplx_id, "i", HOFFSET(cmplx_t<float>, im),
                     H5T_IEEE_F32LE);
                 return cmplx_id;
-            } else if (std::is_same<T, double>::value) {
+            } else if (std::is_convertible<T, std::complex<double>>::value) {
                 hid_t cmplx_id =
                     H5Tcreate(H5T_COMPOUND, sizeof(cmplx_t<double>));
                 H5Tinsert(cmplx_id, "r", HOFFSET(cmplx_t<double>, re),
@@ -63,7 +63,7 @@ namespace tomocam {
                     H5T_IEEE_F64LE);
                 return cmplx_id;
             } else {
-                throw std::runtime_error("Unsupported data type");
+                throw std::runtime_error("Unsupported complex data type");
             }
         }
 

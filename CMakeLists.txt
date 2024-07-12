@@ -22,44 +22,43 @@ project(tomocam CXX CUDA)
 set(tomocam_VERSION_MAJOR 2) 
 set(tomocam_VERSION_MINOR 5)
 
-#C++ 11 Stuff
-set(CMAKE_CXX_STANDARD 17) 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+#C++ Stuff
+set(CMAKE_CXX_STANDARD 20) 
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
 
-option(ENABLE_TESTS "Enable tests" OFF)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-
-set(SRC 
-    ${PROJECT_SOURCE_DIR}/src/backward.cpp 
-    ${PROJECT_SOURCE_DIR}/src/forward.cpp
-    ${PROJECT_SOURCE_DIR}/src/staging.cpp
-    ${PROJECT_SOURCE_DIR}/src/iradon.cpp
-    ${PROJECT_SOURCE_DIR}/src/radon.cpp
-    ${PROJECT_SOURCE_DIR}/src/gradient.cpp
-    ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
-    ${PROJECT_SOURCE_DIR}/src/mbir.cpp
-   )
-
-set(CUSRC 
-    ${PROJECT_SOURCE_DIR}/src/nufft_utils.cu
-    ${PROJECT_SOURCE_DIR}/src/cuTVD.cu
-    ${PROJECT_SOURCE_DIR}/src/fftshift.cu
-    ${PROJECT_SOURCE_DIR}/src/rescale.cu
-    ${PROJECT_SOURCE_DIR}/src/calc_error.cu
-    ${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
-    ${PROJECT_SOURCE_DIR}/src/padding.cu
-    ${PROJECT_SOURCE_DIR}/src/psf.cu
-   )
-
-include_directories(${PROJECT_SOURCE_DIR}/src)
-
 # CUDA Stuff
+find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-link_directories(${CMAKE_CUDA_TOOKIT_LIB_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  set(CMAKE_CUDA_ARCHITECTURES 60)
+endif()
+
+#  local CMake modules
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+
+# Source files
+set(SRC 
+    ${PROJECT_SOURCE_DIR}/src/backward.cpp 
+    ${PROJECT_SOURCE_DIR}/src/iradon.cpp
+    ${PROJECT_SOURCE_DIR}/src/forward.cpp
+    ${PROJECT_SOURCE_DIR}/src/radon.cpp
+    ${PROJECT_SOURCE_DIR}/src/calc_gradient.cpp
+    ${PROJECT_SOURCE_DIR}/src/gradient.cpp
+    ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
+    #${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
+    #${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
+    #${PROJECT_SOURCE_DIR}/src/mbir.cpp
+    #${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/fftshift.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/nufft_utils.cu
+   )
+include_directories(${PROJECT_SOURCE_DIR}/src)
 
 #python
 set(Python_FIND_VIRTUALENV FIRST)
@@ -80,39 +79,33 @@ if (OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
 
-find_package(cufinufft REQUIRED)
-include_directories(${cufinufft_INCLUDE_DIR})
+# finufft
+find_package(finufft REQUIRED)
+include_directories(${finufft_INCLUDE_DIR})
 
-add_library(dummy STATIC ${CUSRC}) 
-set_target_properties(dummy PROPERTIES 
-                      POSITION_INDEPENDENT_CODE ON 
-                      CUDA_VISIBILITY_PRESET "hidden"
-                     )
-set_property(TARGET dummy PROPERTY CUDA_ARCHITECTURES 60)
 
-add_library(cTomocam MODULE src/pyTomocam.cpp ${SRC})
+# build shared library
+add_library(tomocam SHARED ${SRC})
+target_link_libraries(tomocam PUBLIC finufft::finufft)
+target_link_libraries(tomocam PUBLIC CUDA::cufft)
+target_link_libraries(tomocam PUBLIC CUDA::cudart)
+target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
+target_compile_features(tomocam PUBLIC cxx_std_20)
+
+
+# build python module
+add_library(cTomocam MODULE src/pyTomocam.cpp)
 set_target_properties(cTomocam PROPERTIES 
                       CXX_VISIBILITY_PRESET "hidden" 
                       PREFIX "${PYTHON_MODULE_PREFIX}" 
                       SUFFIX "${PYTHON_MODULE_EXTENSION}")
-target_link_libraries(cTomocam PRIVATE cufft)
-target_link_libraries(cTomocam PRIVATE dummy)
-target_link_libraries(cTomocam PRIVATE pybind11::module)
-target_link_libraries(cTomocam PRIVATE ${Python_LIBRARIES})
-target_link_libraries(cTomocam PUBLIC ${cufinufft_LIBRARY})
-target_compile_features(cTomocam PRIVATE cxx_std_17)
-
-install(TARGETS cTomocam 
-        ARCHIVE DESTINATION tomocam
-        LIBRARY DESTINATION tomocam)
+target_link_libraries(cTomocam PUBLIC tomocam)
+target_link_libraries(tomocam PUBLIC pybind11::module)
+target_link_libraries(tomocam PUBLIC ${Python_LIBRARIES})
+target_compile_features(cTomocam PUBLIC cxx_std_20)
 
 
-
+option(ENABLE_TESTS "Enable tests" OFF)
 if (${ENABLE_TESTS})
-    add_library(tomocam STATIC ${SRC})
-    target_link_libraries(tomocam PRIVATE dummy cufft)
-    target_link_libraries(tomocam PRIVATE pybind11::module)
-    target_link_libraries(tomocam PRIVATE ${Python_LIBRARIES})
-    target_compile_features(tomocam PRIVATE cxx_std_17)
     add_subdirectory(test)
 endif()

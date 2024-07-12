@@ -25,48 +25,68 @@
 #define GPU_OPS_PADDING_CUH
 
 namespace tomocam {
+
+    enum class PadType { LEFT, RIGHT, SYMMETRIC };
     namespace gpu {
 
         /**
-         * @brief Pads a 1D array with zeros. 
+         * @brief Pads a 1D array with zeros.
          * if pad_size is negative, the array is left padded, else right padded.
-         * 
-         * @tparam T 
-         * @param arr 
-         * @param pad_size 
-         * @param stream 
-         * @return DeviceArray<T> 
+         *
+         * @tparam T
+         * @param arr
+         * @param pad_size
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
+         * @param stream
+         * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> pad1d(const DeviceArray<T>&, int, cudaStream_t);
-
+        DeviceArray<T> pad1d(const DeviceArray<T> &, int, PadType,
+            cudaStream_t);
 
         /**
-         * @brief pads a 2D array. 
+         * @brief Unpads a 1D array.
+         * if pad_size is negative, the array is left cropped, else right
+         * cropped.
+         *
+         * @tparam T
+         * @param arr
+         * @param pad_size
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
+         * @param stream
+         * @return DeviceArray<T>
+         */
+        template <typename T>
+        DeviceArray<T> unpad1d(const DeviceArray<T> &, int, PadType,
+            cudaStream_t);
+
+        /**
+         * @brief pads a 2D array.
          * data is equally padded on both sides of the array.
-         * 
-         * @tparam T 
-         * @param arr 
-         * @param pad_size 
-         * @param stream 
-         * @return DeviceArray<T> 
+         *
+         * @tparam T
+         * @param arr
+         * @param pad_size
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
+         * @param stream
+         * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> pad2d(const DeviceArray<T>&, int, cudaStream_t);
-
+        DeviceArray<T> pad2d(const DeviceArray<T> &, int, PadType,
+            cudaStream_t);
 
         /**
-         * @brief Unpads a 2D array. 
+         * @brief Unpads a 2D array.
          * data is equally cropped from both sides of the array.
-         * 
-         * @tparam T 
-         * @param arr 
-         * @param pad_size 
-         * @param stream 
-         * @return DeviceArray<T> 
+         *
+         * @tparam T
+         * @param arr
+         * @param pad_size
+         * @param stream
+         * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> unpad2d(const DeviceArray<T>&, int, cudaStream_t);
+        DeviceArray<T> unpad2d(const DeviceArray<T> &, int, cudaStream_t);
 
     } // namespace gpu
 } // namespace tomocam

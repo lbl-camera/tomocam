@@ -26,31 +26,38 @@
 #include "internals.h"
 #include "types.h"
 
-#include "utils.cuh"
+#include "gpu/utils.cuh"
 #include "potential_function.cuh"
 
 namespace tomocam {
+    namespace gpu {
 
-    __global__ void hessian_zero_kernel(dev_memoryF hessian, float sigma) {
+        __global__ void hessian_zero_kernel(DeviceMemoryf hessian,
+            float sigma) {
 
-        int3 idx = Index3D();
+            int3 idx = Index3D();
 
-        if (idx < hessian.dims()) {
-            float temp = 0.f;
-            for (int ix = 0; ix < 3; ix++)
-                for (int iy = 0; iy < 3; iy++)
-                    for (int iz = 0; iz < 3; iz++)
-                        temp += weight(ix, iy, iz) * d2_pot_func_zero(sigma);
-            hessian[idx] += temp;
+            // clang-format off
+            if (idx < hessian.dims()) {
+                float temp = 0.f;
+                for (int ix = 0; ix < 3; ix++)
+                    for (int iy = 0; iy < 3; iy++)
+                        for (int iz = 0; iz < 3; iz++)
+                            temp += weight(ix, iy, iz) * d2_pot_func_zero(sigma);
+                hessian[idx] += temp;
+                // clang-format on
+            }
         }
-    }
 
-    void add_tv_hessian(DArray<float> &grad, float sigma) {
+        void add_tv_hessian(DArray<float> &grad, float sigma) {
 
-        // there is only one slice so we dont need multi-gpu machinary
-        // move data to gpu
-        auto dev_g = DeviceArray_fromHost<float>(grad.dims(), grad.data(), 0);
-        Grid grid(dev_g.dims());
-        hessian_zero_kernel<<<grid.blocks(), grid.threads()>>>(dev_g, sigma);
-    }
+            // there is only one slice so we dont need multi-gpu machinary
+            // move data to gpu
+            auto dev_g =
+                DeviceArray_fromHost<float>(grad.dims(), grad.data(), 0);
+            Grid grid(dev_g.dims());
+            hessian_zero_kernel<<<grid.blocks(), grid.threads()>>>(dev_g,
+                sigma);
+        }
+    } // namespace gpu
 } // namespace tomocam

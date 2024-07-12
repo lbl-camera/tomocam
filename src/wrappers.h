@@ -21,6 +21,8 @@
 
 #include "tomocam.h"
 
+#ifndef TOMOCAM_WRAPPERS_H
+#define TOMOCAM_WRAPPERS_H
 namespace tomocam {
 
     /*
@@ -67,3 +69,5 @@ namespace tomocam {
         return g.max();
     }
 } // namespace tomocam
+
+#endif // TOMOCAM_WRAPPERS_H

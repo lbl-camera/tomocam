@@ -31,11 +31,13 @@ namespace tomocam {
         bool unified_;
         int nStreams_;
         int slcsPerStream_;
+
+      public:
         MachineConfig() {
 
             cudaGetDeviceCount(&ndevice_);
 
-            //    check avilable GPU for managed memory access
+            //check avilable GPU for managed memory access
             std::vector<int> devices;
             for (int i = 0; i < ndevice_; i++) {
                 int result = -1;
@@ -45,17 +47,13 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
+
             nStreams_      = 8;
-            slcsPerStream_ = 16; // slices
+            slcsPerStream_ = 4; // slices
         }
 
-      public:
         MachineConfig(const MachineConfig &) = delete;
         MachineConfig &operator=(const MachineConfig &) = delete;
-        static MachineConfig &getInstance() {
-            static MachineConfig instance;
-            return instance;
-        }
 
         // sync all devices
         void synchronize() {
@@ -80,6 +78,11 @@ namespace tomocam {
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
         int streamsPerGPU() const { return nStreams_; }
+        int num_of_partitions(int slices) const {
+            int n_partitions = slices / slcsPerStream_;
+            if (slices % slcsPerStream_ != 0) n_partitions++;
+            return n_partitions;
+        }
 
         void update_work(int work, int & slices, int & n_streams) {
             if (work < nStreams_) {
@@ -95,6 +98,11 @@ namespace tomocam {
             return;
         } 
     };
+
+    namespace Machine {
+        inline MachineConfig config;
+    }
+
 } // namespace tomocam
 
 #endif // TOMOCAM_MACINE__H

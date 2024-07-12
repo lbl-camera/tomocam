@@ -22,38 +22,54 @@
 
 #include "dev_array.h"
 #include "fft.h"
+#include "fftshift.h"
 #include "internals.h"
-#include "types.h"
 #include "nufft.h"
+#include "types.h"
 
-#include "debug.cuh"
+#include "gpu/padding.cuh"
+
+// #include "debug.h"
 
 namespace tomocam {
 
-    void back_project(dev_arrayZ &sino, dev_arrayZ &image, float center,
-                NUFFTGrid &grid) {
+    template <typename T>
+    DeviceArray<T> backproject(const DeviceArray<T> &sino,
+        const NUFFT::Grid<T> &grid, int offset, cudaStream_t s) {
 
-        // dims
-        dim3_t dims = image.dims();
-    
-        // fftshift
-        fftshift1D(sino, cudaStreamPerThread);
+        // add zeropadding to put center of rotation at center of image
+        PadType pad_type = PadType::RIGHT;
+        if (offset < 0) pad_type = PadType::LEFT;
+        auto in1 = gpu::pad1d(sino, 2 * offset, pad_type, s);
 
-        // 1-D fft
-        auto cufft_plan = fftPlan1D(sino.dims());
-        SAFE_CUFFT_CALL(cufftExecC2C(cufft_plan, sino.dev_ptr(), sino.dev_ptr(), CUFFT_FORWARD));
-        SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
+        // cast to complex
+        auto in2 = complex(in1, s);
 
-        // center shift
-        ifftshift_center(sino, center, cudaStreamPerThread);
+        /* back-project */
+        // shift 0-frequency to corner
+        auto in3 = ifftshift(in2, s);
+        auto in4 = fft1D(in3, s);
+        auto in5 = in4.divide(in4.ncols(), s);
+        auto fk = fftshift(in5, s);
 
-        // normalize after FFT
-        rescale(sino, 1./static_cast<float>(dims.z), cudaStreamPerThread);
+        // wait for fft to finish
+        cudaStreamSynchronize(s);
+
+        // allocate memory for back-projection
+        dim3_t dims = {fk.nslices(), fk.ncols(), fk.ncols()};
+        DeviceArray<gpu::complex_t<T>> out(dims);
 
         // nufft type 1
-        cufinufftf_plan cufinufft_plan;
-        NUFFT_CALL(nufftPlan1(dims, grid, cufinufft_plan));
-        NUFFT_CALL(cufinufftf_execute(sino.dev_ptr(), image.dev_ptr(), cufinufft_plan));
-        NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
+        nufft2d1(fk, out, grid);
+        cudaDeviceSynchronize();
+
+        // cast to real
+        return gpu::unpad2d(real(out, s), offset, s);
     }
+
+    // explicit instantiation
+    template DeviceArray<float> backproject(const DeviceArray<float> &,
+        NUFFT::Grid<float> const &, int, cudaStream_t);
+    template DeviceArray<double> backproject(const DeviceArray<double> &,
+        NUFFT::Grid<double> const &, int, cudaStream_t);
 } // namespace tomocam

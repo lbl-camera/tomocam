@@ -22,39 +22,58 @@
 
 #include "dev_array.h"
 #include "fft.h"
-#include "tomocam.h"
+#include "fftshift.h"
+#include "gpu/padding.cuh"
 #include "internals.h"
-#include "types.h"
 #include "nufft.h"
+#include "tomocam.h"
+#include "types.h"
 
+#include "debug.h"
 
 namespace tomocam {
+    template <typename T>
+    DeviceArray<T> project(const DeviceArray<T> &input,
+        const NUFFT::Grid<T> &grid, int offset, cudaStream_t s) {
 
-    void project(dev_arrayZ &image, dev_arrayZ &sino, float center,
-                NUFFTGrid &grid) {
+        // zero-padding
+        auto in1 = gpu::pad2d(input, 2 * offset, PadType::RIGHT, s);
 
-        // dims
-        dim3_t dims = image.dims();
+        // cast to complex
+        auto in2 = complex(in1, s);
+
+        // allocate nufft output
+        DeviceArray<gpu::complex_t<T>> out(
+            dim3_t(input.nslices(), grid.nprojs(), grid.npixels()));
 
         // nufft type 2
-        cufinufftf_plan cufinufft_plan;
-        NUFFT_CALL(nufftPlan2(dims, grid, cufinufft_plan));
-        NUFFT_CALL(cufinufftf_execute(sino.dev_ptr(), image.dev_ptr(), cufinufft_plan));
-        NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
+        nufft2d2(out, in2, grid);
+        SAFE_CALL(cudaDeviceSynchronize());
 
-        // normalize
-        rescale(sino, 1./static_cast<float>(dims.z * dims.z), cudaStreamPerThread);
+        // write_h5(out);
+        //  1d inverse fft along columns
+        auto out1 = fftshift(out, s);
+        auto out2 = ifft1D(out1, s);
+        write_h5(out2);
+        auto out3 = out2.divide(out2.ncols(), s);
+        auto out4 = ifftshift(out3, s);
 
-        // the center shift
-        fftshift_center(sino, center, cudaStreamPerThread);
+        // cast to real
+        auto out5 = real(out4, s);
 
-        // 1-D ifft
-        // get a handle to cufft plan
-        auto cufft_plan = fftPlan1D(sino.dims());
-        SAFE_CUFFT_CALL(cufftExecC2C(cufft_plan, sino.dev_ptr(), sino.dev_ptr(), CUFFT_INVERSE));
-        SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
-   
-        // fftshift
-        fftshift1D(sino, cudaStreamPerThread);
+        // crop and return
+        if (offset == 0) {
+            return out5;
+        } else {
+            PadType pad_type = offset < 0 ? PadType::LEFT : PadType::RIGHT;
+            return gpu::unpad1d(out5, offset, pad_type, s);
+        }
     }
+
+    // explicit instantiation
+    template DeviceArray<float> project<float>(const DeviceArray<float> &,
+        const NUFFT::Grid<float> &, int, cudaStream_t);
+    template DeviceArray<double> project<double>(const DeviceArray<double> &,
+        const NUFFT::Grid<double> &, int, cudaStream_t);
+
 } // namespace tomocam

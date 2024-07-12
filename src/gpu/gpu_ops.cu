@@ -291,6 +291,7 @@ namespace tomocam {
             size_t shamem = grid.threads().x * sizeof(T);
             gpu_dot<<<grid.blocks(), grid.threads(), shamem, stream>>>(a, b, d_result, size);
             SAFE_CALL(cudaMemcpyAsync(&result, d_result, sizeof(T), cudaMemcpyDeviceToHost, stream));
+            SAFE_CALL(cudaFree(d_result));
             return result;
         }
         // explicit instantiation

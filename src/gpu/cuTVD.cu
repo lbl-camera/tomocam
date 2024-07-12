@@ -29,68 +29,76 @@
 namespace tomocam {
     namespace gpu {
 
-      template <typename T>
-      __global__ void tvd_update_kernel(DeviceMemory<T> model,
-          DeviceMemoryf objfn, T p, T sigma) {
+        template <typename T>
+        __global__ void tvd_update_kernel(float p, float s) {}
 
-        // thread ids
-        int i = threadIdx.z;
-        int j = threadIdx.y;
-        int k = threadIdx.x;
+#ifdef DONOTUSE
+        template <typename T>
+        __global__ void tvd_update_kernel2(DeviceMemory<T> model,
+            DeviceMemory<T> objfn, float p, float sigma) {
 
-        // global offsets
-        int I = blockDim.z * blockIdx.z;
-        int J = blockDim.y * blockIdx.y;
-        int K = blockDim.x * blockIdx.x;
+            // thread ids
+            int i = threadIdx.z;
+            int j = threadIdx.y;
+            int k = threadIdx.x;
 
-        // global ids
-        int x = I + i;
-        int y = J + j;
-        int z = K + k;
+            // global offsets
+            int I = blockDim.z * blockIdx.z;
+            int J = blockDim.y * blockIdx.y;
+            int K = blockDim.x * blockIdx.x;
 
-        // last thread in the block
-        dim3_t dims = objfn.dims();
-        int imax = min(dims.x - I - 1, blockDim.z - 1);
-        int jmax = min(dims.y - J - 1, blockDim.y - 1);
-        int kmax = min(dims.z - K - 1, blockDim.x - 1);
+            // global ids
+            int x = I + i;
+            int y = J + j;
+            int z = K + k;
 
-        if ((x < dims.x) && (y < dims.y) && (z < dims.z)) {
+            // last thread in the block
+            dim3_t dims = objfn.dims();
+            int imax = min(dims.x - I - 1, blockDim.z - 1);
+            int jmax = min(dims.y - J - 1, blockDim.y - 1);
+            int kmax = min(dims.z - K - 1, blockDim.x - 1);
 
-          // size of the array
-          dim3_t dims = objfn.dims();
+            if ((x < dims.x) && (y < dims.y) && (z < dims.z)) {
 
-          /* copy values into shared memory. */
-          __shared__ T s_val[NX + 2][NY + 2][NZ + 2];
+                // size of the array
+                dim3_t dims = objfn.dims();
 
-          // copy from global memory
-          s_val[i + 1][j + 1][k + 1] = model.at(x, y, z);
+                /* copy values into shared memory. */
+                __shared__ float s_val[NX + 2][NY + 2][NZ + 2];
 
-          __syncthreads();
-          /* copy ghost cells, on all 6 faces */
-          // x = 0 face
-          if (i == 0) s_val[i][j + 1][k + 1] = model.at(x - 1, y, z);
+                // copy from global memory
+                s_val[i + 1][j + 1][k + 1] = model.at(x, y, z);
 
-          // x = Nx-1 face
-          if (i == imax) s_val[i + 2][j + 1][k + 1] = model.at(x + 1, y, z);
-          __syncthreads();
+                __syncthreads();
+                /* copy ghost cells, on all 6 faces */
+                // x = 0 face
+                if (i == 0) s_val[i][j + 1][k + 1] = model.at(x - 1, y, z);
 
-          if (j == 0) s_val[i + 1][j][k + 1] = model.at(x, y - 1, z);
+                // x = Nx-1 face
+                if (i == imax)
+                    s_val[i + 2][j + 1][k + 1] = model.at(x + 1, y, z);
+                __syncthreads();
 
-          if (j == jmax) s_val[i + 1][j + 2][k + 1] = model.at(x, y + 1, z);
-          __syncthreads();
+                if (j == 0) s_val[i + 1][j][k + 1] = model.at(x, y - 1, z);
 
-          if (k == 0) s_val[i + 1][j + 1][k] = model.at(x, y, z - 1);
+                if (j == jmax)
+                    s_val[i + 1][j + 2][k + 1] = model.at(x, y + 1, z);
+                __syncthreads();
 
-          if (k == kmax) s_val[i + 1][j + 1][k + 2] = model.at(x, y, z + 1);
-          __syncthreads();
+                if (k == 0) s_val[i + 1][j + 1][k] = model.at(x, y, z - 1);
 
-          /* copy ghost cells along 12 edges  */
-          if (i == 0) {
-            if (j == 0) s_val[i][j][k + 1] = model.at(x - 1, y - 1, z);
-            if (j == jmax) s_val[i][j + 2][k + 1] = model.at(x - 1, y + 1, z);
-          }
-          if (i == imax) {
-            if (j == 0) s_val[i + 2][j][k + 1] = model.at(x + 1, y - 1, z);
+                if (k == kmax)
+                    s_val[i + 1][j + 1][k + 2] = model.at(x, y, z + 1);
+                __syncthreads();
+
+                /* copy ghost cells along 12 edges  */
+                if (i == 0) {
+                    if (j == 0) s_val[i][j][k + 1] = model.at(x - 1, y - 1, z);
+                    if (j == jmax)
+                        s_val[i][j + 2][k + 1] = model.at(x - 1, y + 1, z);
+                }
+                if (i == imax) {
+                    if (j == 0) s_val[i + 2][j][k + 1] = model.at(x + 1, y - 1, z);
             if (j == jmax)
               s_val[i + 2][j + 2][k + 1] = model.at(x + 1, y + 1, z);
           }
@@ -157,25 +165,25 @@ namespace tomocam {
                         d_pot_func(v - s_val[i + ix][j + iy][k + iz], p, sigma);
           objfn(x, y, z) += temp;
         }
-      }
+        }
+#endif // DONOTUSE
 
         template <typename T>
-        void add_total_var(DeviceArray<T> &sol, DeviceArrayf &grad, T p,
-            T sigma, cudaStream_t stream) {
+        void add_total_var(const DeviceArray<T> &sol, DeviceArray<T> &grad,
+            float p, float sigma, cudaStream_t stream) {
 
-          // CUDA kernel parameters
-          Grid grid(grad.dims());
+            // CUDA kernel parameters
+            Grid g(grad.dims());
 
-          // update gradients of objective function inplace
-          tvd_update_kernel<<<grid.blocks(), grid.threads(), 0, stream>>>(sol,
-              grad, p, sigma);
+            // update gradients inplace
+            tvd_update_kernel<T><<<1, 1>>>(p, sigma);
         }
 
         // instantiate the template
-        template void add_total_var(DeviceArrayf &, DeviceArrayf &, float,
-            float, cudaStream_t);
-        template void add_total_var(DeviceArrayd &, DeviceArrayd &, double,
-            double, cudaStream_t);
+        template void add_total_var(const DeviceArray<float> &,
+            DeviceArray<float> &, float, float, cudaStream_t);
+        template void add_total_var(const DeviceArray<double> &,
+            DeviceArray<double> &, float, float, cudaStream_t);
 
     } // namespace gpu
 } // namespace tomocam

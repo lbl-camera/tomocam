@@ -26,78 +26,44 @@
 #include "tomocam.h"
 #include "machine.h"
 
-const float inf = std::numeric_limits<float>::infinity();
-
 #ifndef TOMOCAM_OPTIMIZE__H
 #define TOMOCAM_OPTIMIZE__H
 
 namespace tomocam {
 
-    template <typename T>
-    inline DArray<T> calc_gradient(DArray<T> &x, DArray<T> &sino,
-            float * angles, float center, float oversample, 
-            float p, float sigma) {
-        DArray<T> g = x;
-        gradient(g, sino, angles, center, oversample);
-        add_total_var(x, g, p, sigma);
-        return g;
-    }
 
-    template <typename T>
-    inline T calc_lipschitz(DArray<T> &x, DArray<T> &sino,
-            float * angles, float center, float oversample, 
-            float p, float sigma) {
-        DArray<T> g(x.dims());
-        DArray<T> y(sino.dims());
-        radon(x, y, angles, center, oversample);
-        iradon(y, g, angles, center, oversample);
-        add_tv_hessian(g, sigma);
-        return g.max();
-    }
-
-    template <typename T>
-    inline T error(DArray<T> &x, DArray<T> &sino, 
-            float * angles, float center, float oversample) {
-        DArray<T> g(sino.dims());
-        radon(x, g, angles, center, oversample);
-        return (g - sino).norm();
-    }
-
-    template<typename T>
+    template<typename ObjFunction, typename Gradient>
     class Optimizer {
       private:
-        int max_iters_;
-        T tol_;
-        dim3_t dims_;
+        ObjFunction error_;
+        Gradient gradient_;
 
       public:
+        // constructor
+        Optimizer(ObjFunction f, Gradient g): error_(f), gradient_(g) {}
 
-        Optimizer(dim3_t d, int niters, T tol = inf):
-            dims_(d), max_iters_(niters), tol_(tol) {}
-
-        DArray<T> minimize(DArray<T> &sino, float *angles, float center,
-                float oversample, float p, float sigma) {
+        // fixed step-size
+        template <typename T, template<typename> class Array>
+        Array<T> run(Array<T> sol, int max_iters, T tol, T step_size) {
 
             // initialize 
-            DArray<T> x(dims_);
-            x.init(1.);
-            DArray<T> xold(dims_);
-            xold.init(1.);
-            DArray<T> y(dims_);
-
+            Array<T> x = sol;
+            Array<T> y = sol;
             T t = 1;
             T tnew = 1; 
-            // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
-            // gradient step size
-            T step = 0.5/lipschitz_;
-            T e_old = inf;
-            for (int iter = 0; iter < max_iters_; iter++) {
+
+            // set error to infinity
+            T e_old = std::numeric_limits<T>::infinity();
+
+            for (int iter = 0; iter < max_iters; iter++) {
+
+                
                 T beta = tnew * (1/t - 1);
-                y = x + (x - xold) * beta;
-                auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
-                xold = x;
-                x = y - g * step; 
+                y = sol + (sol - x) * beta;
+                auto g = gradient_(y);
+                x = sol;
+                sol = y - g * step_size;
+
                 // update theta
                 T temp = 0.5 * (std::sqrt(std::pow(t,4) 
                             + 4 * std::pow(t,2))
@@ -105,71 +71,61 @@ namespace tomocam {
                 t = tnew;
                 tnew = temp;
                
-                T e = error(x, sino, angles, center, oversample);
+                T e = error_(sol);
                 if (e > e_old) {
-                    g = calc_gradient(xold, sino, angles, center, oversample, p, sigma);
-                    x = xold - g * step;
-                    e = error(x, sino, angles, center, oversample);
+                    g = gradient_(x);
+                    sol = x - g * step_size;
+                    e = error_(sol);
                 }
                 e_old = e;
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
             }
-            return x;
+            return sol;
         }
 
-        DArray<T> minimize2(DArray<T> &sino, float *angles, float center,
-                float oversample, float p, float sigma) {
+        template <typename T, template<typename> class Array>
+        Array<T> run_wsl(Array<T> sol, int max_iters, T tol, T step_size) {
 
             // initialize 
-            DArray<T> x(dims_);
-            x.init(1.);
-            DArray<T> xold(dims_);
-            xold.init(1.);
-            DArray<T> y(dims_);
-
+            Array<T> x = sol;
+            Array<T> y = sol;
             T t = 1;
             T tnew = 1; 
-            // compute Lipschitz
-            T lipschitz_ = calc_lipschitz(xold, sino, angles, center, oversample, p, sigma);
+            T step0 = step_size;
 
-            // gradient step size
-            T step = 0.5/lipschitz_;
-            T step_prev = step;
-
-            for (int iter = 0; iter < max_iters_; iter++) {
+            for (int iter = 0; iter < max_iters; iter++) {
                 while (true) {
 
                     // update theta
                     T beta = tnew * (1/t - 1);
-                    T a2 = t * t * step / step_prev;
                     tnew = 0.5 * (std::sqrt(std::pow(t,4) 
                              + 4 * std::pow(t,2))
                          - std::pow(t,2));
 
                     // update y
-                    y = x + (x - xold) * beta;
-                    auto g = calc_gradient(y, sino, angles, center, oversample, p, sigma);
+                    y = sol + (sol - x) * beta;
+                    auto g = gradient_(y);
                    
                     // update x
-                    x = y - g * step; 
+                    sol = y - g * step_size;
                  
                     // check if step size is small enough
-                    T fx = error(x, sino, angles, center, oversample);
-                    T fy = error(y, sino, angles, center, oversample);
-                    T gy = 0.5 * step * g.norm();
+                    T fx = error_(sol);
+                    T fy = error_(y);
+                    T gy = 0.5 * step_size * g.norm();
                     if (fx > (fy + gy))
-                        step *= 0.9;
+                        step_size *= 0.9;
                     else {
-                        step_prev = step;
+                        step_size = step0;
                         t = tnew;
-                        xold = x;
+                        x = sol;
                         break;
                     }
                 }
-                T e = error(x, sino, angles, center, oversample);
+                T e = error_(sol);
                 std::cout << "iter: " << iter << ", error: " << e << std::endl;
             }
-            return x;
+            return sol;
         }
     };
 

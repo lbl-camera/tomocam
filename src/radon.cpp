@@ -22,82 +22,78 @@
 
 #include "dev_array.h"
 #include "dist_array.h"
-#include "machine.h"
 #include "internals.h"
+#include "machine.h"
+#include "scheduler.h"
 #include "types.h"
 
 namespace tomocam {
 
-    void radon_(Partition<float> input, Partition<float> sino, float center, float over_sample,
-        float *angles, int device) {
+    template <typename T>
+    void radon_(Partition<T> input, Partition<T> sino, NUFFT::Grid<T> &nugrid,
+        int offset, int device) {
 
-        // initalize the device
-        cudaSetDevice(device);
+        // set device
+        SAFE_CALL(cudaSetDevice(device));
 
-        // size of input and output partitions
-        dim3_t idims = input.dims();
-        dim3_t odims = sino.dims();
+        // create subpartitions
+        int nparts = Machine::config.num_of_partitions(input.nslices());
+        auto sub_ins = create_partitions(input, nparts);
+        auto sub_outs = create_partitions(sino, nparts);
 
-        // create grid for CUFINUFFT
-        int ncols = odims.z;
-        int nproj = odims.y;
-        NUFFTGrid grid(ncols, nproj, angles, device);
+        // create streams
+        cudaStream_t work_s = cudaStreamPerThread;
+        cudaStream_t copy_s;
+        SAFE_CALL(cudaStreamCreate(&copy_s));
 
-        // create sub-partitions
-        int nslcs = MachineConfig::getInstance().slicesPerStream();
-        std::vector<Partition<float>> sub_inputs = input.sub_partitions(nslcs);
-        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(nslcs);
-        int n_batch = sub_inputs.size();
-
-        // create cudaStreams
-        cudaStream_t istream, ostream;
-        cudaStreamCreate(&istream);
-        cudaStreamCreate(&ostream);
-
-        for (int i = 0; i < n_batch; i++) {
-
-            // copy image data to device
-            auto t1 = DeviceArray_fromHost<float>(sub_inputs[i], istream);
-            dev_arrayZ d_volm = real_to_cmplx(t1, istream);
-
-            // create output array with padding
-            dim3_t d = sub_sinos[i].dims();
-            auto d_sino = DeviceArray_fromDims<cuComplex_t>(d, istream);
-
-            // asynchronously launch kernels
-            cudaStreamSynchronize(istream);
-            project(d_volm, d_sino, center, grid); 
-            cudaStreamSynchronize(ostream);
-            cudaStreamSynchronize(cudaStreamPerThread);
-
-            // cast to real data
-            dev_arrayF t2 = cmplx_to_real(d_sino, ostream);
-
-            // copy 
-            copy_fromDeviceArray(sub_sinos[i], t2, ostream);
+        // create and scheduler
+        Scheduler<Partition<T>, DeviceArray<T>> s(sub_ins);
+        while (s.has_work()) {
+            auto work = s.get_work();
+            if (work.has_value()) {
+                auto [idx, d_input] = work.value();
+                auto d_sino = project(d_input, nugrid, offset, work_s);
+                // wait for the forward to finish
+                cudaStreamSynchronize(work_s);
+                // copy the result to the output
+                d_sino.copy_to(sub_outs[idx], copy_s);
+            }
         }
-        cudaStreamDestroy(istream);
-        cudaStreamDestroy(ostream);
+        // wait for copy_s to finish, then destroy it
+        SAFE_CALL(cudaStreamSynchronize(copy_s));
+        SAFE_CALL(cudaStreamDestroy(copy_s));
     }
 
-    // inverse radon (Multi-GPU call)
-    void radon(DArray<float> &input, DArray<float> &output, float * angles,
-                float center, float over_sample) {
+    // radon (Multi-GPU call)
+    template <typename T>
+    DArray<T> project(DArray<T> &input, const std::vector<T> &angles,
+        int center) {
 
-        // pin host memory
-        cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(output.data(), output.bytes(), cudaHostRegisterPortable);
+        int nDevice = Machine::config.num_of_gpus();
+        if (nDevice > input.nslices()) nDevice = input.nslices();
 
-        int nDevice = MachineConfig::getInstance().num_of_gpus();
-        if (nDevice > input.slices()) nDevice = input.slices();
+        // allocate output
+        int nprojs = angles.size();
+        int ncols = input.ncols();
+        dim3_t dims(input.nslices(), nprojs, ncols);
+        DArray<T> output(dims);
 
-        std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
-        std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
+        // axis offset from the center of the image
+        int offset = center - ncols / 2;
+
+        // create the nugrids
+        if (offset != 0) { ncols += 2 * abs(offset); }
+        std::vector<NUFFT::Grid<T>> grids(nDevice);
+        for (int i = 0; i < nDevice; i++)
+            grids[i] = NUFFT::Grid<T>(nprojs, ncols, angles.data(), i);
+
+        auto p1 = create_partitions(input, nDevice);
+        auto p2 = create_partitions(output, nDevice);
 
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) 
-            radon_(p1[i], p2[i], center, over_sample, angles, i);
+        for (int i = 0; i < nDevice; i++)
+            radon_(p1[i], p2[i], grids[i], offset, i);
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
@@ -105,7 +101,13 @@ namespace tomocam {
             cudaSetDevice(i);
             cudaDeviceSynchronize();
         }
-        cudaHostUnregister(input.data());
-        cudaHostUnregister(output.data());
+        return output;
     }
+
+    // specializations for float and double
+    template DArray<float> project(DArray<float> &input,
+        const std::vector<float> &angles, int center);
+    template DArray<double> project(DArray<double> &input,
+        const std::vector<double> &angles, int center);
+
 } // namespace tomocam

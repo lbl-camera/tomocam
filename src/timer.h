@@ -1,20 +1,68 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ *National Laboratory (subject to receipt of any required approvals from the
+ *U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ *IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ *the U.S. Government has been granted for itself and others acting on its
+ *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ *to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
 #include <chrono>
-#include <stdexcept>
+#include <iostream>
 
-using std::chrono::high_resolution_clock;
-typedef std::chrono::high_resolution_clock::time_point time_point_t;
-typedef std::chrono::duration<double, std::milli> delta_time_t;
+#ifndef TIMERS__H 
+#define TIMERS__H
 
+namespace tomocam {
+    class Timer {
+      private:
+        std::chrono::duration<double> elapsed_time_;
+        std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+        std::chrono::time_point<std::chrono::high_resolution_clock> end_time_;
 
-class Timer {
-    private:
-        time_point_t time_stamp_;
-        delta_time_t dt_;
+      public:
+        Timer() = default;
 
-    public:
-        Timer(): time_stamp_(high_resolution_clock::now()), dt_(0) {}
-        void start() { time_stamp_ = high_resolution_clock::now(); }
-        void stop() { dt_ += high_resolution_clock::now() - time_stamp_; }
-        double millisec() const { return dt_.count(); }
-}; 
+        void start() {
+            start_time_ = std::chrono::high_resolution_clock::now();
+        }
 
+        void stop() {
+            end_time_ = std::chrono::high_resolution_clock::now();
+            elapsed_time_ += end_time_ - start_time_;
+        }
+
+        double ms() const {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                elapsed_time_)
+                .count();
+        }
+
+        double us() const {
+            return std::chrono::duration_cast<std::chrono::microseconds>(
+                elapsed_time_)
+                .count();
+        }
+
+        double seconds() const {
+            return std::chrono::duration_cast<std::chrono::seconds>(
+                elapsed_time_)
+                .count();
+        }
+
+        void reset() { elapsed_time_ = std::chrono::duration<double>(0); }
+    };
+
+} // namespace tomocam
+#endif //

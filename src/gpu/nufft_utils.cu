@@ -45,7 +45,7 @@ namespace tomocam {
 
         // wrapper to call nugrid_kernel
         template <typename T>
-        void make_nugrid(int ncols, int nproj, T *x, T *y, const T *angles, cudaStream_t stream) {
+        void make_nugrid(int ncols, int nproj, T *x, T *y, const T *angles) {
 
             // copy angles to device
             T *d_angles;
@@ -65,15 +65,17 @@ namespace tomocam {
             dim3 blocks(n1, n2, 1);
 
             // calculate grid-positions
-            nugrid_kernel<T><<<blocks, threads, 0, stream>>>(ncols, nproj, x, y, d_angles);
+            nugrid_kernel<T><<<blocks, threads>>>(ncols, nproj, x, y, d_angles);
 
             // free device angles
             SAFE_CALL(cudaFree(d_angles));
         }
 
         // explicit instantiation
-        template void make_nugrid<float>(int, int, float *, float *, const float *, cudaStream_t);
-        template void make_nugrid<double>(int, int, double *, double *, const double *, cudaStream_t);
+        template void make_nugrid<float>(int, int, float *, float *,
+            const float *);
+        template void make_nugrid<double>(int, int, double *, double *,
+            const double *);
 
     } // namespace gpu
 } // namespace tomocam

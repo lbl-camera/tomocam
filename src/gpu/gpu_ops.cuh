@@ -146,7 +146,7 @@ namespace tomocam {
          * @param[in] stream - cuda stream
          */
         template <typename T>
-        void make_nugrid(int, int, T *, T *, const T *, cudaStream_t);
+        void make_nugrid(int, int, T *, T *, const T *);
 
     } // namespace gpu
 } // namespace tomocam

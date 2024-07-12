@@ -21,36 +21,75 @@
 
 #include <iostream>
 #include <utility>
+#include <functional>
 #include <pybind11/pybind11.h>
 
 #include "dist_array.h"
 #include "optimize.h"
 #include "tomocam.h"
 #include "machine.h"
+#include "nufft.h"
+#include "wrappers.h"
 
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &sino,
-        float *angles,
-        float center,
-        float oversample,
-        float sigma,
-        float p,
-        int num_iters) {
+    DArray<T> mbir(DArray<T> &sino, T *angles, T center, T sigma, T p, int num_iters, T step_size, T tol, T penalty) {
 
-        dim3_t dims = sino.dims();
-        dims.y = dims.z;
+        // number of gpus available
+        int ndevice = Machine::config.num_of_gpus();
 
-        // normalize
-        T minv = sino.min();
-        T maxv = sino.max();
-        sino = (sino - minv) / (maxv - minv);
+        // recon dimensions
+        int nproj = sino.dims().y;
+        int nslcs = sino.dims().x;
+        int ncols = sino.dims().z;
 
-        Optimizer<T> opt(dims, num_iters);
-        return opt.minimize(sino, angles, center, oversample, p, sigma);
+        dim3_t dims(nslcs, ncols, ncols);
+        DArray<T> sinoT(dims);
+
+        // back-project data
+        back_project(sino, sinoT, angles, center);
+
+        // sinogram dot sinogram
+        T sino_norm = sino.norm();
+
+        // create uniform-grid on each device
+        std::cout << "starting to build NUGrids" << std::endl;
+        NUFFTGrid *nugrids = new NUFFTGrid[ndevice];
+        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
+            nugrids[dev_id] = NUFFTGrid(ncols, nproj, angles, dev_id); 
+        }
+        std::cout << "done building NUGrids" << std::endl;
+
+        // setup wrapper for optimizer
+        auto recon = MBIR<float>(&sinoT, nugrids, p, sigma);
+        
+        /* initialize solution vector */
+        DArray<T> x0(dims);
+        x0.init(static_cast<T>(1));
+
+        auto calc_grad = std::bind(&MBIR<float>::grad, recon, std::placeholders::_1);
+        auto calc_error = std::bind(&MBIR<float>::error, recon, std::placeholders::_1);
+        auto pf = calc_grad(x0);
+
+        /* divide step_size by Lipschitz */
+        auto L = pf.max();
+        step_size /= L; 
+        std::cout << "step_size: " << step_size << ", Lipschitz: " << L << std::endl;
+
+        return x0;
     }
 
-    template DArray<float> mbir<float>(DArray<float> &, 
-        float *, float, float, float, float, int);
+    template DArray<float> mbir(
+                                DArray<float>&, // sinogram
+                                float *,  // angles 
+                                float,    // center 
+                                float,    // sigma
+                                float,    // p 
+                                int,      // num_iters
+                                float,    // step_size
+                                float,    // tol 
+                                float     // penalty
+                               );
+                
 } // namespace tomocam

@@ -21,108 +21,135 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "types.h"
 #include "dev_array.h"
 #include "gpu/dev_memory.cuh"
+#include "gpu/padding.cuh"
 #include "gpu/utils.cuh"
+#include "types.h"
 
 namespace tomocam {
     namespace gpu {
 
         template <typename T>
-        __global__ void pad_left_kernel(DeviceMemory<T> in, DeviceMemory<T> out, int shift) {
+        __global__ void pad1d_kernel(DeviceMemory<T> in, DeviceMemory<T> out,
+            int shift) {
 
             int3 idx = Index3D();
-            if (idx < out.dims()) {
+            if (idx < in.dims()) {
                 int3 out_idx = {idx.x, idx.y, idx.z + shift};
                 out[out_idx] = in[idx];
             }
         }
 
         template <typename T>
-        DeviceArray<T> pad_left(DeviceArray<T> in, int padding, cudaStream_t s) {
+        DeviceArray<T> pad1d(const DeviceArray<T> &in, int padding,
+            PadType type, cudaStream_t s) {
 
-            int shift = std::abs(padding);
-            int ncols = in.ncols() + 2 * std::abs(padding) - 1;
+            // allocate the output array
+            int ncols = in.ncols() + std::abs(padding);
             dim3_t new_dim = {in.nslices(), in.nrows(), ncols};
             DeviceArray<T> out(new_dim);
-            SAFE_CALL(cudaMemset(out.dev_ptr(), 0, out.size() * sizeof(T)));
-        
+            SAFE_CALL(cudaMemset(out.dev_ptr(), 0, out.bytes()));
+
+            // calculate the shift
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = shift;
+
             // cuda kernel launch
             Grid grid(in.dims());
-            pad_left_kernel<T><<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            pad1d_kernel<T>
+                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
             return out;
         }
 
+        // specializations
+        template DeviceArray<float> pad1d(const DeviceArray<float> &, int,
+            PadType, cudaStream_t);
+        template DeviceArray<double> pad1d(const DeviceArray<double> &, int,
+            PadType, cudaStream_t);
 
+        /* one-dimensional crop */
         template <typename T>
-        __global__ void pad_right_kernel(DeviceMemory<T> in, DeviceMemory<T> out) {
+        __global__ void crop_kernel(DeviceMemory<T> in, DeviceMemory<T> out,
+            int shift) {
 
             int3 idx = Index3D();
-            if (idx < out.dims()) 
-                out[idx] = in[idx];
+            if (idx < out.dims()) {
+                int3 in_idx = {idx.x, idx.y, idx.z + shift};
+                out[idx] = in[in_idx];
+            }
         }
 
         template <typename T>
-        DeviceArray<T> pad_right(DeviceArray<T> in, int padding, cudaStream_t s) {
+        DeviceArray<T> unpad1d(const DeviceArray<T> &in, int padding,
+            PadType type, cudaStream_t s) {
 
-            int ncols = in.ncols() + 2 * std::abs(padding) - 1;
-            dim3_t new_dim = {in.nslices(), in.nrows(), ncols};
+            // new dimensions
+            dim3_t new_dim = {in.nslices(), in.nrows(),
+                in.ncols() - std::abs(padding)};
             DeviceArray<T> out(new_dim);
-        
+
+            // set the shift depending on the padding type
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = shift;
+
             // cuda kernel launch
-            Grid grid(in.dims());
-            pad_right_kernel<T><<<grid.blocks(), grid.threads(), 0, s>>>(in, out);
+            Grid grid(out.dims());
+            crop_kernel<T>
+                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
             return out;
         }
-
-        template <typename T>
-        DeviceArray<T> pad1d(const DeviceArray<T> & in, int padding, cudaStream_t s) {
-
-            if (padding < 0)
-                return pad_left(in, padding, s);
-            else
-                return pad_right(in, padding, s);
-        }
         // specializations
-        template DeviceArray<float> pad1d(const DeviceArray<float> &, int, cudaStream_t);
-        template DeviceArray<double> pad1d(const DeviceArray<double> &, int, cudaStream_t);
-
+        template DeviceArray<float> unpad1d(const DeviceArray<float> &, int,
+            PadType, cudaStream_t);
+        template DeviceArray<double> unpad1d(const DeviceArray<double> &, int,
+            PadType, cudaStream_t);
 
         /* two-dimensional padding */
         template<typename T>
         __global__ void pad2d_kernel(DeviceMemory<T> in, DeviceMemory<T> out, int shift) {
 
             int3 idx = Index3D();
-            if (idx < out.dims()) {
+            if (idx < in.dims()) {
                 int3 out_idx = {idx.x, idx.y + shift, idx.z + shift};
                 out[out_idx] = in[idx];
             }
         }
 
         template <typename T>
-        DeviceArray<T> pad2d(const DeviceArray<T> &in, int padding, cudaStream_t s) {
+        DeviceArray<T> pad2d(const DeviceArray<T> &in, int padding,
+            PadType type, cudaStream_t s) {
 
-            int shift = std::abs(padding);
-            int ncols = in.ncols() + 2 * std::abs(padding);
-            int nrows = in.nrows() + 2 * std::abs(padding);
+            // allocate the output array
+            int ncols = in.ncols() + std::abs(padding);
+            int nrows = in.nrows() + std::abs(padding);
             dim3_t new_dim = {in.nslices(), nrows, ncols};
             DeviceArray<T> out(new_dim);
-        
+            SAFE_CALL(cudaMemset(out.dev_ptr(), 0, out.bytes()));
+
+            // calculate the shift
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = std::abs(padding);
+
             // cuda kernel launch
-            Grid grid(out.dims());
-            pad2d_kernel<T><<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            Grid grid(in.dims());
+            pad2d_kernel<T>
+                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
             return out;
         }
         // specializations
-        template DeviceArray<float> pad2d(const DeviceArray<float> &, int, cudaStream_t);
-        template DeviceArray<double> pad2d(const DeviceArray<double> &, int, cudaStream_t);
-
-
+        template DeviceArray<float> pad2d(const DeviceArray<float> &, int,
+            PadType, cudaStream_t);
+        template DeviceArray<double> pad2d(const DeviceArray<double> &, int,
+            PadType, cudaStream_t);
 
         /* two-dimensional crop */
-        template<typename T>
-        __global__ void crop_kernel(DeviceMemory<T> in, DeviceMemory<T> out, int shift) {
+        template <typename T>
+        __global__ void crop2d_kernel(DeviceMemory<T> in, DeviceMemory<T> out,
+            int shift) {
 
             int3 idx = Index3D();
             if (idx < out.dims()) {
@@ -134,24 +161,23 @@ namespace tomocam {
         template <typename T>
         DeviceArray<T> unpad2d(const DeviceArray<T> &in, int padding, cudaStream_t s) {
 
-            int shift = std::abs(padding);
-            int ncols = in.ncols() - 2 * std::abs(padding);
-            dim3_t new_dim = {in.nslices(), in.nrows(), ncols};
+            int shift = std::abs(padding) / 2;
+            int nrows = in.nrows() - std::abs(padding);
+            int ncols = in.ncols() - std::abs(padding);
+            dim3_t new_dim = {in.nslices(), nrows, ncols};
             DeviceArray<T> out(new_dim);
         
             // cuda kernel launch
-            Grid grid(out.dims());
-            crop_kernel<T><<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            Grid grid(new_dim);
+            crop2d_kernel<T>
+                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
             return out;
         }
-
-        // specializations
-        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int, cudaStream_t);
-        template DeviceArray<gpu::complex_t<float>> unpad2d(
-            const DeviceArray<gpu::complex_t<float>> &, int, cudaStream_t);
-        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int, cudaStream_t);
-        template DeviceArray<gpu::complex_t<double>> unpad2d(
-            const DeviceArray<gpu::complex_t<double>> &, int, cudaStream_t);
+        // specializations for float and double
+        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int,
+            cudaStream_t);
+        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int,
+            cudaStream_t);
 
     } // namespace gpu
 } // namespace tomocam

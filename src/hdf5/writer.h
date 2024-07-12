@@ -19,6 +19,7 @@
  */
 
 #include "dist_array.h"
+#include <concepts>
 #include <fstream>
 #include <hdf5.h>
 #include <iostream>
@@ -30,6 +31,13 @@
 #define TOMOCAM_WRITER__H
 
 namespace tomocam {
+
+    template <typename T>
+    concept Complex = requires(T a) {
+        a.real();
+        a.imag();
+    };
+
     namespace h5 {
         class H5Writer {
           private:
@@ -44,7 +52,7 @@ namespace tomocam {
             ~H5Writer() { H5Fclose(file_); }
 
             template <typename T>
-            void write(const char *dataset_name, DArray<T> &array) {
+            void write(const char *dataset_name, const DArray<T> &array) {
                 hsize_t dims[3];
                 dims[0] = array.nslices();
                 dims[1] = array.nrows();
@@ -56,6 +64,59 @@ namespace tomocam {
                     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
                 H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                     array.begin());
+
+                // Close resources
+                H5Dclose(dset);
+                H5Sclose(space);
+            }
+
+            template <Complex T>
+            void write(const char *dataset_name, const DArray<T> &array) {
+                hsize_t dims[3];
+                dims[0] = array.nslices();
+                dims[1] = array.nrows();
+                dims[2] = array.ncols();
+
+                hid_t space = H5Screate_simple(3, dims, NULL);
+                auto dtype = makeComplexType<T>();
+                hid_t dset = H5Dcreate(file_, dataset_name, dtype, space,
+                    H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                    array.begin());
+
+                // Close resources
+                H5Dclose(dset);
+                H5Sclose(space);
+            }
+
+            template <typename T>
+            void write(const char *dataset_name, const std::vector<T> &array) {
+                hsize_t dims[1];
+                dims[0] = array.size();
+
+                hid_t space = H5Screate_simple(1, dims, NULL);
+                auto dtype = getH5Dtype<T>();
+                hid_t dset = H5Dcreate(file_, dataset_name, dtype, space,
+                    H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                    array.data());
+
+                // Close resources
+                H5Dclose(dset);
+                H5Sclose(space);
+            }
+
+            template <Complex T>
+            void write(const char *dataset_name, const std::vector<T> &array) {
+                hsize_t dims[1];
+                dims[0] = array.size();
+
+                hid_t space = H5Screate_simple(1, dims, NULL);
+                auto dtype = makeComplexType<T>();
+                hid_t dset = H5Dcreate(file_, dataset_name, dtype, space,
+                    H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                    array.data());
 
                 // Close resources
                 H5Dclose(dset);

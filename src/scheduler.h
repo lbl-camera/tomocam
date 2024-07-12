@@ -76,8 +76,8 @@ namespace tomocam {
         }
 
         // check if queue has work
-        bool has_work() const {
-            std::lock_guard<std::mutex> lock(m_);
+        bool has_work() {
+            std::lock_guard<std::mutex> lock(this->m_);
             return (!all_done_ || !pending_work_.empty());
         }
 

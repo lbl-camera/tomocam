@@ -6,10 +6,16 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dist_array.h"
-#include "tomocam.h"
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "dev_array.h"
+#include "dist_array.h"
+#include "gpu/padding.cuh"
+#include "hdf5/reader.h"
+#include "hdf5/writer.h"
 #include "internals.h"
+#include "tomocam.h"
 
 uint64_t millisec() {
     using namespace std::chrono;
@@ -18,55 +24,45 @@ uint64_t millisec() {
 
 int main(int argc, char **argv) {
 
-    constexpr int num_slices = 4;
-    constexpr int num_theta = 400;
-    constexpr int num_rays = 2048;
-
-    tomocam::dim3_t d0 = {num_slices, num_rays, num_rays};
-    tomocam::DArray<float> image(d0);
-	image.init(1);
-
-    // padding
-    int ipad = num_rays;
-    int3 padding = {0, ipad, ipad};
-
-    // cudaStreams
-    cudaStream_t s1, s2;
-    cudaStreamCreate(&s1);
-    cudaStreamCreate(&s2);
-
-    // methods1
-    auto p = image.create_partitions(1)[0];
-
-    auto t0 = millisec();
-    auto d_arr1 = tomocam::DeviceArray_fromHostR2C(p, s1);
-    tomocam::addPadding(d_arr1, ipad, 2, s1);
-    cudaStreamSynchronize(s1);
-    auto t1 = millisec();
-    // method2
-    tomocam::dev_arrayf dtemp = tomocam::DeviceArray_fromHost(p, s2);
-    auto d_arr2 = tomocam::add_paddingR2C(dtemp, padding, s2);
-    cudaStreamSynchronize(s2);
-    auto t2 = millisec();
-
-    std::cout << "method 1 time: " << (t1-t0) << ", method 2 time: " << (t2-t1) << std::endl;    
-    
-
-    cuComplex_t * ptr1 = (cuComplex_t *) malloc(sizeof(cuComplex_t) * d_arr1.size());
-    cudaMemcpyAsync(ptr1, d_arr1.dev_ptr(), sizeof(cuComplex_t) * d_arr1.size(), cudaMemcpyDeviceToHost, s1);
-
-    cuComplex_t * ptr2 = (cuComplex_t *) malloc(sizeof(cuComplex_t) * d_arr2.size());
-    cudaMemcpyAsync(ptr2, d_arr2.dev_ptr(), sizeof(cuComplex_t) * d_arr1.size(), cudaMemcpyDeviceToHost, s2);
-  
-    for (int i = 0; i < d_arr1.size(); i++) {
-        float dx = ptr1[i].x - ptr2[i].x;
-        if (dx != 0) {
-            std::cout << "i = " << i << std::endl;
-            std::cout << "p1 = (" << ptr1[i].x << ", " << ptr1[i].y << ")" << std::endl;
-            std::cout << "p2 = (" << ptr2[i].x << ", " << ptr2[i].y << ")" << std::endl;
-            std::cout << "failed ... " << std::endl;
-            std::exit(1);
-        }
+    // read JSON configuration file
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <JSON file>" << std::endl;
+        return 1;
     }
+
+    std::ifstream ifs(argv[1]);
+    auto config = json::parse(ifs);
+
+    // file name
+    std::string fname = config["filename"];
+    std::string dataset = config["dataset"];
+    int center = config["axis"];
+
+    // read hdf5 file
+    tomocam::h5::H5Reader reader(fname.c_str());
+    auto sino = reader.read_sinogram<float>(dataset.c_str(), 1, 0);
+
+    // hdf5 file
+    tomocam::h5::H5Writer fp("padding_test.h5");
+    // write sinogram to file
+    fp.write("unpadded", sino);
+
+    // create a device array
+    tomocam::DeviceArray<float> d_sino(sino.dims());
+    SAFE_CALL(cudaMemcpy(d_sino.dev_ptr(), sino.begin(),
+        sizeof(float) * sino.size(), cudaMemcpyHostToDevice));
+
+    int shift = center - d_sino.ncols() / 2;
+    std::cout << "Shift: " << shift << std::endl;
+    tomocam::PadType type = tomocam::PadType::RIGHT;
+    if (shift < 0) { type = tomocam::PadType::LEFT; }
+    auto padded = tomocam::gpu::pad1d(d_sino, shift, type, 0);
+
+    // copy to host
+    tomocam::DArray<float> arr(padded.dims());
+    SAFE_CALL(cudaMemcpy(arr.begin(), padded.dev_ptr(),
+        sizeof(float) * padded.size(), cudaMemcpyDeviceToHost));
+    fp.write("padded", arr);
+
     return 0;
 }

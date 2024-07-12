@@ -21,30 +21,60 @@
 #ifndef TOMOCAM_COMMON__H
 #define TOMOCAM_COMMON__H
 
-
 namespace tomocam {
     struct dim3_t {
         int x, y, z;
         dim3_t() : x(0), y(0), z(0) {}
         dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
-        bool operator==(const dim3_t & other){
+
+        bool operator==(const dim3_t &other) const {
             if ((x == other.x) && (y == other.y) && (z == other.z))
                 return true;
             else
                 return false;
         }
-        bool operator!=(const dim3_t & other){
+
+        bool operator!=(const dim3_t &other) const {
             if ((x == other.x) && (y == other.y) && (z == other.z))
                 return false;
             else
                 return true;
         }
+
+        dim3_t operator-(const dim3_t &other) const {
+            dim3_t v(x-other.x, y-other.y, z-other.z);
+            return v;
+        }
+
+        dim3_t operator+(const dim3_t &other) const {
+            dim3_t v(x+other.x, y+other.y, z+other.z);
+            return v;
+        }
+
+        dim3_t operator*(int scalar) const {
+            dim3_t v(x*scalar, y*scalar, z*scalar);
+            return v;
+        }
+
+#ifdef __NVCC__
+        __host__ __device__
+        dim3_t operator=(const int3 & rhs) {
+            x = rhs.x;
+            y = rhs.y;
+            z = rhs.z;
+            return *this;
+        }
+        
+        __host__ __device__
+        operator int3() const {
+            return make_int3(x, y, z);
+        }
+#endif // __NVCC__ 
     };
 
-    inline int ceili(int a, int b) {
-        int n = a / b;
-        if (a % b) n = n + 1;
-        return n;
+    inline dim3_t operator*(int scalar, const dim3_t &v){
+        return v*scalar;
     }
+
 } // namespace 
 #endif // TOMOCAM_COMMON__H

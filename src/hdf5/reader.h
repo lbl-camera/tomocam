@@ -41,10 +41,15 @@ namespace tomocam {
 
             ~H5Reader() { H5Fclose(fp_); }
 
-            // read projection data into sinogram format
+            /** read projection data into sinogram format
+             * @param dataset dataset name
+             * @param nslice number of slices to read, 0 for all
+             * @param begin starting slice index, 0 is default
+             * @return sinogram data
+             */
             template <typename T>
-            DArray<T> read_sinogram(const char *dataset, hsize_t nslice,
-                hsize_t begin = 0) {
+            DArray<T> read_sinogram(const char *dataset, hsize_t begin = 0,
+                hsize_t end = -1) {
 
                 // open dataset
                 hid_t dset = H5Dopen2(fp_, dataset, H5P_DEFAULT);
@@ -56,10 +61,13 @@ namespace tomocam {
                 hsize_t dims[3] = {0, 0, 0};
                 int ndim = H5Sget_simple_extent_dims(fspace, dims, NULL);
 
+                if (end == -1) { end = dims[1]; }
+
                 // check bounds
-                if (begin + nslice > dims[1]) {
+                if ((end - begin) > dims[1]) {
                     throw std::runtime_error("Index out of bounds");
                 }
+                hsize_t nslice = end - begin;
 
                 // data type
                 hid_t dtype = H5Dget_type(dset);
@@ -67,30 +75,79 @@ namespace tomocam {
                     throw std::runtime_error("Data type mismatch");
                 }
 
-                // allocate return value
-                dim3_t shape = {(int)nslice, (int)dims[0], (int)dims[2]};
-                DArray<T> a(shape);
-
-                // read sinogram
-                /* projection data is strored in the order of [angle, h, r]
-                 * we need to transpose the data to [h, angle, r]. This means
-                 * reading one slice at a time with appropriate offset.
-                 **/
 
                 // create memory space for reading
-                hsize_t out_dims[3] = {1, dims[0], dims[2]};
+                hsize_t out_dims[3] = {dims[0], nslice, dims[2]};
                 hid_t out_space = H5Screate_simple(3, out_dims, NULL);
+                DArray<T> A({(int)dims[0], (int)nslice, (int)dims[2]});
 
                 // hyperslab selection
-                hsize_t count[3] = {dims[0], 1, dims[2]};
-                for (hsize_t i = begin; i < begin + nslice; i++) {
-                    hsize_t start[3] = {0, i, 0};
-                    H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL,
-                        count, NULL);
-                    H5Dread(dset, dtype, out_space, fspace, H5P_DEFAULT,
-                        a.slice(i - begin));
+                hsize_t count[3] = {dims[0], nslice, dims[2]};
+                hsize_t start[3] = {0, begin, 0};
+                H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL, count,
+                    NULL);
+                H5Dread(dset, dtype, out_space, fspace, H5P_DEFAULT, A.begin());
+
+                // allocate return value
+                DArray<T> B({(int)nslice, (int)dims[0], (int)dims[2]});
+
+                // transpose data
+                #pragma omp parallel for
+                for (uint64_t i = 0; i < nslice; i++)
+                    for (uint64_t j = 0; j < dims[0]; j++)
+                        for (uint64_t k = 0; k < dims[2]; k++)
+                            B(i, j, k) = A(j, i, k);
+
+                // clean up
+                H5Sclose(out_space);
+                H5Sclose(fspace);
+                H5Dclose(dset);
+                return B;
+            }
+
+            template <typename T>
+            DArray<T> read2(const char *dataset, int begin = 0, int end = -1) {
+
+                // open dataset
+                hid_t dset = H5Dopen2(fp_, dataset, H5P_DEFAULT);
+
+                // get dataspace
+                hid_t fspace = H5Dget_space(dset);
+
+                // get full data dimensions
+                hsize_t dims[3] = {0, 0, 0};
+                int ndim = H5Sget_simple_extent_dims(fspace, dims, NULL);
+                if (end == -1) { end = dims[0]; }
+
+                // check bounds
+                if ((end - begin) > dims[0]) {
+                    throw std::runtime_error("Index out of bounds");
                 }
-                return a;
+                hsize_t nslice = end - begin;
+
+                // data type
+                hid_t dtype = H5Dget_type(dset);
+                if (!(H5Tequal(dtype, getH5Dtype<T>()))) {
+                    throw std::runtime_error("Data type mismatch");
+                }
+
+                // create memory space for reading
+                hsize_t out_dims[3] = {nslice, dims[1], dims[2]};
+                hid_t out_space = H5Screate_simple(3, out_dims, NULL);
+                DArray<T> A({(int)nslice, (int)dims[1], (int)dims[2]});
+
+                // hyperslab selection
+                hsize_t count[3] = {nslice, dims[1], dims[2]};
+                hsize_t start[3] = {(hsize_t)begin, 0, 0};
+                H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL, count,
+                    NULL);
+                H5Dread(dset, dtype, out_space, fspace, H5P_DEFAULT, A.begin());
+
+                // clean up
+                H5Sclose(out_space);
+                H5Sclose(fspace);
+                H5Dclose(dset);
+                return A;
             }
 
             template <typename T>

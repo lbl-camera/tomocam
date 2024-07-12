@@ -21,58 +21,73 @@
 #include <cuda_runtime.h>
 
 #include "dev_array.h"
-#include "utils.cuh"
+#include "gpu/utils.cuh"
 
 #ifndef TOMOCAM_POTENTIAL_FUCTION__H
 #define TOMOCAM_POTENTIAL_FUCTION__H
 
 namespace tomocam {
+    namespace gpu {
+        const int NX = 1;
+        const int NY = 16;
+        const int NZ = 16;
+        const float MRF_Q = 2.f;
+        const float MRF_C = 0.001f;
 
-    const int NX = 1;
-    const int NY = 16;
-    const int NZ = 16;
-    const float MRF_Q = 2.f;
-    const float MRF_C = 0.001f;
+        // clang-format off
+        __device__ const float FILTER[3][3][3] = {{{0.0302, 0.0370, 0.0302},
+                                                   {0.0370, 0.0523, 0.0370},
+                                                   {0.0302, 0.0370, 0.0302}},
+                                                  {{0.0370, 0.0523, 0.0370}, 
+                                                   {0.0523, 0.0000, 0.0523},
+                                                   {0.0370, 0.0523, 0.0370}},
+                                                  {{0.0302, 0.0370, 0.0302}, 
+                                                   {0.0370, 0.0523, 0.0370},
+                                                   {0.0302, 0.0370, 0.0302}}};
 
-    __device__ const float FILTER[3][3][3] = {
-        {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}},
-        {{0.0370, 0.0523, 0.0370}, {0.0523, 0.0000, 0.0523}, {0.0370, 0.0523, 0.0370}},
-        {{0.0302, 0.0370, 0.0302}, {0.0370, 0.0523, 0.0370}, {0.0302, 0.0370, 0.0302}}};
+        // clang-format on
 
-    __deviceI__ float weight(int i, int j, int k) { return FILTER[i][j][k]; }
-
-    /*
-     *            (|d| / sigma)^q
-     *  f(d) =  -------------------
-     *          c + (|d| / sigma)^(q-p)
-     */
-    __deviceI__ float pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        return ((powf(fabs(delta) / MRF_SIGMA, MRF_Q)) / (MRF_C + powf(fabs(delta) / MRF_SIGMA, MRF_Q - MRF_P)));
-    }
-
-    __deviceI__ float d_pot_func(float delta, float MRF_P, float MRF_SIGMA) {
-        float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
-        float MRF_SIGMA_Q_P = powf(MRF_SIGMA, MRF_Q - MRF_P);
-
-        float temp1 = powf(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA_Q_P;
-        float temp2 = powf(fabs(delta), MRF_Q - 1);
-        float temp3 = MRF_C + temp1;
-
-        if (delta < 0.f) {
-            return ((-1 * temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
-        } else if (delta > 0.f) {
-            return ((temp2 / (temp3 * MRF_SIGMA_Q)) * (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
-        } else {
-            return 0; // MRF_Q / (MRF_SIGMA_Q*MRF_C);
+        __deviceI__ float weight(int i, int j, int k) {
+            return FILTER[i][j][k];
         }
-    }
 
-    /*Second Derivative of the potential function at zero */
-    __deviceI__ float d2_pot_func_zero(float MRF_SIGMA) {
-        float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
-        return MRF_Q / (MRF_SIGMA_Q * MRF_C);
-    }
+        /*
+         *            (|d| / sigma)^q
+         *  f(d) =  -------------------
+         *          c + (|d| / sigma)^(q-p)
+         */
+        __deviceI__ float pot_func(float delta, float MRF_P, float MRF_SIGMA) {
+            return ((powf(fabs(delta) / MRF_SIGMA, MRF_Q)) /
+                    (MRF_C + powf(fabs(delta) / MRF_SIGMA, MRF_Q - MRF_P)));
+        }
 
+        __deviceI__ float d_pot_func(float delta, float MRF_P,
+            float MRF_SIGMA) {
+            float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
+            float MRF_SIGMA_Q_P = powf(MRF_SIGMA, MRF_Q - MRF_P);
+
+            float temp1 = powf(fabs(delta), MRF_Q - MRF_P) / MRF_SIGMA_Q_P;
+            float temp2 = powf(fabs(delta), MRF_Q - 1);
+            float temp3 = MRF_C + temp1;
+
+            if (delta < 0.f) {
+                return ((-1 * temp2 / (temp3 * MRF_SIGMA_Q)) *
+                        (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
+            } else if (delta > 0.f) {
+                return ((temp2 / (temp3 * MRF_SIGMA_Q)) *
+                        (MRF_Q - ((MRF_Q - MRF_P) * temp1) / (temp3)));
+            } else {
+                return 0; // MRF_Q / (MRF_SIGMA_Q*MRF_C);
+            }
+        }
+
+        /*Second Derivative of the potential function at zero */
+        __deviceI__ float d2_pot_func_zero(float MRF_SIGMA) {
+            float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
+            return MRF_Q / (MRF_SIGMA_Q * MRF_C);
+        }
+
+    } // namespace gpu
 } // namespace tomocam
 
 

@@ -50,73 +50,114 @@ namespace tomocam {
         }
 
         dim3_t dims() const { return dims_; }
+        int nslices() const { return dims_.x; }
+        int nrows() const { return dims_.y; }
+        int ncols() const { return dims_.z; } 
         uint64_t size() const { return size_; }
         size_t bytes() const { return size_ * sizeof(T); }
         int  *halo() { return halo_; }
+        const int  *halo() const { return halo_; }
 
         T *begin() { return first_; }
+        const T *begin() const { return first_; }
         T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
+        const T *slice(int i) const { return first_ + i * dims_.y * dims_.z; }
 
-        // create sub-partions 
-        std::vector<Partition<T>> sub_partitions(int nmax) {
-            std::vector<Partition<T>> table;
-
-            int offset = 0;
-            int n_partitions = dims_.x / nmax;
-            dim3_t d(nmax, dims_.y, dims_.z);
-            for (int i = 0; i < n_partitions; i++) {
-                table.push_back(Partition<T>(d, slice(offset)));
-                offset += nmax;
-            }
-            int n_extra = dims_.x % nmax;
-            if (n_extra > 0) {
-                d.x = n_extra;
-                table.push_back(Partition<T>(d, slice(offset)));
-            }
-            return table;
+        T &operator()(int i, int j, int k) {
+            return first_[i * dims_.y * dims_.z + j * dims_.z + k];
         }
-    
-        // and with halo, as well
-        std::vector<Partition<T>> sub_partitions(int partition_size, int halo) {
-            std::vector<Partition<T>> table;    
-
-            int sub_halo[2];
-            int slcs = dims_.x - halo_[0] - halo_[1];
-            int n_partitions = slcs / partition_size;
-            int n_extra = slcs % partition_size;
-            std::vector<int> locations;
-
-            for (int i = 0; i < n_partitions; i++)
-                locations.push_back(halo_[0] + i * partition_size);
-            locations.push_back(halo_[0] + n_partitions * partition_size);
-
-            // if they don't divide nicely
-            if (n_extra > 0) {
-                locations.push_back(dims_.x);
-                n_partitions += 1;
-            }
-
-            for (int i = 0; i < n_partitions; i++) {
-                int imin = std::max(locations[i] - halo, 0);
-                // check if it is an end
-                if ((i == 0) && (halo_[0] == 0)) 
-                    sub_halo[0] = 0;
-                else 
-                    sub_halo[0] = halo;
-
-                int imax = std::min(locations[i+1] + halo, dims_.x);
-                // check if it is an end
-                if ((i == n_partitions-1) && (halo_[1] == 0))
-                    sub_halo[1] = 0;
-                else 
-                    sub_halo[1] = halo;
-
-                dim3_t d(imax-imin, dims_.y, dims_.z);
-                table.push_back(Partition<T>(d, slice(imin), sub_halo));
-            }
-            return table;
+        T operator()(int i, int j, int k) const {
+            return first_[i * dims_.y * dims_.z + j * dims_.z + k];
         }
     };
+
+    // partition an array into sub-partitions
+    template <typename T, template <typename> class Array>
+    std::vector<Partition<T>> create_partitions(Array<T> &a, int npartitions) {
+
+        // create sub-partions
+        std::vector<Partition<T>> table;
+        auto dims = a.dims();
+
+        int xparts = dims.x / npartitions;
+        int nextra = dims.x % npartitions;
+        int offset = 0;
+        for (int i = 0; i < npartitions; i++) {
+            dim3_t d(xparts, dims.y, dims.z);
+            if (i < nextra) d.x += 1;
+            table.push_back(Partition<T>(d, a.slice(offset)));
+            offset += d.x;
+        }
+        return table;
+    }
+
+    // partition an array into sub-partitions with halo in x-direction
+    template <typename T, template <typename> class Array>
+    std::vector<Partition<T>> create_partitions(Array<T> &a, int npartitions,
+        int halo) {
+
+        // partition the array into sub-partitions with halo in x-direction
+        std::vector<Partition<T>> table;
+        auto dims = a.dims();
+
+        // check if the array has halo member-function
+        constexpr bool has_halo = requires(const Array<T> &a) { a.halo(); };
+
+        // get existing halo, if any
+        int offset;
+        int ahalo[2];
+        if constexpr (has_halo) {
+            ahalo[0] = a.halo()[0];
+            ahalo[1] = a.halo()[1];
+            offset = std::max(ahalo[0] - halo, 0);
+        } else {
+            ahalo[0] = 0;
+            ahalo[1] = 0;
+            offset = 0;
+        }
+
+        // actual number of slices
+        int nslcs = dims.x - ahalo[0] - ahalo[1];
+        int xparts = nslcs / npartitions;
+        int nextra = nslcs % npartitions;
+
+        // make first partition.
+        int nx = xparts + halo;
+        int h[2] = {0, halo};
+        if (ahalo[0] > 0) {
+            nx += halo;
+            h[0] = halo;
+        }
+        if (nextra > 0) nx += 1;
+        dim3_t d(nx, dims.y, dims.z);
+        table.push_back(Partition<T>(d, a.slice(offset), h));
+        offset = xparts;
+        if (nextra > 0) offset += 1;
+        if (ahalo[0] > 0) offset += halo;
+
+        // create the rest of the partitions, but the last one
+        for (int i = 1; i < npartitions - 1; i++) {
+            dim3_t d(xparts + 2 * halo, dims.y, dims.z);
+            if (i < nextra) d.x += 1;
+            h[0] = halo;
+            h[1] = halo;
+            table.push_back(Partition<T>(d, a.slice(offset - halo), h));
+            offset += xparts;
+            if (i < nextra) offset += 1;
+        }
+
+        // make the last partition. If there is halo at the end, keep it
+        nx = xparts + halo;
+        h[0] = halo;
+        h[1] = 0;
+        if (ahalo[1] > 0) {
+            nx += halo;
+            h[1] = halo;
+        }
+        dim3_t d2(nx, dims.y, dims.z);
+        table.push_back(Partition<T>(d2, a.slice(offset - halo), h));
+        return table;
+    }
 } // namespace tomocam
 
 #endif // TOMOCAM_PARTITION__H

@@ -1,15 +1,55 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 
-#include "reader.h"
+#include <nlohmann/json.hpp>
 
-const char * FILENAME = "/home/dkumar/data/phantom/phantom_00016/phantom_00016.h5";
-const char * DATASET = "projs";
+#include "hdf5/reader.h"
+#include "hdf5/writer.h"
 
-int main() {
+using json = nlohmann::json;
 
-    tomocam::H5Reader reader(FILENAME); 
-    reader.setDataset(DATASET);
-    auto sino = reader.read_sinogram(2);
+int main(int argc, char *argv[]) {
+
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <JSON file>" << std::endl;
+        return 1;
+    }
+
+    // read JSON file
+    std::ifstream json_file(argv[1]);
+    if (!json_file.is_open()) {
+        std::cerr << "Failed to open file: " << argv[1] << std::endl;
+        return 1;
+    }
+    nlohmann::json cfg = json::parse(json_file);
+
+    // get filename
+    const std::string filename = cfg["filename"];
+    const std::string dataset = cfg["dataset"];
+    const std::string angles = cfg["angles"];
+    int begin = 0;
+    int end = -1;
+    // check for slices key
+    if (cfg.find("slices") != cfg.end()) {
+        auto slices = cfg["slices"];
+        begin = slices[0];
+        end = slices[1];
+    }
+
+    // check if file exists
+    if (!std::filesystem::exists(filename)) {
+        std::cerr << "File does not exist: " << filename << std::endl;
+        return 1;
+    }
+    tomocam::h5::H5Reader reader(filename.c_str());
+    auto sino = reader.read_sinogram<float>(dataset.c_str(), begin, end);
+    auto theta = reader.read<float>(angles.c_str());
+
+    // write sinogram to file
+    const std::string output_filename = cfg["output"];
+    tomocam::h5::H5Writer writer(output_filename.c_str());
+    writer.write<float>("sino", sino);
+
     return 0;
 }

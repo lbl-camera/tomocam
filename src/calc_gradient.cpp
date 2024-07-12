@@ -17,35 +17,46 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
-#include <iostream>
 
+// cuda headers
+#include <cuda_runtime.h>
+#include <cuda.h>
+
+// std headers
+#include <tuple>
+
+// local headers
 #include "dev_array.h"
-#include "dist_array.h"
-#include "fft.h"
-#include "internals.h"
-#include "types.h"
 #include "nufft.h"
+#include "toeplitz.h"
 
 namespace tomocam {
-    /* calls forward and backward projectors to calculate gradients */
-    void calc_gradient(dev_arrayZ &model, dev_arrayF &sino, float center,
-                    NUFFTGrid &grid) {
 
-        // create device_array for forward projection
-        dim3_t dims = sino.dims();
-        auto proj = DeviceArray_fromDims<cuComplex_t>(dims, cudaStreamPerThread);
+    /* gradients using Toeplitz matrix structure */
+    template <typename T>
+    std::tuple<DeviceArray<T>, T> gradient2(DeviceArray<T> &f,
+        DeviceArray<T> &y, const PointSpreadFunction<T> &psf,
+        cudaStream_t stream) {
 
-        // do the forward projection
-        project(model, proj, center, grid);
+        // convolve f with psf
+        auto AtAf = psf.convolve(f, stream);
 
-        // overwrite projection with error and redo the zero-padding
-        calc_error(proj, sino, cudaStreamPerThread);
+        // compute gradient
+        // \f$ \nabla f = A^T A f - A^T y \f$
+        auto grad = AtAf.subtract(y, stream);
 
-        // set d_model to zero
-        cudaMemsetAsync(model.dev_ptr(), 0, model.size() * sizeof(cuComplex_t), cudaStreamPerThread);
+        // compute partial function value
+        T f1 = f.dot(AtAf, stream);
+        T f2 = f.dot(y, stream);
 
-        // backproject the error
-        back_project(proj, model, center, grid);
-
+        return std::make_tuple(grad, f1 - 2 * f2);
     }
-} // namespace tomocam
+
+    // explicit instantiation
+    template std::tuple<DeviceArray<float>, float> gradient2(
+        DeviceArray<float> &, DeviceArray<float> &,
+        const PointSpreadFunction<float> &, cudaStream_t);
+    template std::tuple<DeviceArray<double>, double> gradient2(
+        DeviceArray<double> &, DeviceArray<double> &,
+        const PointSpreadFunction<double> &, cudaStream_t);
+}

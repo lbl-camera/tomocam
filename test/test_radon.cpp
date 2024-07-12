@@ -1,40 +1,78 @@
-#include <iostream>
-#include <fstream>
 #include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
-#include "reader.h"
 #include "dist_array.h"
+#include "hdf5/reader.h"
+#include "hdf5/writer.h"
+#include "machine.h"
+#include "timer.h"
 #include "tomocam.h"
-
-const char * FILENAME = "/home/dkumar/data/shepp_logan/shepp512.bin";
-const int ncols = 512;
-const int nproj = 400;
 
 int main(int argc, char **argv) {
 
-    // read data
-    float * data = new float[ncols * ncols];
-    std::ifstream in(FILENAME, std::ios::binary);
-    in.read((char *) data, sizeof(float) * ncols * ncols);
-    in.close();
+    // read data json file
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <JSON file>" << std::endl;
+        return 1;
+    }
 
-    float * theta = new float[nproj];
-    for (int i = 0; i < nproj; i++)
-        theta[i] = M_PI * (static_cast<float>(i) / nproj - 0.5);
+    // check if the file exists
+    std::string json_file = argv[1];
+    if (!std::filesystem::exists(json_file)) {
+        std::cerr << "File not found: " << json_file << std::endl;
+        return 1;
+    }
 
-    tomocam::dim3_t d1 = {1, ncols, ncols};
-    tomocam::dim3_t d2 = {1, nproj, ncols};
-    tomocam::DArray<float> image(d1);
-    image.copy(data);
-    tomocam::DArray<float> sino(d2);
-    
-    float center = 256;
-    float oversample = 2;
-
-    tomocam::radon(image, sino, theta, center, oversample);
-
-    std::fstream fp("output0.bin", std::ios::out | std::ios::binary);
-    fp.write((char *) sino.data(), sino.bytes());
+    // read json file
+    std::ifstream fp(json_file);
+    json cfg = json::parse(fp);
     fp.close();
+
+    // parameters
+    std::string filename = cfg["filename"];
+    std::string dataset = cfg["dataset"];
+    int center = cfg["axis"];
+    int ibeg = 0, iend = -1;
+    if (cfg.find("slices") != cfg.end()) {
+        auto slcs = cfg["slices"];
+        ibeg = slcs[0];
+        iend = slcs[1];
+    }
+
+    // read data
+    tomocam::Timer read_timer;
+    read_timer.start();
+    tomocam::h5::H5Reader h5fp(filename.c_str());
+    auto data = h5fp.read2<float>(dataset.c_str(), ibeg, iend);
+    read_timer.stop();
+    std::cout << "Data shape: " << data.nslices() << " x " << data.nrows()
+              << " x " << data.ncols() << std::endl;
+    std::cout << "Read time: " << read_timer.ms() << " ms" << std::endl;
+
+    // if number of columns in odd, drop the last column
+    data.ensure_odd_cols();
+
+    // create angles
+    std::vector<float> angs(data.ncols());
+    float dtheta = M_PI / static_cast<float>(data.ncols());
+    for (int i = 0; i < data.ncols(); i++) { angs[i] = i * dtheta; }
+
+    // projection
+    tomocam::Timer proj_timer;
+    proj_timer.start();
+    auto sino = tomocam::project<float>(data, angs, center);
+    proj_timer.stop();
+
+    // print time taken
+    std::cout << "Projection time: " << proj_timer.ms() << " ms" << std::endl;
+
+    // write hdf5 file
+    const char *outfile = "sino.h5";
+    tomocam::h5::H5Writer h5out(outfile);
+    h5out.write<float>("sino", sino);
     return 0;
 }

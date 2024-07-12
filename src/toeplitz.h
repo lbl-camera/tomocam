@@ -18,89 +18,82 @@
  *---------------------------------------------------------------------------------
  */
 
-#include "machine.h"
 #include "dev_array.h"
-#include "internals.h"
 #include "fft.h"
+#include "internals.h"
 #include "types.h"
 
-#include <gpu/circshift.cuh>
+#include "gpu/padding.cuh"
+
+#include "debug.h"
 
 #ifndef TOEPLITZ__H
 #define TOEPLITZ__H
 
 namespace tomocam {
 
+    template <typename T>
+    class PointSpreadFunction {
+      private:
+        DeviceArray<gpu::complex_t<T>> psf_;
 
-    class SpreadFunc {
-        private:
-            DeviceArray<cuComplex_t> psf_;
+      public:
+        PointSpreadFunction() = default;
 
-        public: 
-            SpreadFunc() = default;
-            SpreadFunc(NUFFTGrid &grid, int nproj, int nrows) {
+        PointSpreadFunction(const NUFFT::Grid<T> &grid) {
+            int nproj = grid.nprojs();
+            int ncols = grid.npixels();
+            int N1 = 2 * ncols - 1;
 
-                int N1 = fftwsize(2 * nrows);
-                dim3_t dims(1, nproj, nrows);
+            // allocate ones
+            constexpr gpu::complex_t<T> v(1, 0);
+            DeviceArray<gpu::complex_t<T>> ones(dim3_t(1, nproj, ncols));
+            ones.init(v, cudaStreamPerThread);
 
-                // allocate ones
-                auto ones = DeviceArray<cuComplex_t>(dims);
-                ones.init(cuComplex_t(1.f,0), cudaStreamPerThread);
+            // allocate nufft output
+            auto temp = DeviceArray<gpu::complex_t<T>>(dim3_t(1, N1, N1));
 
-                // allocate psf
-                auto temp = DeviceArray<cuComplex_t>(dim3_t(1, N1, N1));
-        
-                // compute nufft type 1
-                nufft2d1(ones, temp, grid);
+            // compute nufft type 1
+            NUFFT::nufft2d1(ones, temp, grid);
 
-                // get the real part
-                auto temp2 = cmplx_to_real(temp, cudaStreamPerThread);
+            // get the real part
+            auto psf = real(temp, cudaStreamPerThread);
 
-                // center shift
-                DeviceArray temp3 = temp2;
-                gpu_ops::fftshift(temp3.dev_ptr(), temp2.dev_ptr(), N1, N1);
+            // zero pad for convolution (N1 + ncols - 1)
+            psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT,
+                cudaStreamPerThread);
 
-                // allocate space for the Fourier transform of the spread function
-                dim3_t dims2 = {1, N1, N1/2+1};
+            // compute FFT(psf)
+            psf_ = rfft2D(psf, cudaStreamPerThread);
+        }
 
-                // allocate space for Fourier transformed signals
-                psf_ = DeviceArray<cuComplex_t>(dims2);
+        DeviceArray<T> convolve(const DeviceArray<T> &x, cudaStream_t s) const {
 
-                // compute FFT(psf)
-                fft2D_r2c(temp3, psf_, cudaStreamPerThread);
+            // pad x to match the size of the psf
+            int padding = psf_.nrows() - x.nrows();
 
-                // normalize
-                float w = 1.f; // / static_cast<float>(N1 * N1);
-                rescale(psf_, w, cudaStreamPerThread);
-            }
+            // zero pad
+            auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT, s);
 
-            DeviceArray<float> convolve(const DeviceArray<float> &x, cudaStream_t s) const {
+            // fft(x) Real -> complex
+            auto xft = rfft2D<T>(xpad, s);
 
-                // zero pad to match psf size
-                dim3_t dims = {x.dims().x, psf_.dims().y, psf_.dims().y};
-                auto xpad = add_padding(x, dims, s);
+            // broadcast-multiply
+            auto xft_psf = xft.multiply(psf_, s);
 
-                // allocate memory for Fourier-transformed array
-                auto xft = DeviceArray<cuComplex_t>(psf_.dims());
+            // scale by the size of the image
+            T scale = static_cast<T>(xpad.nrows() * xpad.ncols());
+            xft_psf = xft_psf.divide(scale, s);
 
-                // fft(x) Real -> complex
-                fft2D_r2c(xpad, xft, s);
+            // ifft(g * x) complex -> real
+            auto tmp2 = irfft2D<T>(xft_psf, s);
 
-                // multiply 
-                auto xft_psf = xft.multiply(psf_, s);
+            // remove padding
+            auto tmp3 = gpu::unpad2d<T>(tmp2, padding, s);
+            SAFE_CALL(cudaStreamSynchronize(s));
 
-                // ifft(g * x) complex -> real
-                fft2D_c2r(xft_psf, xpad, s);
-
-                // normalize fft
-                float w = static_cast<float>(dims.y * dims.y);
-                xpad.divide(w, s);
- 
-                // remove padding
-                auto g = remove_padding(xpad, x.dims(), s);
-                return g;
-            }
-
+            return tmp3;
+        }
     };
 }
 

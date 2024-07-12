@@ -70,40 +70,32 @@ int main(int argc, char **argv) {
     float sigma = 0.1;
     constexpr int n = 1024;
 
-    float * x = new float[n];
-    float * y = new float[n];
-    for (int i = 0; i < n; i++) {
-        x[i] = static_cast<float>(i) / static_cast<float>(n-1);
-        y[i] = tomocam::d_potfun(x[i], sigma, p);
-    }
-    std::ofstream fout("dpotfunc.txt");
-    for (int i = 0; i < n; i++)
-        fout << x[i] << ", " << y[i] << std::endl;
-    fout.close();
-
     // data
-    tomocam::dim3_t dims = {4, 1024, 1024};
+    std::cout << "allocating memory .. " << std::endl;
+    tomocam::dim3_t dims = {n, 16, 16};
     tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
 
+    
+    // initializing 
+    std::cout << "initializing ... " << std::endl;
     std::default_random_engine e(0);
     std::uniform_real_distribution<float> dist(0.0,1.0);
-    
-    for (int i = 0; i < a.size(); i++)
-        a[i] = dist(e);
 
+    #pragma omp parallel for
+    for (uint64_t i = 0; i < a.size(); i++)
+        a[i] = dist(e);
     b.init(0.f);
     c.init(0.f);
 
-    add_total_var(a, b, p, sigma);
-    cpuTotalVar(a, c, sigma, p);
-    auto d = c - b;
+    std::cout << "computing TV on gpu... " << std::endl;
+    tomocam::add_total_var(a, b, p, sigma);
+    //cpuTotalVar(a, c, sigma, p);
+    //auto d = c - b;
 
-    b.to_file("gpu.bin");
-    c.to_file("cpu.bin");
-    std::cout << "Max error: " << d.max() << std::endl;        
-    std::cout << "L2 error: " << d.norm() / d.size() << std::endl;        
+    //std::cout << "Max error: " << d.max() << std::endl;        
+    //std::cout << "L2 error: " << d.norm() / d.size() << std::endl;        
 
     return 0;
     // create 
