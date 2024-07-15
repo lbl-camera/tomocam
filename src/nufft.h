@@ -195,7 +195,7 @@ namespace tomocam {
             int ndim = 2;
             int64_t nmodes[] = {dims.z, dims.z};
             int ntransf = dims.x;
-            float tol = 1.1e-8;
+            float tol = 1.2e-7;
 
             // create cufinufft_opts
             cufinufft_opts opts;

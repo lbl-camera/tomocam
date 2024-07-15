@@ -53,17 +53,9 @@ target_link_libraries(gradient PRIVATE tomocam)
 target_link_libraries(gradient PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(gradient PRIVATE nlohmann_json::nlohmann_json)
 
-#[[
-# total variation
 add_executable(tv test_tvd.cpp)
 target_link_libraries(tv PRIVATE tomocam)
-
-add_executable(mbir test_mbir.cpp)
-target_link_libraries(mbir tomocam)
-target_link_libraries(mbir ${HDF5_LIBRARIES})
-target_link_libraries(mbir ${finufft_LIBRARY})
-add_test(test_mbir mbir)
-]]
+target_link_libraries(tv PRIVATE ${HDF5_LIBRARIES})
 
 # test for the forward projection
 add_executable(forward test_forward.cpp)
@@ -75,4 +67,13 @@ target_link_libraries(forward PRIVATE ${HDF5_LIBRARIES})
 add_executable(toeplitz test_toeplitz.cpp)
 target_link_libraries(toeplitz PRIVATE tomocam)
 target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
+
+#[[
+# total variation
+add_executable(mbir test_mbir.cpp)
+target_link_libraries(mbir tomocam)
+target_link_libraries(mbir ${HDF5_LIBRARIES})
+target_link_libraries(mbir ${finufft_LIBRARY})
+add_test(test_mbir mbir)
+]]
 

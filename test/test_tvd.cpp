@@ -2,10 +2,11 @@
 #include <fstream>
 #include <random>
 
-#include "tomocam.h"
 #include "dist_array.h"
-#include "types.h"
+#include "gpu/totalvar.cuh"
 #include "machine.h"
+#include "tomocam.h"
+#include "types.h"
 
 namespace tomocam {
 
@@ -67,7 +68,7 @@ namespace tomocam {
 int main(int argc, char **argv) {
 
     float p = 1.2;
-    float sigma = 0.1;
+    float sigma = 0.01;
     constexpr int n = 1024;
 
     // data
@@ -76,8 +77,8 @@ int main(int argc, char **argv) {
     tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
+    tomocam::DArray<float> d(dims);
 
-    
     // initializing 
     std::cout << "initializing ... " << std::endl;
     std::default_random_engine e(0);
@@ -88,14 +89,32 @@ int main(int argc, char **argv) {
         a[i] = dist(e);
     b.init(0.f);
     c.init(0.f);
+    d.init(0.f);
 
-    std::cout << "computing TV on gpu... " << std::endl;
-    tomocam::add_total_var(a, b, p, sigma);
-    //cpuTotalVar(a, c, sigma, p);
-    //auto d = c - b;
+    // test GPU code
+    std::cout << "testing single GPU code ... " << std::endl;
+    tomocam::DeviceArray<float> d_a(dims);
+    cudaMemcpy(d_a.dev_ptr(), a.begin(), a.bytes(), cudaMemcpyHostToDevice);
+    tomocam::DeviceArray<float> d_b(dims);
+    cudaMemset(d_b.dev_ptr(), 0, d_b.bytes());
 
-    //std::cout << "Max error: " << d.max() << std::endl;        
-    //std::cout << "L2 error: " << d.norm() / d.size() << std::endl;        
+    tomocam::gpu::add_total_var(d_a, d_b, p, sigma, cudaStreamPerThread);
+    // copy back to host
+    cudaMemcpy(b.begin(), d_b.dev_ptr(), b.bytes(), cudaMemcpyDeviceToHost);
+
+    cpuTotalVar(a, c, sigma, p);
+    auto err = c - b;
+
+    std::cout << "Max error: " << err.max() << std::endl;
+    std::cout << "L2 error: " << err.norm() / err.size() << std::endl;
+
+    // test multi-GPU code
+    std::cout << "\n\ntesting multi-GPU code ... " << std::endl;
+    tomocam::add_total_var(a, d, p, sigma);
+
+    auto err2 = c - d;
+    std::cout << "Max error: " << err2.max() << std::endl;
+    std::cout << "L2 error: " << err2.norm() / err2.size() << std::endl;
 
     return 0;
     // create 

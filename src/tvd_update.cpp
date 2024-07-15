@@ -31,6 +31,8 @@
 
 #include "gpu/totalvar.cuh"
 
+#include "debug.h"
+
 namespace tomocam {
 
     template <typename T>
@@ -58,18 +60,17 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
+
+                // unpack the data
                 auto [idx, d_s, d_g] = work.value();
+
                 // update the total variation
-                std::cout << "gpu: " << device << " slice: " << idx
-                          << std::endl;
-                gpu::add_total_var(d_s, d_g, p, sigma, work_s);
-                std::cout << "gpu: " << device << " slice: " << idx << " done"
-                          << std::endl;
+                gpu::add_total_var<T>(d_s, d_g, p, sigma, work_s);
+                SAFE_CALL(cudaStreamSynchronize(work_s));
                 d_g.copy_to(sub_grads[idx], out_s);
             }
         }
         SAFE_CALL(cudaStreamSynchronize(out_s));
-        SAFE_CALL(cudaStreamSynchronize(work_s));
         SAFE_CALL(cudaStreamDestroy(out_s));
     }
 
@@ -85,11 +86,10 @@ namespace tomocam {
 
         // #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++){
-            std::cout << "gpu: " << i << std::endl;
             total_var<T>(p1[i], p2[i], p, sigma, i);
         }
 
-        #pragma omp parallel for num_threads(nDevice)
+        // #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());

@@ -85,7 +85,7 @@ namespace tomocam {
             // indexing ...
             // -- with halo excluded
             // -- check for bounds, return 0 if outside
-            __device__ T at(int ii, int j, int k) {
+            __device__ T at(int ii, int j, int k) const {
                 int i = ii + halo_.x;
                 if ((i < 0) || (i > dims_.x - 1)) return 0;
                 if ((j < 0) || (j > dims_.y - 1)) return 0;

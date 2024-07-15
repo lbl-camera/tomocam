@@ -24,17 +24,14 @@
 #include "dev_array.h"
 #include "gpu/utils.cuh"
 
+#include "debug.h"
 #include "potential_function.cuh"
 
 namespace tomocam {
     namespace gpu {
 
         template <typename T>
-        __global__ void tvd_update_kernel(float p, float s) {}
-
-#ifdef DONOTUSE
-        template <typename T>
-        __global__ void tvd_update_kernel2(DeviceMemory<T> model,
+        __global__ void tvd_update_kernel(const DeviceMemory<T> model,
             DeviceMemory<T> objfn, float p, float sigma) {
 
             // thread ids
@@ -64,7 +61,7 @@ namespace tomocam {
                 dim3_t dims = objfn.dims();
 
                 /* copy values into shared memory. */
-                __shared__ float s_val[NX + 2][NY + 2][NZ + 2];
+                __shared__ T s_val[NX + 2][NY + 2][NZ + 2];
 
                 // copy from global memory
                 s_val[i + 1][j + 1][k + 1] = model.at(x, y, z);
@@ -98,75 +95,88 @@ namespace tomocam {
                         s_val[i][j + 2][k + 1] = model.at(x - 1, y + 1, z);
                 }
                 if (i == imax) {
-                    if (j == 0) s_val[i + 2][j][k + 1] = model.at(x + 1, y - 1, z);
-            if (j == jmax)
-              s_val[i + 2][j + 2][k + 1] = model.at(x + 1, y + 1, z);
-          }
-          __syncthreads();
+                    if (j == 0)
+                        s_val[i + 2][j][k + 1] = model.at(x + 1, y - 1, z);
+                    if (j == jmax)
+                        s_val[i + 2][j + 2][k + 1] = model.at(x + 1, y + 1, z);
+                }
+                __syncthreads();
 
-          if (j == 0) {
-            if (k == 0) s_val[i + 1][j][k] = model.at(x, y - 1, z - 1);
-            if (k == kmax) s_val[i + 1][j][k + 2] = model.at(x, y - 1, z + 1);
-          }
-          if (j == jmax) {
-            if (k == 0) s_val[i + 1][j + 2][k] = model.at(x, y + 1, z - 1);
-            if (k == kmax)
-              s_val[i + 1][j + 2][k + 2] = model.at(x, y + 1, z + 1);
-          }
-          __syncthreads();
+                if (j == 0) {
+                    if (k == 0) s_val[i + 1][j][k] = model.at(x, y - 1, z - 1);
+                    if (k == kmax)
+                        s_val[i + 1][j][k + 2] = model.at(x, y - 1, z + 1);
+                }
+                if (j == jmax) {
+                    if (k == 0)
+                        s_val[i + 1][j + 2][k] = model.at(x, y + 1, z - 1);
+                    if (k == kmax)
+                        s_val[i + 1][j + 2][k + 2] = model.at(x, y + 1, z + 1);
+                }
+                __syncthreads();
 
-          // copy ghost-cells along y-direction
-          if (k == 0) {
-            if (i == 0) s_val[i][j + 1][k] = model.at(x - 1, y, z - 1);
-            if (i == imax) s_val[i + 2][j + 1][k] = model.at(x + 1, y, z - 1);
-          }
-          if (k == kmax) {
-            if (i == 0) s_val[i][j + 1][k + 2] = model.at(x - 1, y, z + 1);
-            if (i == imax)
-              s_val[i + 2][j + 1][k + 2] = model.at(x + 1, y, z + 1);
-          }
-          __syncthreads();
+                // copy ghost-cells along y-direction
+                if (k == 0) {
+                    if (i == 0) s_val[i][j + 1][k] = model.at(x - 1, y, z - 1);
+                    if (i == imax)
+                        s_val[i + 2][j + 1][k] = model.at(x + 1, y, z - 1);
+                }
+                if (k == kmax) {
+                    if (i == 0)
+                        s_val[i][j + 1][k + 2] = model.at(x - 1, y, z + 1);
+                    if (i == imax)
+                        s_val[i + 2][j + 1][k + 2] = model.at(x + 1, y, z + 1);
+                }
+                __syncthreads();
 
-          /*  copy  ghost cells along 16 corners */
-          if (k == 0) {
-            if (j == 0) {
-              if (i == 0) s_val[i][j][k] = model.at(x - 1, y - 1, z - 1);
-              if (i == imax) {
-                s_val[i + 2][j][k] = model.at(x + 1, y - 1, z - 1);
-              }
-            }
-            if (j == jmax) {
-              if (i == 0) s_val[i][j + 2][k] = model.at(x - 1, y + 1, z - 1);
-              if (i == imax)
-                s_val[i + 2][j + 2][k] = model.at(x + 1, y + 1, z - 1);
-            }
-          }
-          if (k == kmax) {
-            if (j == 0) {
-              if (i == 0) s_val[i][j][k + 2] = model.at(x - 1, y - 1, z + 1);
-              if (i == imax)
-                s_val[i + 2][j][k + 2] = model.at(x + 1, y - 1, z + 1);
-            }
-            if (j == jmax) {
-              if (i == 0)
-                s_val[i][j + 2][k + 2] = model.at(x - 1, y + 1, z + 1);
-              if (i == imax)
-                s_val[i + 2][j + 2][k + 2] = model.at(x + 1, y + 1, z + 1);
-            }
-          }
-          __syncthreads();
+                /*  copy  ghost cells along 16 corners */
+                if (k == 0) {
+                    if (j == 0) {
+                        if (i == 0)
+                            s_val[i][j][k] = model.at(x - 1, y - 1, z - 1);
+                        if (i == imax) {
+                            s_val[i + 2][j][k] = model.at(x + 1, y - 1, z - 1);
+                        }
+                    }
+                    if (j == jmax) {
+                        if (i == 0)
+                            s_val[i][j + 2][k] = model.at(x - 1, y + 1, z - 1);
+                        if (i == imax)
+                            s_val[i + 2][j + 2][k] =
+                                model.at(x + 1, y + 1, z - 1);
+                    }
+                }
+                if (k == kmax) {
+                    if (j == 0) {
+                        if (i == 0)
+                            s_val[i][j][k + 2] = model.at(x - 1, y - 1, z + 1);
+                        if (i == imax)
+                            s_val[i + 2][j][k + 2] =
+                                model.at(x + 1, y - 1, z + 1);
+                    }
+                    if (j == jmax) {
+                        if (i == 0)
+                            s_val[i][j + 2][k + 2] =
+                                model.at(x - 1, y + 1, z + 1);
+                        if (i == imax)
+                            s_val[i + 2][j + 2][k + 2] =
+                                model.at(x + 1, y + 1, z + 1);
+                    }
+                }
+                __syncthreads();
 
-          T v = s_val[i + 1][j + 1][k + 1];
-          T temp = 0.f;
-          for (int ix = 0; ix < 3; ix++)
-            for (int iy = 0; iy < 3; iy++)
-              for (int iz = 0; iz < 3; iz++)
-                temp += weight(ix, iy, iz) *
-                        d_pot_func(v - s_val[i + ix][j + iy][k + iz], p, sigma);
-          objfn(x, y, z) += temp;
+                T v = s_val[i + 1][j + 1][k + 1];
+                T temp = 0.f;
+                for (int ix = 0; ix < 3; ix++)
+                    for (int iy = 0; iy < 3; iy++)
+                        for (int iz = 0; iz < 3; iz++)
+                            temp +=
+                                weight(ix, iy, iz) *
+                                d_pot_func(v - s_val[i + ix][j + iy][k + iz], p,
+                                    sigma);
+                objfn(x, y, z) += temp;
+            }
         }
-        }
-#endif // DONOTUSE
 
         template <typename T>
         void add_total_var(const DeviceArray<T> &sol, DeviceArray<T> &grad,
@@ -176,7 +186,9 @@ namespace tomocam {
             Grid g(grad.dims());
 
             // update gradients inplace
-            tvd_update_kernel<T><<<1, 1>>>(p, sigma);
+            tvd_update_kernel<T>
+                <<<g.blocks(), g.threads(), 0, stream>>>(sol, grad, p, sigma);
+            SAFE_CALL(cudaGetLastError());
         }
 
         // instantiate the template
