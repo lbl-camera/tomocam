@@ -31,7 +31,7 @@ namespace tomocam {
     namespace gpu {
 
         template <typename T>
-        __global__ void tvd_update_kernel(const DeviceMemory<T> model,
+        __global__ void tvd_update_kernel(DeviceMemory<T> model,
             DeviceMemory<T> objfn, float p, float sigma) {
 
             // thread ids
