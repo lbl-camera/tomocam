@@ -13,7 +13,7 @@ void write(tomocam::h5::H5Writer &writer, const std::string &name,
     int main(int argc, char **argv) {
 
         // read data
-        const int dims[] = {20, 4, 4};
+        const int dims[] = {20, 16, 16};
         tomocam::dim3_t d1 = {dims[0], dims[1], dims[2]};
         tomocam::DArray<float> array(d1);
 
@@ -44,6 +44,9 @@ void write(tomocam::h5::H5Writer &writer, const std::string &name,
         for (int j = 0; j < p4.size(); j++) {
             write(writer, "p_halo2_sub" + std::to_string(j + 1), p4[j]);
         }
+
+        auto p5 = tomocam::create_partitions(p2[3], n2, 1);
+
         return 0;
 }
 
