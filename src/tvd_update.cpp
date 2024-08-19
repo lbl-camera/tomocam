@@ -54,6 +54,11 @@ namespace tomocam {
         auto sub_sols = create_partitions(sol, nparts, 1);
         auto sub_grads = create_partitions(grad, nparts);
 
+        if (sub_sols.size() != sub_grads.size()) {
+            throw std::runtime_error(
+                "Error: sub_sols and sub_grads have different sizes");
+        }
+
         // create scheduler
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(
             sub_sols, sub_grads);
