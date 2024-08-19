@@ -75,7 +75,7 @@ namespace tomocam {
     template <typename T, template <typename> class Array>
     std::vector<Partition<T>> create_partitions(Array<T> &a, int npartitions) {
 
-        // create sub-partions
+        // create sub-partitions
         std::vector<Partition<T>> table;
         auto dims = a.dims();
 
@@ -96,66 +96,58 @@ namespace tomocam {
     std::vector<Partition<T>> create_partitions(Array<T> &a, int npartitions,
         int halo) {
 
+        // sanity check
+        if (npartitions < 0) {
+            throw std::runtime_error("Number of partitions must be at least 1");
+        }
+
         // partition the array into sub-partitions with halo in x-direction
         std::vector<Partition<T>> table;
         auto dims = a.dims();
+        int h[2] = {0, 0};
+
+        // if there is only one partition, return the whole array
+        if (npartitions == 1) {
+            table.push_back(Partition<T>(dims, a.begin(), h));
+            return table;
+        }
 
         // check if the array has halo member-function
         constexpr bool has_halo = requires(const Array<T> &a) { a.halo(); };
 
         // get existing halo, if any
-        int offset;
-        int ahalo[2];
+        int offset = 0;
+        int ahalo[2] = {0, 0};
         if constexpr (has_halo) {
             ahalo[0] = a.halo()[0];
             ahalo[1] = a.halo()[1];
-            offset = std::max(ahalo[0] - halo, 0);
-        } else {
-            ahalo[0] = 0;
-            ahalo[1] = 0;
-            offset = 0;
+            offset = ahalo[0];
         }
 
         // actual number of slices
         int nslcs = dims.x - ahalo[0] - ahalo[1];
-        int xparts = nslcs / npartitions;
-        int nextra = nslcs % npartitions;
+        int work = nslcs / npartitions;
+        int extra = nslcs % npartitions;
 
-        // make first partition.
-        int nx = xparts + halo;
-        int h[2] = {0, halo};
-        if (ahalo[0] > 0) {
-            nx += halo;
-            h[0] = halo;
+        if (work == 0) {
+            throw std::runtime_error(
+                "Number of partitions is too large for the array");
         }
-        if (nextra > 0) nx += 1;
-        dim3_t d(nx, dims.y, dims.z);
-        table.push_back(Partition<T>(d, a.slice(offset), h));
-        offset = xparts;
-        if (nextra > 0) offset += 1;
-        if (ahalo[0] > 0) offset += halo;
 
-        // create the rest of the partitions, but the last one
-        for (int i = 1; i < npartitions - 1; i++) {
-            dim3_t d(xparts + 2 * halo, dims.y, dims.z);
-            if (i < nextra) d.x += 1;
+        // set pointers as if  there is no halo
+        std::vector<int> share(npartitions, work);
+        for (int i = 0; i < extra; i++) { share[i] += 1; }
+
+        // create the sub-partitions
+        for (int i = 0; i < npartitions; i++) {
             h[0] = halo;
             h[1] = halo;
-            table.push_back(Partition<T>(d, a.slice(offset - halo), h));
-            offset += xparts;
-            if (i < nextra) offset += 1;
+            if (i == 0) h[0] = ahalo[0];
+            if (i == npartitions - 1) h[1] = ahalo[1];
+            dim3_t d(share[i] + h[0] + h[1], dims.y, dims.z);
+            table.push_back(Partition<T>(d, a.slice(offset - h[0]), h));
+            offset += share[i];
         }
-
-        // make the last partition. If there is halo at the end, keep it
-        nx = xparts + halo;
-        h[0] = halo;
-        h[1] = 0;
-        if (ahalo[1] > 0) {
-            nx += halo;
-            h[1] = halo;
-        }
-        dim3_t d2(nx, dims.y, dims.z);
-        table.push_back(Partition<T>(d2, a.slice(offset - halo), h));
         return table;
     }
 } // namespace tomocam
