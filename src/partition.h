@@ -126,9 +126,15 @@ namespace tomocam {
             throw std::runtime_error("Number of partitions must be at least 1");
         }
 
+        // sanity check
+        if (npartitions < 0) {
+            throw std::runtime_error("Number of partitions must be at least 1");
+        }
+
         // partition the array into sub-partitions with halo in x-direction
         std::vector<Partition<T>> table;
         auto dims = a.dims();
+        int h[2] = {0, 0};
 
         // if there is only one partition, return the whole array
         if (npartitions == 1) {
