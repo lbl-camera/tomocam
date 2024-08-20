@@ -60,7 +60,7 @@ namespace tomocam {
         // Allocate space with halo
         DeviceArray(dim3_t d, int *h) : dims_(d) {
             halo_ = {h[0], h[1]};
-            size_ = (d.x + h[0] + h[1]) * d.y * d.z;
+            size_ = d.x * d.y * d.z;
             SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
         }
 
