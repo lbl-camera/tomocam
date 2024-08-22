@@ -96,7 +96,7 @@ namespace tomocam {
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
+    DArray<T> mbir(DArray<T> &, std::vector<T>, int, T, T, int, T, T, T);
 
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.

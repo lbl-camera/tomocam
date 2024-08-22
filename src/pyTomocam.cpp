@@ -103,9 +103,8 @@ backproject_wrapper(np_array_t<float> &sino, np_array_t<float> angs, int cen) {
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
-    np_array_t<float> &np_angles,
-    float center, int num_iters, float sigma, float tol,
-    float step_size, float penalty) {
+    np_array_t<float> &np_angles, int center, int num_iters, float sigma,
+    float tol, float step_size, float penalty) {
 
     // create DArray from numpy
     tomocam::DArray<float> sino(from_numpy<float>(np_sino));
