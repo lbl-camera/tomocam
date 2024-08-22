@@ -113,7 +113,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
 
     // get data pointer to angles
     float p = 1.2;
-    float *angles = static_cast<float *>(np_angles.request().ptr);
+    auto angles = getVec<float>(np_angles);
     tomocam::DArray<float> recon = 
         tomocam::mbir(sino, angles, center, sigma, p, num_iters, step_size, tol, penalty);
 
