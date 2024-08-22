@@ -31,8 +31,6 @@
 
 #include "gpu/totalvar.cuh"
 
-#include "debug.h"
-
 namespace tomocam {
 
     template <typename T>

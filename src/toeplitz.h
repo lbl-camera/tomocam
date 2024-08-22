@@ -25,8 +25,6 @@
 
 #include "gpu/padding.cuh"
 
-#include "debug.h"
-
 #ifndef TOEPLITZ__H
 #define TOEPLITZ__H
 

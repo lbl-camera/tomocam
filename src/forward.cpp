@@ -29,8 +29,6 @@
 #include "tomocam.h"
 #include "types.h"
 
-#include "debug.h"
-
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
@@ -50,11 +48,9 @@ namespace tomocam {
         nufft2d2(out, in2, grid);
         SAFE_CALL(cudaDeviceSynchronize());
 
-        // write_h5(out);
         //  1d inverse fft along columns
         auto out1 = fftshift(out, s);
         auto out2 = ifft1D(out1, s);
-        write_h5(out2);
         auto out3 = out2.divide(out2.ncols(), s);
         auto out4 = ifftshift(out3, s);
 
