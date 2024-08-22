@@ -45,11 +45,7 @@ namespace tomocam {
         // \f$ \nabla f = A^T A f - A^T y \f$
         auto grad = AtAf.subtract(y, stream);
 
-        // compute partial function value
-        T f1 = f.dot(AtAf, stream);
-        T f2 = f.dot(y, stream);
-
-        return std::make_tuple(grad, f1 - 2 * f2);
+        return grad;
     }
 
     // explicit instantiation
