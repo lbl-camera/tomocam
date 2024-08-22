@@ -148,6 +148,25 @@ namespace tomocam {
             return out;
         }
 
+
+        // add
+        DArray<T> operator+(const DArray<T> &rhs) const {
+            DArray<T> out(dims_);
+            #pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] + rhs.buffer_[i];
+            return out;
+        }
+
+        // multiply
+        DArray<T> operator*(T v) const {
+            DArray<T> out(dims_);
+            #pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] * v;
+            return out;
+        }
+      
         // normalize
         void normalize() {
             T mx = this->max();
@@ -167,8 +186,7 @@ namespace tomocam {
         }
 
         // drop a column
-        void ensure_odd_cols() {
-            if (dims_.z % 2 != 0) return;
+        void dropcol() {
             dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
             uint64_t new_size = static_cast<uint64_t>(d.z) * d.y * d.x;
             T *new_buffer = new T[new_size];
@@ -176,7 +194,7 @@ namespace tomocam {
             // copy data
             uint64_t nz = static_cast<uint64_t>(dims_.z);
             uint64_t new_nz = static_cast<uint64_t>(d.z);
-#pragma omp parallel for
+            #pragma omp parallel for
             for (int i = 0; i < dims_.x; i++) {
                 for (int j = 0; j < dims_.y; j++) {
                     uint64_t beg = i * dims_.y * nz + j * nz;
@@ -239,5 +257,71 @@ namespace tomocam {
         T *end() { return buffer_ + size_; }
         const T *end() const { return buffer_ + size_; }
     };
+
+    template <typename T>
+    DArray<T> operator*(T v, const DArray<T> &rhs) {
+        return rhs * v;
+    }
+
+    /* subdivide array into N partitions */
+    template <typename T>
+    std::vector<Partition<T>> create_partitions(DArray<T> &arr,
+        int n_partitions) {
+
+        dim3_t dims = arr.dims();
+        int n_slices = arr.nslices() / n_partitions;
+        int n_extra = arr.nslices() % n_partitions;
+
+        // vector to hold the partitions
+        std::vector<Partition<T>> table;
+        int offset = 0;
+        for (int i = 0; i < n_partitions; i++) {
+            if (i < n_extra) dims.x = n_slices + 1;
+            else
+                dims.x = n_slices;
+            table.push_back(Partition<T>(dims, arr.slice(offset)));
+            offset += dims.x;
+        }
+        return table;
+    }
+
+    /* subdivide array into N partitions, with n halo layers on boundaries */
+    template <typename T>
+    std::vector<Partition<T>> create_partitions(DArray<T> &arr,
+        int n_partitions, int halo) {
+
+        const dim3_t dims = arr.dims();
+        int n_slices = arr.nslices() / n_partitions;
+        int n_extra = arr.nslices() % n_partitions;
+
+        // vector to hold the partitions
+        std::vector<Partition<T>> table;
+        std::vector<int> locations;
+
+        int offset = 0;
+        locations.push_back(offset);
+        for (int i = 0; i < n_partitions; i++) {
+            if (i < n_extra) offset += n_slices + 1;
+            else
+                offset += n_slices;
+            locations.push_back(offset);
+        }
+
+        int h[2];
+        for (int i = 0; i < n_partitions; i++) {
+            int imin = std::max(locations[i] - halo, 0);
+            if (i == 0) h[0] = 0;
+            else
+                h[0] = halo;
+            int imax = std::min(locations[i + 1] + halo, dims.x);
+            if (i == n_partitions - 1) h[1] = 0;
+            else
+                h[1] = halo;
+            dim3_t d(imax - imin, dims.y, dims.z);
+            table.push_back(Partition<T>(d, arr.slice(imin), h));
+        }
+        return table;
+    }
+
 } // namespace tomocam
 #endif // TOMOCAM_DISTARRAY__H
