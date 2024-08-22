@@ -31,19 +31,19 @@
 
 namespace tomocam {
 
-
-    template<typename ObjFunction, typename Gradient>
+    template <typename T, template <typename> class Array, typename Gradient,
+        typename Error>
     class Optimizer {
       private:
-        ObjFunction error_;
         Gradient gradient_;
+        Error error_;
 
       public:
         // constructor
-        Optimizer(ObjFunction f, Gradient g): error_(f), gradient_(g) {}
+        Optimizer(Gradient gradient, Error error) :
+            gradient_(gradient), error_(error) {}
 
         // fixed step-size
-        template <typename T, template<typename> class Array>
         Array<T> run(Array<T> sol, int max_iters, T tol, T step_size) {
 
             // initialize 
@@ -70,8 +70,8 @@ namespace tomocam {
                         - std::pow(t,2));
                 t = tnew;
                 tnew = temp;
-               
-                T e = error_(sol);
+
+                auto e = error_(sol);
                 if (e > e_old) {
                     g = gradient_(x);
                     sol = x - g * step_size;
@@ -83,7 +83,6 @@ namespace tomocam {
             return sol;
         }
 
-        template <typename T, template<typename> class Array>
         Array<T> run_wsl(Array<T> sol, int max_iters, T tol, T step_size) {
 
             // initialize 
