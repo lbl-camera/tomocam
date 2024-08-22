@@ -117,6 +117,7 @@ namespace tomocam {
     }
 
     // partition an array into sub-partitions with halo in x-direction
+<<<<<<< HEAD
     template <typename T>
     std::vector<Partition<T>> create_partitions(Partition<T> &a,
         int npartitions, int halo) {
@@ -125,6 +126,15 @@ namespace tomocam {
         if (npartitions < 0) {
             throw std::runtime_error("Number of partitions must be at least 1");
         }
+||||||| parent of 7ebd5c0 (overloaded create_partitions function for Partition<T> type)
+    template <typename T, template <typename> class Array>
+    std::vector<Partition<T>> create_partitions(Array<T> &a, int npartitions,
+        int halo) {
+=======
+    template <typename T>
+    std::vector<Partition<T>> create_partitions(Partition<T> &a,
+        int npartitions, int halo) {
+>>>>>>> 7ebd5c0 (overloaded create_partitions function for Partition<T> type)
 
         // sanity check
         if (npartitions < 0) {
@@ -142,6 +152,26 @@ namespace tomocam {
             return table;
         }
 
+<<<<<<< HEAD
+||||||| parent of 7ebd5c0 (overloaded create_partitions function for Partition<T> type)
+        // check if the array has halo member-function
+        constexpr bool has_halo = requires(const Array<T> &a) { a.halo(); };
+
+        // get existing halo, if any
+        int offset = 0;
+        int ahalo[2] = {0, 0};
+        if constexpr (has_halo) {
+            ahalo[0] = a.halo()[0];
+            ahalo[1] = a.halo()[1];
+            offset = ahalo[0];
+        }
+
+=======
+        // get existing halo
+        int ahalo[2] = {a.halo()[0], a.halo()[1]};
+        int offset = ahalo[0];
+
+>>>>>>> 7ebd5c0 (overloaded create_partitions function for Partition<T> type)
         // actual number of slices
         int offset = a.halo()[0];
         int nslcs = dims.x - a.halo()[0] - a.halo()[1];
