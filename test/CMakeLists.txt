@@ -68,12 +68,10 @@ add_executable(toeplitz test_toeplitz.cpp)
 target_link_libraries(toeplitz PRIVATE tomocam)
 target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
 
-#[[
-# total variation
+# MBIR
 add_executable(mbir test_mbir.cpp)
 target_link_libraries(mbir tomocam)
 target_link_libraries(mbir ${HDF5_LIBRARIES})
-target_link_libraries(mbir ${finufft_LIBRARY})
+target_link_libraries(mbir nlohmann_json::nlohmann_json)
 add_test(test_mbir mbir)
-]]
 
