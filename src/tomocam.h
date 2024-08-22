@@ -59,21 +59,30 @@ namespace tomocam {
      * @brief Compute the gradient of the objective function, given current
      * image estimate and sinogram.
      *
-     * @param image  the current image estimate.
+     * @param current solution.
      * @param transposed_sinogram the transposed sinogram.
-     * @param NUFFT::iGrid copy of NUFFT grid on each GPU
+     * @param A copy of PSF on each GPU device.
      *
      * @return a tuple containing the gradient and the partial function value
      */
+
     template <typename T>
-    std::tuple<DArray<T>, T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+    DArray<T> gradient2(DArray<T> &, DArray<T> &,
+        const std::vector<PointSpreadFunction<T>> &);
 
     /**
+     * @brief Compute the value of the objective function, given current
+     * solution
+     *
+     * @param current solution.
+     * @param transposed_sinogram the transposed sinogram.
+     * @param dot product of sinograom with itself.
+     *
+     * @return the value of the objective function
      */
     template <typename T>
-    std::tuple<DArray<T>, T> gradient2(DArray<T> &, DArray<T> &,
-        const std::vector<PointSpreadFunction<T>> &);
+    T function_value(DArray<T> &, DArray<T> &,
+        const std::vector<PointSpreadFunction<T>> &, T);
 
     /**
      * @brief Compute TV penalty and update gradients in-place.
@@ -87,12 +96,13 @@ namespace tomocam {
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &, T *, T, T, T, int, T, T, T);
+    DArray<T> mbir(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
 
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
      */
-    void add_tv_hessian(DArray<float> &, float);
+    template <typename T>
+    void add_tv_hessian(DArray<T> &, T);
 
 } // namespace tomocam
 
