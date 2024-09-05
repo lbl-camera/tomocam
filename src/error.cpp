@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <omp.h>
-#include <future>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -45,11 +44,6 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nslcs);
         T sum = 0;
 
-        // create streams
-        cudaStream_t work_s = cudaStreamPerThread;
-        cudaStream_t copy_s;
-        SAFE_CALL(cudaStreamCreate(&copy_s));
-
         // create a scheduler
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1,
             p2);
@@ -58,17 +52,13 @@ namespace tomocam {
             auto work = scheduler.get_work();
             if (work.has_value()) {
                 auto [idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve(d_recon, work_s);
-                auto t2 = d_recon.dot(t1, work_s);
-                auto t3 = d_recon.dot(d_sinoT, work_s);
+                auto t1 = psf.convolve(d_recon);
+                auto t2 = d_recon.dot(t1);
+                auto t3 = d_recon.dot(d_sinoT);
                 sum += (t2 - 2 * t3);
             }
         }
-
-        // wait for copy_s to finish, then destroy it
-        SAFE_CALL(cudaStreamSynchronize(copy_s));
-        SAFE_CALL(cudaStreamDestroy(copy_s));
-        return sum;
+        return sum / recon.ncols();
     }
 
     // Multi-GPU calll
@@ -82,21 +72,19 @@ namespace tomocam {
         auto p1 = create_partitions(recon, nDevice);
         auto p2 = create_partitions(sinoT, nDevice);
 
-        // std::async
-        std::vector<std::future<T>> retval;
+        std::vector<T> retval(nDevice);
+        // #pragma omp parallel for
         for (int i = 0; i < nDevice; i++)
-            retval.emplace_back(
-                std::async(funcval<T>, p1[i], p2[i], psf[i], i));
+            retval[i] = funcval(p1[i], p2[i], psf[i], i);
 
         // wait for devices to finish
         T fval = sino_sq;
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
-            retval[i].wait();
-            fval += retval[i].get();
+            fval += retval[i];
         }
-        return fval;
+        return (fval / recon.size());
     }
 
     // explicit instantiation
