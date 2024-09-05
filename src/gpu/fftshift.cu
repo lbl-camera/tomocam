@@ -21,21 +21,21 @@ namespace tomocam {
         }
 
         template <typename T>
-        DeviceArray<T> roll(const DeviceArray<T> &arr, int delta, cudaStream_t s) {
+        DeviceArray<T> roll(const DeviceArray<T> &arr, int delta) {
 
             auto dims = arr.dims();
             DeviceArray<T> out(dims);
             Grid grid(dims);
-            roll_kernel<T> <<<grid.blocks(), grid.threads(), 0, s>>>(arr, out, delta);
+            roll_kernel<T><<<grid.blocks(), grid.threads()>>>(arr, out, delta);
             return out;
         }
         // explicit instantiation
-        template DeviceArray<float> roll(const DeviceArray<float> &, int, cudaStream_t);
-        template DeviceArray<double> roll(const DeviceArray<double> &, int, cudaStream_t);
+        template DeviceArray<float> roll(const DeviceArray<float> &, int);
+        template DeviceArray<double> roll(const DeviceArray<double> &, int);
         template DeviceArray<gpu::complex_t<float>> roll(
-            const DeviceArray<gpu::complex_t<float>> &, int, cudaStream_t);
+            const DeviceArray<gpu::complex_t<float>> &, int);
         template DeviceArray<gpu::complex_t<double>> roll(
-            const DeviceArray<gpu::complex_t<double>> &, int, cudaStream_t);
+            const DeviceArray<gpu::complex_t<double>> &, int);
 
     } // namespace gpu
 } // namespace tomocam
