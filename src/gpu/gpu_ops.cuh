@@ -33,109 +33,96 @@ namespace tomocam {
          * @param[in] b - second array
          * @param[out] c - output array
          * @param[in] n - number of elements in the array
-         * @param[in] stream - cuda stream
          */
         template <typename T>
-        void add_arrays(const T *, const T *, T *, int, cudaStream_t);
+        void add_arrays(const T *, const T *, T *, int);
 
         /** subtract device arrays 
          * @param[in] a - first array
          * @param[in] b - second array
          * @param[out] c - output array
          * @param[in] n - number of elements in the array
-         * @param[in] stream - cuda stream
-         */ 
+         */
         template <typename T>
-        void subtract_arrays(const T *, const T *, T *, int, cudaStream_t);
+        void subtract_arrays(const T *, const T *, T *, int);
 
-         /** multiply device arrays.
-           * @param[in] a - first array
-           * @param[in] b - second array
-           * @param[out] c - output array
-           * @param[in] n - number of elements in the array
-           * @param[in] stream - cuda stream
-           */
+        /** multiply device arrays.
+         * @param[in] a - first array
+         * @param[in] b - second array
+         * @param[out] c - output array
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
-        void multiply_arrays(const T *, const T *, T *, int, cudaStream_t);
+        void multiply_arrays(const T *, const T *, T *, int);
 
         /** broadcast and multiply device arrays *
           * @param[in] a - first array
           * @param[in] b - second array
           * @param[out] c - output array
           * @param[in] n - number of elements in the array
-          * @param[in] stream - cuda stream
           */
         template <typename T>
-        void broadcast_multiply(const T *, const T *, T *, dim3_t, cudaStream_t);
+        void broadcast_multiply(const T *, const T *, T *, dim3_t);
 
         /** divide device arrays
           * @param[in] a - first array
           * @param[in] b - second array
           * @param[out] c - output array
           * @param[in] n - number of elements in the array
-          * @param[in] stream - cuda stream
           */
         template <typename T>
-        void divide_arrays(const T *, const T *, T *, int, cudaStream_t);
+        void divide_arrays(const T *, const T *, T *, int);
 
         /** multiply array with scalar
           * @param[in] a - input array
           * @param[in] scalar - scalar
           * @param[out] c - output array
           * @param[in] n - number of elements in the array
-          * @param[in] stream - cuda stream
           */
         template <typename T>
-        void scale_array(const T *, T, T *, int, cudaStream_t);
+        void scale_array(const T *, T, T *, int);
 
         /** add array and a scalar 
           * @param[in] a - input array
           * @param[in] scalar - scalar
           * @param[out] c - output array
           * @param[in] n - number of elements in the array
-          * @param[in] stream - cuda stream
           */
         template <typename T>
-        void shift_array(const T *, T, T *, int, cudaStream_t);
+        void shift_array(const T *, T, T *, int);
 
         /** initialize device array *
           * @param[in] a - input array
           * @param[in] scalar - scalar
           * @param[in] n - number of elements in the array
-          * @param[in] stream - cuda stream
-          */       
+          */
         template <typename T>
-        void init_array(T *, T, int, cudaStream_t);
+        void init_array(T *, T, int);
 
         /* dot product of two arrays
          * @param[in] a - first array
          * @param[in] b - second array
          * @param[in] n - number of elements in the array
-         * @param[in] stream - cuda stream
          * @return dot product
          */
         template <typename T>
-        T dot(const T *, const T *, int, cudaStream_t);
+        T dot(const T *, const T *, int);
 
         /** cast array from real to complex
          * @param[in] a - input array
          * @param[out] b - output array
          * @param[in] n - number of elements in the array
-         * @param[in] stream - cuda stream
          */
         template <typename T>
-        void cast_array_to_complex(
-            const T *, gpu::complex_t<T> *, int, cudaStream_t);
+        void cast_array_to_complex(const T *, gpu::complex_t<T> *, int);
 
         /** cast array from complex to real
          * @param[in] a - input array
          * @param[out] b - output array
          * @param[in] n - number of elements in the array
-         * @param[in] stream - cuda stream
          */
         template <typename T>
-        void cast_array_to_real(
-            const gpu::complex_t<T> *, T *, int, cudaStream_t);
+        void cast_array_to_real(const gpu::complex_t<T> *, T *, int);
 
         /** Given R and theta, compute points on the polar grid
          * @param[in] num_rows - number of rows
@@ -143,7 +130,6 @@ namespace tomocam {
          * @param[out] x - x coordinate
          * @param[out] y - y coordinate
          * @param[in] theta - projection angles
-         * @param[in] stream - cuda stream
          */
         template <typename T>
         void make_nugrid(int, int, T *, T *, const T *);
