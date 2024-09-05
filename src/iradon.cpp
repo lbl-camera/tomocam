@@ -21,12 +21,13 @@
 #include <iostream>
 #include <omp.h>
 
-#include "dev_array.h"
 #include "dist_array.h"
-#include "machine.h"
 #include "internals.h"
+#include "machine.h"
+#include "shipper.h"
 #include "types.h"
 
+#include "dev_array.h"
 #include "scheduler.h"
 
 namespace tomocam {
@@ -38,9 +39,8 @@ namespace tomocam {
         // select device
         cudaSetDevice(device);
 
-        // create streams
-        cudaStream_t out;
-        cudaStreamCreate(&out);
+        // create a data shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
         // input dimensions
         dim3_t idims = sino.dims();
@@ -59,16 +59,12 @@ namespace tomocam {
             auto task = scheduler.get_work();
             if (task.has_value()) {
               auto [i, d_sino] = task.value();
-              auto d_recn =
-                  backproject(d_sino, grid, offset, cudaStreamPerThread);
-              SAFE_CALL(cudaStreamSynchronize(cudaStreamPerThread));
-              d_recn.copy_to(sub_outputs[i], out);
+              auto d_recn = backproject(d_sino, grid, offset);
+
+              // copy the result to the output
+              shipper.push(sub_outputs[i], d_recn);
             }
         }
-
-        // wait for the thread to finish
-        SAFE_CALL(cudaStreamSynchronize(out));
-        SAFE_CALL(cudaStreamDestroy(out));
     }
 
     // back projection
