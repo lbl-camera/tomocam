@@ -35,7 +35,7 @@ namespace tomocam {
             int jc = blockDim.y * blockIdx.y + threadIdx.y;
 
             int center = ncols / 2;
-            T s = static_cast<T>(TWO_PI) / ncols;
+            T s = static_cast<T>(TWO_PI) / (ncols - 1);
             if ((jp < nproj) && (jc < ncols)) {
                 T r = s * static_cast<T>(jc - center);
                 x[jp * ncols + jc] = r * cos(angles[jp]);
