@@ -43,7 +43,7 @@ namespace tomocam {
 
         template <typename T>
         DeviceArray<T> pad1d(const DeviceArray<T> &in, int padding,
-            PadType type, cudaStream_t s) {
+            PadType type) {
 
             // allocate the output array
             int ncols = in.ncols() + std::abs(padding);
@@ -58,16 +58,15 @@ namespace tomocam {
 
             // cuda kernel launch
             Grid grid(in.dims());
-            pad1d_kernel<T>
-                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            pad1d_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
             return out;
         }
 
         // specializations
         template DeviceArray<float> pad1d(const DeviceArray<float> &, int,
-            PadType, cudaStream_t);
+            PadType);
         template DeviceArray<double> pad1d(const DeviceArray<double> &, int,
-            PadType, cudaStream_t);
+            PadType);
 
         /* one-dimensional crop */
         template <typename T>
@@ -83,7 +82,7 @@ namespace tomocam {
 
         template <typename T>
         DeviceArray<T> unpad1d(const DeviceArray<T> &in, int padding,
-            PadType type, cudaStream_t s) {
+            PadType type) {
 
             // new dimensions
             dim3_t new_dim = {in.nslices(), in.nrows(),
@@ -97,15 +96,14 @@ namespace tomocam {
 
             // cuda kernel launch
             Grid grid(out.dims());
-            crop_kernel<T>
-                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            crop_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
             return out;
         }
         // specializations
         template DeviceArray<float> unpad1d(const DeviceArray<float> &, int,
-            PadType, cudaStream_t);
+            PadType);
         template DeviceArray<double> unpad1d(const DeviceArray<double> &, int,
-            PadType, cudaStream_t);
+            PadType);
 
         /* two-dimensional padding */
         template<typename T>
@@ -120,7 +118,7 @@ namespace tomocam {
 
         template <typename T>
         DeviceArray<T> pad2d(const DeviceArray<T> &in, int padding,
-            PadType type, cudaStream_t s) {
+            PadType type) {
 
             // allocate the output array
             int ncols = in.ncols() + std::abs(padding);
@@ -136,15 +134,14 @@ namespace tomocam {
 
             // cuda kernel launch
             Grid grid(in.dims());
-            pad2d_kernel<T>
-                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            pad2d_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
             return out;
         }
         // specializations
         template DeviceArray<float> pad2d(const DeviceArray<float> &, int,
-            PadType, cudaStream_t);
+            PadType);
         template DeviceArray<double> pad2d(const DeviceArray<double> &, int,
-            PadType, cudaStream_t);
+            PadType);
 
         /* two-dimensional crop */
         template <typename T>
@@ -159,7 +156,7 @@ namespace tomocam {
         }
 
         template <typename T>
-        DeviceArray<T> unpad2d(const DeviceArray<T> &in, int padding, cudaStream_t s) {
+        DeviceArray<T> unpad2d(const DeviceArray<T> &in, int padding) {
 
             int shift = std::abs(padding) / 2;
             int nrows = in.nrows() - std::abs(padding);
@@ -169,15 +166,12 @@ namespace tomocam {
         
             // cuda kernel launch
             Grid grid(new_dim);
-            crop2d_kernel<T>
-                <<<grid.blocks(), grid.threads(), 0, s>>>(in, out, shift);
+            crop2d_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
             return out;
         }
         // specializations for float and double
-        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int,
-            cudaStream_t);
-        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int,
-            cudaStream_t);
+        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int);
+        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int);
 
     } // namespace gpu
 } // namespace tomocam

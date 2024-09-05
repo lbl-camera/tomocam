@@ -37,12 +37,10 @@ namespace tomocam {
          * @param arr
          * @param pad_size
          * @param PadType (LEFT, RIGHT, SYMMETRIC)
-         * @param stream
          * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> pad1d(const DeviceArray<T> &, int, PadType,
-            cudaStream_t);
+        DeviceArray<T> pad1d(const DeviceArray<T> &, int, PadType);
 
         /**
          * @brief Unpads a 1D array.
@@ -53,12 +51,10 @@ namespace tomocam {
          * @param arr
          * @param pad_size
          * @param PadType (LEFT, RIGHT, SYMMETRIC)
-         * @param stream
          * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> unpad1d(const DeviceArray<T> &, int, PadType,
-            cudaStream_t);
+        DeviceArray<T> unpad1d(const DeviceArray<T> &, int, PadType);
 
         /**
          * @brief pads a 2D array.
@@ -72,8 +68,7 @@ namespace tomocam {
          * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> pad2d(const DeviceArray<T> &, int, PadType,
-            cudaStream_t);
+        DeviceArray<T> pad2d(const DeviceArray<T> &, int, PadType);
 
         /**
          * @brief Unpads a 2D array.
@@ -86,7 +81,7 @@ namespace tomocam {
          * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> unpad2d(const DeviceArray<T> &, int, cudaStream_t);
+        DeviceArray<T> unpad2d(const DeviceArray<T> &, int);
 
     } // namespace gpu
 } // namespace tomocam
