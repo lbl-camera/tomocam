@@ -26,6 +26,8 @@
 #include "tomocam.h"
 #include "machine.h"
 
+#include "debug.h"
+
 #ifndef TOMOCAM_OPTIMIZE__H
 #define TOMOCAM_OPTIMIZE__H
 
@@ -44,23 +46,23 @@ namespace tomocam {
             gradient_(gradient), error_(error) {}
 
         // fixed step-size
-        Array<T> run(Array<T> sol, int max_iters, T tol, T step_size) {
+        Array<T> run(Array<T> sol, int max_iters, T step_size, T tol) {
 
             // initialize 
             Array<T> x = sol;
             Array<T> y = sol;
             T t = 1;
-            T tnew = 1; 
+            T tnew = 1;
 
             // set error to infinity
             T e_old = std::numeric_limits<T>::infinity();
-
             for (int iter = 0; iter < max_iters; iter++) {
 
                 
                 T beta = tnew * (1/t - 1);
                 y = sol + (sol - x) * beta;
                 auto g = gradient_(y);
+
                 x = sol;
                 sol = y - g * step_size;
 
@@ -83,7 +85,7 @@ namespace tomocam {
             return sol;
         }
 
-        Array<T> run_wsl(Array<T> sol, int max_iters, T tol, T step_size) {
+        Array<T> run_wsl(Array<T> sol, int max_iters, T step_size, T tol) {
 
             // initialize 
             Array<T> x = sol;
