@@ -30,22 +30,22 @@
 namespace tomocam {
 
     template <typename T>
-    DeviceArray<T> fftshift(const DeviceArray<T> &arr, cudaStream_t stream) {
+    DeviceArray<T> fftshift(const DeviceArray<T> &arr) {
 
         // calculate shift
         auto dims = arr.dims();
         int delta = dims.z / 2;
-        if (dims.z % 2)  delta++;
-        return gpu::roll(arr, delta, stream);
+        if (dims.z % 2) delta = (dims.z + 1) / 2;
+        return gpu::roll(arr, delta);
     }
 
     template <typename T>
-    DeviceArray<T> ifftshift(const DeviceArray<T> &arr, cudaStream_t stream) {
+    DeviceArray<T> ifftshift(const DeviceArray<T> &arr) {
 
         // calculate shift
         auto dims = arr.dims();
         int delta = dims.z / 2;
-        return gpu::roll(arr, delta, stream);
+        return gpu::roll(arr, delta);
     }
 } // namespace tomocam
 
