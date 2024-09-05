@@ -72,45 +72,34 @@ namespace tomocam {
 
     // execute cufft plan for single precision complex data
     inline void fftExec(cufftHandle plan, DeviceArraycf &in, DeviceArraycf &out,
-        int dir, cudaStream_t s) {
-
-        // attach stream
-        SAFE_CUFFT_CALL(cufftSetStream(plan, s));
+        int dir) {
 
         // execute plan
         cufftComplex *idata = reinterpret_cast<cufftComplex *>(in.dev_ptr());
         cufftComplex *odata = reinterpret_cast<cufftComplex *>(out.dev_ptr());
         SAFE_CUFFT_CALL(cufftExecC2C(plan, idata, odata, dir));
-
-        // wait for it to finish
-        SAFE_CALL(cudaStreamSynchronize(s));
+        SAFE_CUFFT_CALL(cufftDestroy(plan));
     }
 
     // execute cufft plan for double precision complex data
     inline void fftExec(cufftHandle plan, DeviceArraycd &in, DeviceArraycd &out,
-        int dir, cudaStream_t s) {
-
-        // attach stream
-        SAFE_CUFFT_CALL(cufftSetStream(plan, s));
+        int dir) {
 
         // execute plan
         cufftDoubleComplex *idata = reinterpret_cast<cufftDoubleComplex *>(in.dev_ptr());
         cufftDoubleComplex *odata = reinterpret_cast<cufftDoubleComplex *>(out.dev_ptr());
         SAFE_CUFFT_CALL(cufftExecZ2Z(plan, idata, odata, dir));
-
-        // wait for it to finish
-        SAFE_CALL(cudaStreamSynchronize(s));
+        SAFE_CUFFT_CALL(cufftDestroy(plan));
     }
 
-    /** 
+    /**
      * @brief Perform 1D forward FFT on a device array
-     * 
+     *
      * @param in input array
-     * @param s cuda stream
      * @return complex valued DeviceArray
      */
     template <typename T>
-    inline DeviceArray<T> fft1D(DeviceArray<T> &in, cudaStream_t s) {
+    inline DeviceArray<T> fft1D(DeviceArray<T> &in) {
 
         // create a plan for 1D forward FFT
         if (std::is_same<T, gpu::complex_t<float>>::value) {
@@ -118,30 +107,28 @@ namespace tomocam {
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_FORWARD, s);
+            fftExec(plan, in, out, CUFFT_FORWARD);
             return out;
         } else if (std::is_same<T, gpu::complex_t<double>>::value) {
             cufftHandle plan = fftPlan1D(in.dims(), CUFFT_Z2Z);
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_FORWARD, s);
+            fftExec(plan, in, out, CUFFT_FORWARD);
             return out;
         } else {
             throw std::runtime_error("Unsupported data type");
         }
-    } 
+    }
 
-
-    /** 
+    /**
      * @brief Perform 1D inverse FFT on a device array
-     * 
+     *
      * @param in input array
-     * @param s cuda stream
      * @return complex valued DeviceArray
      */
     template <typename T>
-    inline DeviceArray<T> ifft1D(DeviceArray<T> &in, cudaStream_t s) {
+    inline DeviceArray<T> ifft1D(DeviceArray<T> &in) {
 
         // create a plan for 1D inverse FFT
         if (std::is_same<T, gpu::complex_t<float>>::value) {
@@ -149,29 +136,28 @@ namespace tomocam {
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_INVERSE, s);
+            fftExec(plan, in, out, CUFFT_INVERSE);
             return out;
         } else if (std::is_same<T, gpu::complex_t<double>>::value) {
             cufftHandle plan = fftPlan1D(in.dims(), CUFFT_Z2Z);
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_INVERSE, s);
+            fftExec(plan, in, out, CUFFT_INVERSE);
             return out;
         } else {
             throw std::runtime_error("Unsupported data type");
         }
     }
 
-    /** 
+    /**
      * @brief Perform 2D forward FFT on a device array
-     * 
+     *
      * @param in input array
-     * @param s cuda stream
      * @return complex valued DeviceArray
      */
     template <typename T>
-    inline DeviceArray<T> fft2D(DeviceArray<T> &in, cudaStream_t s) {
+    inline DeviceArray<T> fft2D(DeviceArray<T> &in) {
 
         // create a plan for 2D forward FFT
         if (std::is_same<T, gpu::complex_t<float>>::value) {
@@ -179,30 +165,28 @@ namespace tomocam {
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, s);
+            fftExec(plan, in, out);
             return out;
         } else if (std::is_same<T, gpu::complex_t<double>>::value) {
             cufftHandle plan = fftPlan2D(in.dims(), CUFFT_Z2Z);
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, s);
+            fftExec(plan, in, out);
             return out;
         } else {
             throw std::runtime_error("Unsupported data type");
         }
     }
 
-
-    /** 
+    /**
      * @brief Perform 2D inverse FFT on a device array
-     * 
+     *
      * @param in input array
-     * @param s cuda stream
      * @return complex valued DeviceArray
      */
     template <typename T>
-    inline DeviceArray<T> ifft2D(DeviceArray<T> &in, cudaStream_t s) {
+    inline DeviceArray<T> ifft2D(DeviceArray<T> &in) {
 
         // create a plan for 2D inverse FFT
         if (std::is_same<T, gpu::complex_t<float>>::value) {
@@ -210,28 +194,26 @@ namespace tomocam {
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_INVERSE, s);
+            fftExec(plan, in, out, CUFFT_INVERSE);
             return out;
         } else if (std::is_same<T, gpu::complex_t<double>>::value) {
             cufftHandle plan = fftPlan2D(in.dims(), CUFFT_Z2Z);
             
             // create output array
             DeviceArray<T> out(in.dims());
-            fftExec(plan, in, out, CUFFT_INVERSE, s);
+            fftExec(plan, in, out, CUFFT_INVERSE);
             return out;
         } else {
             throw std::runtime_error("Unsupported data type");
         }
     }
 
-
     /** @brief Perform a 2D Forward FFT on a real valued array
       * @param in input array 
-      * @param s cuda stream
       * @return complex valued DeviceArray
       */
     template <typename T>
-    DeviceArray<gpu::complex_t<T>> rfft2D(DeviceArray<T> &in, cudaStream_t s) {
+    DeviceArray<gpu::complex_t<T>> rfft2D(DeviceArray<T> &in) {
 
         // create output array
         dim3_t dims = {in.nslices(), in.nrows(), in.ncols()/2+1};
@@ -240,35 +222,31 @@ namespace tomocam {
         if (std::is_same<T, float>::value) {
             // create a plan
             cufftHandle plan = fftPlan2D(in.dims(), CUFFT_R2C);
-            SAFE_CUFFT_CALL(cufftSetStream(plan, s));
             cufftReal *idata = reinterpret_cast<cufftReal *>(in.dev_ptr());
             cufftComplex *odata =
                 reinterpret_cast<cufftComplex *>(out.dev_ptr());
             SAFE_CUFFT_CALL(cufftExecR2C(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
         } else if (std::is_same<T, double>::value) {
             cufftHandle plan = fftPlan2D(in.dims(), CUFFT_D2Z);
-            SAFE_CUFFT_CALL(cufftSetStream(plan, s));
             cufftDoubleReal *idata =
                 reinterpret_cast<cufftDoubleReal *>(in.dev_ptr());
             cufftDoubleComplex *odata =
                 reinterpret_cast<cufftDoubleComplex *>(out.dev_ptr());
             SAFE_CUFFT_CALL(cufftExecD2Z(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
         } else { 
             throw std::runtime_error("Unsupported data type");
         }
-
-        // wait for it to finish
-        SAFE_CALL(cudaStreamSynchronize(s));
         return out;
     }
 
     /** Perform a 2D Inverse FFT on a complex valued array
       * @param in input array
-      * @param s cuda stream
       * @return real valued DeviceArray
       */
     template <typename T>
-    DeviceArray<T> irfft2D(DeviceArray<gpu::complex_t<T>> &in, cudaStream_t s) {
+    DeviceArray<T> irfft2D(DeviceArray<gpu::complex_t<T>> &in) {
 
         // create output array, reconstruction is always going to be a square
         // matrix
@@ -277,25 +255,22 @@ namespace tomocam {
 
         if (std::is_same<T, float>::value) {
             cufftHandle plan = fftPlan2D(dims, CUFFT_C2R);
-            SAFE_CUFFT_CALL(cufftSetStream(plan, s));
             cufftComplex *idata =
                 reinterpret_cast<cufftComplex *>(in.dev_ptr());
             cufftReal *odata = reinterpret_cast<cufftReal *>(out.dev_ptr());
             SAFE_CUFFT_CALL(cufftExecC2R(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
         } else if (std::is_same<T, double>::value) {
             cufftHandle plan = fftPlan2D(dims, CUFFT_Z2D);
-            SAFE_CUFFT_CALL(cufftSetStream(plan, s));
             cufftDoubleComplex *idata =
                 reinterpret_cast<cufftDoubleComplex *>(in.dev_ptr());
             cufftDoubleReal *odata =
                 reinterpret_cast<cufftDoubleReal *>(out.dev_ptr());
             SAFE_CUFFT_CALL(cufftExecZ2D(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
         } else { 
             throw std::runtime_error("Unsupported data type");
         }
-
-        // wait for it to finish
-        SAFE_CALL(cudaStreamSynchronize(s));
         return out;
     }
 
