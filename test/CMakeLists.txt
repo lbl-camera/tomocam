@@ -32,14 +32,6 @@ target_link_libraries(read PRIVATE ${Python_LIBRARIES})
 target_link_libraries(read PRIVATE nlohmann_json::nlohmann_json)
 add_test(test_reader read)
 
-# backproj for device array
-add_executable(backward test_backward.cpp)
-target_link_libraries(backward PRIVATE tomocam)
-target_link_libraries(backward PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(backward PRIVATE nlohmann_json::nlohmann_json)
-add_test(test_backward backward)
-
-
 # backproj
 add_executable(backproj test_backproj.cpp)
 target_link_libraries(backproj PRIVATE tomocam)
@@ -64,9 +56,8 @@ target_link_libraries(forward PRIVATE ${HDF5_LIBRARIES})
 
 
 # test for Toeplitz matrix
-add_executable(toeplitz test_toeplitz.cpp)
-target_link_libraries(toeplitz PRIVATE tomocam)
-target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
+add_executable(error test_error.cpp)
+target_link_libraries(error PRIVATE tomocam)
 
 # MBIR
 add_executable(mbir test_mbir.cpp)
