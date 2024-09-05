@@ -129,6 +129,10 @@ namespace tomocam {
                     // set device
                     SAFE_CALL(cudaSetDevice(device_id_));
 
+                    // free the memory if it is already allocated
+                    if (x_) SAFE_CALL(cudaFree(x_));
+                    if (y_) SAFE_CALL(cudaFree(y_));
+
                     // allocate memory for the non-uniform points on the device
                     size_t bytes = num_projs_ * num_pixels_ * sizeof(T);
                     SAFE_CALL(cudaMalloc(&x_, bytes));
@@ -223,8 +227,8 @@ namespace tomocam {
         }
 
         // 2-dimensional NUFFT from non-uniform to uniform grid (single precision)
-        inline void nufft2d1(
-            DeviceArraycf &c, DeviceArraycf &fk, const Grid<float> &nugrid) {
+        inline DeviceArraycf nufft2d1(DeviceArraycf &c,
+            const Grid<float> &nugrid, dim3_t dims = {0, 0, 0}) {
 
             // check if device id is same as the one used for the grid
             int dev_id;
@@ -234,6 +238,13 @@ namespace tomocam {
                 exit(1);
             }
 
+            // allocate return array
+            if (dims.isNULL()) {
+                dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
+            }
+            DeviceArraycf fk(dims);
+
+            // create finufft plan
             cufinufftf_plan plan;
             int type = 1;
             int iflag = 1;
@@ -252,11 +263,13 @@ namespace tomocam {
             // execute the plan
             NUFFT_CALL(cufinufftf_execute(plan, nu_data, uniform_data));
             NUFFT_CALL(cufinufftf_destroy(plan));
+            return fk;
         }
 
-        // 2-dimensional NUFFT from non-uniform to uniform grid (double precision)
-        inline void nufft2d1(
-            DeviceArraycd &c, DeviceArraycd &fk, const Grid<double> &nugrid) {
+        // 2-dimensional NUFFT from non-uniform to uniform grid (double
+        // precision)
+        inline DeviceArraycd nufft2d1(DeviceArraycd &c,
+            const Grid<double> &nugrid, dim3_t dims = {0, 0, 0}) {
 
             // check if device id is same as the one used for the grid
             int dev_id;
@@ -266,6 +279,13 @@ namespace tomocam {
                 exit(1);
             }
 
+            // allocate return array
+            if (dims.isNULL()) {
+                dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
+            }
+            DeviceArraycd fk(dims);
+
+            // create finufft plan
             cufinufft_plan plan;
             int type = 1;
             int iflag = 1;
@@ -284,11 +304,12 @@ namespace tomocam {
             // execute the plan
             NUFFT_CALL(cufinufft_execute(plan, nu_data, uniform_data));
             NUFFT_CALL(cufinufft_destroy(plan));
+            return fk;
         }
 
         // 2-dimensional NUFFT Uniform -> Non-uniform (single precision)
-        inline void nufft2d2(
-            DeviceArraycf &c, DeviceArraycf &fk, const Grid<float> &nugrid) {
+        inline DeviceArraycf nufft2d2(DeviceArraycf &fk,
+            const Grid<float> &nugrid) {
 
             // check if device id is same as the one used for the grid
             int dev_id;
@@ -297,6 +318,10 @@ namespace tomocam {
                 std::cerr << "Device id mismatch" << std::endl;
                 exit(1);
             }
+
+            // allocate return array
+            dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
+            DeviceArraycf c(dims);
 
             // make the plan
             cufinufftf_plan plan;
@@ -317,11 +342,12 @@ namespace tomocam {
             // execute the plan
             NUFFT_CALL(cufinufftf_execute(plan, nu_data, uniform_data));
             NUFFT_CALL(cufinufftf_destroy(plan));
+            return c;
         }
 
         // 2-dimensional NUFFT Uniform -> Non-uniform (double precision)
-        inline void nufft2d2(
-            DeviceArraycd &c, DeviceArraycd &fk, const Grid<double> &nugrid) {
+        inline DeviceArraycd nufft2d2(DeviceArraycd &fk,
+            const Grid<double> &nugrid) {
 
             // check if device id is same as the one used for the grid
             int dev_id;
@@ -330,6 +356,10 @@ namespace tomocam {
                 std::cerr << "Device id mismatch" << std::endl;
                 exit(1);
             }
+
+            // allocate return array
+            dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
+            DeviceArraycd c(dims);
 
             // make the plan
             cufinufft_plan plan;
@@ -350,6 +380,7 @@ namespace tomocam {
             // execute the plan
             NUFFT_CALL(cufinufft_execute(plan, nu_data, uniform_data));
             NUFFT_CALL(cufinufft_destroy(plan));
+            return c;
         }
 
     } // namespace NUFFT
