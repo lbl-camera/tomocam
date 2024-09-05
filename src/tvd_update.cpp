@@ -27,6 +27,7 @@
 #include "internals.h"
 #include "machine.h"
 #include "scheduler.h"
+#include "shipper.h"
 #include "types.h"
 
 #include "gpu/totalvar.cuh"
@@ -40,11 +41,6 @@ namespace tomocam {
         // initalize the device
         SAFE_CALL(cudaSetDevice(device));
 
-        // create stream to copy data to host
-        cudaStream_t work_s;
-        cudaStream_t out_s;
-        SAFE_CALL(cudaStreamCreate(&out_s));
-
         // create sub-partitions with halo
         int nslcs = Machine::config.slicesPerStream();
         int nparts = sol.nslices() / nslcs;
@@ -57,6 +53,9 @@ namespace tomocam {
                 "Error: sub_sols and sub_grads have different sizes");
         }
 
+        // create a shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
+
         // create scheduler
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(
             sub_sols, sub_grads);
@@ -68,13 +67,11 @@ namespace tomocam {
                 auto [idx, d_s, d_g] = work.value();
 
                 // update the total variation
-                gpu::add_total_var<T>(d_s, d_g, p, sigma, work_s);
-                SAFE_CALL(cudaStreamSynchronize(work_s));
-                d_g.copy_to(sub_grads[idx], out_s);
+                gpu::add_total_var<T>(d_s, d_g, p, sigma);
+                // d_g.copy_to(sub_grads[idx], out_s);
+                shipper.push(sub_grads[idx], d_g);
             }
         }
-        SAFE_CALL(cudaStreamSynchronize(out_s));
-        SAFE_CALL(cudaStreamDestroy(out_s));
     }
 
     // multi-GPU call
@@ -87,12 +84,12 @@ namespace tomocam {
         auto p1 = create_partitions(sol, nDevice, 1);
         auto p2 = create_partitions(grad, nDevice);
 
-        // #pragma omp parallel for num_threads(nDevice)
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++){
             total_var<T>(p1[i], p2[i], p, sigma, i);
         }
 
-        // #pragma omp parallel for num_threads(nDevice)
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
