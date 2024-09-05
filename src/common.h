@@ -24,7 +24,7 @@
 namespace tomocam {
     struct dim3_t {
         int x, y, z;
-        dim3_t() : x(0), y(0), z(0) {}
+        dim3_t() : x(1), y(1), z(1) {}
         dim3_t(int d0, int d1, int d2) : x(d0), y(d1), z(d2) {}
 
         bool operator==(const dim3_t &other) const {
@@ -54,6 +54,12 @@ namespace tomocam {
         dim3_t operator*(int scalar) const {
             dim3_t v(x*scalar, y*scalar, z*scalar);
             return v;
+        }
+
+        bool isNULL() const {
+            if ((x == 0) && (y == 0) && (z == 0)) return true;
+            else
+                return false;
         }
 
 #ifdef __NVCC__
