@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     }
 
     // read data
-    tomocam::h5::H5Reader h5fp(filename.c_str());
+    tomocam::h5::Reader h5fp(filename.c_str());
 
     auto t0 = std::chrono::high_resolution_clock::now();
     auto sino = h5fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
               << std::endl;
 
     // if number of columns is even, drop one column
-    sino.ensure_odd_cols();
+    sino.dropcol();
     center -= 1;
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     std::cout << "Backprojection time: " << elapsed.count() << " s"
               << std::endl;
 
-    tomocam::h5::H5Writer w("backproj.h5");
+    tomocam::h5::Writer w("backproj.h5");
     w.write("backproj", recn); 
     return 0;
 }

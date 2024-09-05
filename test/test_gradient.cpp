@@ -3,84 +3,78 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <string>
+#include <thread>
 
 #include "dist_array.h"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
+#include "toeplitz.h"
 #include "tomocam.h"
 
-using json = nlohmann::json;
 
 int main(int argc, char **argv) {
 
-    // get JSON file
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <JSON file>" << std::endl;
-        return 1;
+    const int nprojs = 5;
+    const int npixel = 5;
+    const int center = npixel / 2;
+
+    auto random = []() { return static_cast<float>(rand()) / RAND_MAX; };
+
+    // create data
+    tomocam::DArray<float> sino(tomocam::dim3_t{1, nprojs, npixel});
+    for (int i = 0; i < sino.size(); i++) {
+        sino[i] = random();
+        // sino[i] = 0;
     }
 
-    // read JSON file
-    std::ifstream json_file(argv[1]);
-    if (!json_file.is_open()) {
-        std::cerr << "Error: cannot open JSON file" << std::endl;
-        return 1;
-    }
-    json cfg = json::parse(json_file);
+    // create angles
+    std::vector<float> angs(nprojs);
+    for (int i = 0; i < nprojs; i++) { angs[i] = i * M_PI / nprojs; }
 
-    // get parameters
-    std::string filename = cfg["filename"];
-    std::string dataset = cfg["dataset"];
-    std::string angles = cfg["angles"];
-    int center = cfg["axis"];
-    int ibeg = 0, iend = -1;
-    // chcek for "slices" key
-    if (cfg.find("slices") != cfg.end()) {
-        auto slcs = cfg["slices"];
-        ibeg = slcs[0];
-        iend = slcs[1];
-    }
-
-    // read data
-    tomocam::h5::H5Reader h5fp(filename.c_str());
-    auto sino = h5fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
-    auto angs = h5fp.read<float>(angles.c_str());
-
-    // if number of columns is even, drop one column
-    sino.ensure_odd_cols();
-
-    // minus log
-    sino.normalize();
-    sino.minus_log();
-
-    // allocate solution
-    tomocam::dim3_t dims = {sino.nslices(), sino.ncols(), sino.ncols()};
+    // allocate solution array
+    tomocam::dim3_t dims = {1, npixel, npixel};
     tomocam::DArray<float> x1(dims);
     x1.init(1.f);
     auto x2 = x1;
 
     // gradient 1
-    auto y = tomocam::backproject(sino, angs, center);
     auto t1 = tomocam::project(x1, angs, center);
-    auto t2 = tomocam::backproject(t1, angs, center);
-    auto g1 = t2 - y;
+    auto g1 = tomocam::backproject(t1, angs, center);
 
-    /*
+    for (int i = 0; i < npixel; i++) {
+        for (int j = 0; j < npixel; j++) { std::cout << g1(0, i, j) << " "; }
+        std::cout << std::endl;
+    }
+    std::cout << "----------------" << std::endl;
+
     // gradient 2
     // create NUFFT grids
-    std::vector<tomocam::NUFFT::Grid<float>> grids(4);
+    std::vector<tomocam::PointSpreadFunction<float>> psfs(4);
     for (int i = 0; i < 4; i++) {
-        grids[i] = tomocam::NUFFT::Grid<float>(angs.size(), sino.ncols(),
+        tomocam::NUFFT::Grid<float> grid(sino.nrows(), sino.ncols(),
             angs.data(), i);
+        psfs[i] = tomocam::PointSpreadFunction<float>(grid);
     }
-    auto tpl = tomocam::gradient(x2, y, grids);
-    auto g2 = std::get<0>(tpl);
-    auto f2 = std::get<1>(tpl);
-    */
+
+    // compute gradient
+    auto y = tomocam::backproject(sino, angs, center);
+    auto g2 = tomocam::gradient2(x2, y, psfs);
+
+    for (int i = 0; i < npixel; i++) {
+        for (int j = 0; j < npixel; j++) { std::cout << g1(0, i, j) << " "; }
+        std::cout << std::endl;
+    }
+    std::cout << "----------------" << std::endl;
+    exit(1);
+
     // write to HDF5
-    tomocam::h5::H5Writer h5fw("gradient.h5");
-    h5fw.write("g1", y);
-    h5fw.write("g2", g1);
+    tomocam::h5::Writer h5fw("gradient.h5");
+    h5fw.write("g1", t1);
+    h5fw.write("g2", g2);
+
+    // compare
+    auto e = g1 - g2;
+    std::cout << "Error: " << e.norm() << std::endl;
     return 0;
 }

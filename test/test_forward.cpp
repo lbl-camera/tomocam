@@ -25,6 +25,6 @@ int main(int argc, char **argv) {
     auto p = tomocam::project<float>(image, angles, center);
 
     // write to hdf5
-    tomocam::h5::H5Writer writer("project.h5");
+    tomocam::h5::Writer writer("project.h5");
     writer.write("project", p);
 }

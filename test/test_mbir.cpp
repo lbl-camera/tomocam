@@ -1,54 +1,84 @@
-#include <iostream>
+#include <filesystem>
 #include <fstream>
-
+#include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "dist_array.h"
+#include "hdf5/reader.h"
+#include "hdf5/writer.h"
+#include "timer.h"
 #include "tomocam.h"
 
-#include "optimize.h"
+using json = nlohmann::json;
 
-#include "reader.h"
-#include "timer.h"
-
-const int MAX_ITERS = 10;
-const char * FILENAME = "/home/dkumar/data/shepp_logan/shepp_logan.h5";
-const char * DATASET = "projs";
-const char * ANGLES = "angs";
-const int NSLICES = 1;
 int main(int argc, char **argv) {
 
-    // read data
-	tomocam::H5Reader fp(FILENAME);
-	fp.setDataset(DATASET);
-	auto sino = fp.read_sinogram(NSLICES, 0);
-	std::vector<float> angs = fp.read_angles(ANGLES);
-	float * angles = angs.data();
-
-    tomocam::dim3_t d1 = sino.dims();
-    tomocam::dim3_t d2(d1.x, d1.z, d1.z);
-
-    int max_iters = MAX_ITERS;
-    float center = 256;
-    float sigma = 10;
-    float p = 1.2;
-
-    if (argc == 2) {
-        sigma = std::atof(argv[1]);
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " <json>" << std::endl;
+        return 1;
     }
 
-    std::cout << "Input size: (" << d1.x << ", " << d1.y << ", " << d1.z <<" )" << std::endl;
-	std::cout << "Center: " << center << std::endl;
-	std::cout << "Smoothness: " << sigma << std::endl;
-	std::cout << "No. of iterations: " << max_iters << std::endl;
+    // get JSON file
+    std::ifstream json_file(argv[1]);
+    if (!json_file.is_open()) {
+        std::cerr << "Error: cannot open JSON file" << std::endl;
+        return 1;
+    }
 
-    // normalize
-    float tol =0.001;
+    json cfg = json::parse(json_file);
+
+    // get parameters
+    std::string filename = cfg["filename"];
+    std::string dataset = cfg["dataset"];
+    std::string angles = cfg["angles"];
+    int center = cfg["axis"];
+    int ibeg = 0, iend = -1;
+    // chcek for "slices" key
+    if (cfg.find("slices") != cfg.end()) {
+        auto slcs = cfg["slices"];
+        ibeg = slcs[0];
+        iend = slcs[1];
+    }
+
+    if (cfg.find("MBIR") == cfg.end()) {
+        std::cerr << "Error: missing MBIR parameters" << std::endl;
+        return 1;
+    }
+
+    // MBIR parameters
+    auto mbir = cfg["MBIR"];
+    int max_iters = mbir["num_iters"];
+    float sigma = mbir["sigma"];
+    float p = mbir["p"];
+
+    float tol = 0.001;
+    if (mbir.find("tol") != mbir.end()) tol = mbir["tol"];
+
+    // load tomogrmaphic data
+    tomocam::h5::Reader fp(filename.c_str());
+    auto sino = fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
+    auto angs = fp.read<float>(angles.c_str());
+
+    // if number of columns is even, drop one column
+    if (sino.ncols() % 2 == 0) {
+        sino.dropcol();
+        center -= 1;
+    }
+
+    // run MBIR
     float step = 0.1;
     float penalty = 1;
     Timer t;
-	auto recon = tomocam::mbir(sino, angles, center, sigma, p, max_iters, step, tol, penalty);
+    t.start();
+    auto recon = tomocam::mbir<float>(sino, angs, center, sigma, p, max_iters,
+        step, tol, penalty);
     t.stop();
-    std::cout << "time taken(ms): " << t.millisec() << std::endl;
+    std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
+
+    // save reconstruction
+    auto outf = cfg["output"].get<std::string>();
+    tomocam::h5::Writer writer(outf.c_str());
+    writer.write("recon", recon);
 
     return 0;
 }

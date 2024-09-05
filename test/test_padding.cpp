@@ -39,11 +39,11 @@ int main(int argc, char **argv) {
     int center = config["axis"];
 
     // read hdf5 file
-    tomocam::h5::H5Reader reader(fname.c_str());
+    tomocam::h5::Reader reader(fname.c_str());
     auto sino = reader.read_sinogram<float>(dataset.c_str(), 1, 0);
 
     // hdf5 file
-    tomocam::h5::H5Writer fp("padding_test.h5");
+    tomocam::h5::Writer fp("padding_test.h5");
     // write sinogram to file
     fp.write("unpadded", sino);
 
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     std::cout << "Shift: " << shift << std::endl;
     tomocam::PadType type = tomocam::PadType::RIGHT;
     if (shift < 0) { type = tomocam::PadType::LEFT; }
-    auto padded = tomocam::gpu::pad1d(d_sino, shift, type, 0);
+    auto padded = tomocam::gpu::pad1d(d_sino, shift, type);
 
     // copy to host
     tomocam::DArray<float> arr(padded.dims());

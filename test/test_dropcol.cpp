@@ -20,11 +20,11 @@ int main(int argc, char **argv) {
     // create a copy of the data
     auto data2 = data;
     auto start = std::chrono::high_resolution_clock::now();
-    data2.ensure_odd_cols();
+    data2.dropcol();
     auto dt = std::chrono::high_resolution_clock::now() - start;
 
     // write data to hdf5
-    tomocam::h5::H5Writer writer("test_dropcol.h5");
+    tomocam::h5::Writer writer("test_dropcol.h5");
     writer.write("data", data);
     writer.write("data2", data2);
 

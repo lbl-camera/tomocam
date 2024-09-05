@@ -42,13 +42,13 @@ int main(int argc, char *argv[]) {
         std::cerr << "File does not exist: " << filename << std::endl;
         return 1;
     }
-    tomocam::h5::H5Reader reader(filename.c_str());
+    tomocam::h5::Reader reader(filename.c_str());
     auto sino = reader.read_sinogram<float>(dataset.c_str(), begin, end);
     auto theta = reader.read<float>(angles.c_str());
 
     // write sinogram to file
     const std::string output_filename = cfg["output"];
-    tomocam::h5::H5Writer writer(output_filename.c_str());
+    tomocam::h5::Writer writer(output_filename.c_str());
     writer.write<float>("sino", sino);
 
     return 0;
