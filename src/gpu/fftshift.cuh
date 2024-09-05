@@ -33,11 +33,10 @@ namespace tomocam {
          * 
          * @param in input array
          * @param shift number of positions to shift
-         * @param s cuda stream
          * @return shifted array
          */
         template <typename T>
-        DeviceArray<T> roll(const DeviceArray<T> &, int, cudaStream_t);
+        DeviceArray<T> roll(const DeviceArray<T> &, int);
 
     } // namespace gpu
 } // namespace tomocam
