@@ -32,14 +32,15 @@
 namespace tomocam {
     namespace gpu {
 
-        __global__ void hessian_zero_kernel(DeviceMemoryf hessian,
+        template <typename T>
+        __global__ void hessian_zero_kernel(DeviceMemory<T> hessian,
             float sigma) {
 
             int3 idx = Index3D();
 
             // clang-format off
             if (idx < hessian.dims()) {
-                float temp = 0.f;
+                T temp = 0.f;
                 for (int ix = 0; ix < 3; ix++)
                     for (int iy = 0; iy < 3; iy++)
                         for (int iz = 0; iz < 3; iz++)
@@ -49,15 +50,23 @@ namespace tomocam {
             }
         }
 
-        void add_tv_hessian(DArray<float> &grad, float sigma) {
+        template <typename T>
+        void add_tv_hessian(DArray<T> &g, float sigma) {
 
             // there is only one slice so we dont need multi-gpu machinary
             // move data to gpu
-            auto dev_g =
-                DeviceArray_fromHost<float>(grad.dims(), grad.data(), 0);
-            Grid grid(dev_g.dims());
-            hessian_zero_kernel<<<grid.blocks(), grid.threads()>>>(dev_g,
-                sigma);
+            DeviceArray<T> dev_g(g.dims());
+            SAFE_CALL(cudaMemcpy(dev_g.dev_ptr(), g.begin(), g.bytes(),
+                cudaMemcpyHostToDevice));
+
+            Grid grid(g.dims());
+            hessian_zero_kernel<T>
+                <<<grid.blocks(), grid.threads()>>>(dev_g, sigma);
         }
+
+        // instantiate template
+        template void add_tv_hessian(DArray<float> &g, float sigma);
+        template void add_tv_hessian(DArray<double> &g, float sigma);
+
     } // namespace gpu
 } // namespace tomocam
