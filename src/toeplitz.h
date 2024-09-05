@@ -46,49 +46,45 @@ namespace tomocam {
             // allocate ones
             constexpr gpu::complex_t<T> v(1, 0);
             DeviceArray<gpu::complex_t<T>> ones(dim3_t(1, nproj, ncols));
-            ones.init(v, cudaStreamPerThread);
-
-            // allocate nufft output
-            auto temp = DeviceArray<gpu::complex_t<T>>(dim3_t(1, N1, N1));
+            ones.init(v);
 
             // compute nufft type 1
-            NUFFT::nufft2d1(ones, temp, grid);
+            dim3_t out_dims(1, N1, N1);
+            auto temp = NUFFT::nufft2d1(ones, grid, out_dims);
 
             // get the real part
-            auto psf = real(temp, cudaStreamPerThread);
+            auto psf = real(temp);
 
             // zero pad for convolution (N1 + ncols - 1)
-            psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT,
-                cudaStreamPerThread);
+            psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT);
 
             // compute FFT(psf)
-            psf_ = rfft2D(psf, cudaStreamPerThread);
+            psf_ = rfft2D(psf);
         }
 
-        DeviceArray<T> convolve(const DeviceArray<T> &x, cudaStream_t s) const {
+        DeviceArray<T> convolve(const DeviceArray<T> &x) const {
 
             // pad x to match the size of the psf
             int padding = psf_.nrows() - x.nrows();
 
             // zero pad
-            auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT, s);
+            auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT);
 
             // fft(x) Real -> complex
-            auto xft = rfft2D<T>(xpad, s);
+            auto xft = rfft2D<T>(xpad);
 
             // broadcast-multiply
-            auto xft_psf = xft.multiply(psf_, s);
+            auto xft_psf = xft.multiply(psf_);
 
             // scale by the size of the image
             T scale = static_cast<T>(xpad.nrows() * xpad.ncols());
-            xft_psf = xft_psf.divide(scale, s);
+            xft_psf = xft_psf.divide(scale);
 
             // ifft(g * x) complex -> real
-            auto tmp2 = irfft2D<T>(xft_psf, s);
+            auto tmp2 = irfft2D<T>(xft_psf);
 
             // remove padding
-            auto tmp3 = gpu::unpad2d<T>(tmp2, padding, s);
-            SAFE_CALL(cudaStreamSynchronize(s));
+            auto tmp3 = gpu::unpad2d<T>(tmp2, padding);
 
             return tmp3;
         }
