@@ -179,22 +179,22 @@ namespace tomocam {
 
         template <typename T>
         void add_total_var(const DeviceArray<T> &sol, DeviceArray<T> &grad,
-            float p, float sigma, cudaStream_t stream) {
+            float p, float sigma) {
 
             // CUDA kernel parameters
             Grid g(grad.dims());
 
             // update gradients inplace
             tvd_update_kernel<T>
-                <<<g.blocks(), g.threads(), 0, stream>>>(sol, grad, p, sigma);
+                <<<g.blocks(), g.threads()>>>(sol, grad, p, sigma);
             SAFE_CALL(cudaGetLastError());
         }
 
         // instantiate the template
         template void add_total_var(const DeviceArray<float> &,
-            DeviceArray<float> &, float, float, cudaStream_t);
+            DeviceArray<float> &, float, float);
         template void add_total_var(const DeviceArray<double> &,
-            DeviceArray<double> &, float, float, cudaStream_t);
+            DeviceArray<double> &, float, float);
 
     } // namespace gpu
 } // namespace tomocam
