@@ -101,8 +101,10 @@ namespace tomocam {
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
      */
-    template <typename T>
-    void add_tv_hessian(DArray<T> &, T);
+    namespace gpu {
+        template <typename T>
+        void add_tv_hessian(DArray<T> &, float);
+    }
 
 } // namespace tomocam
 
