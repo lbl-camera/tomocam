@@ -23,6 +23,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 #include "common.h"
 #include "dist_array.h"
@@ -54,14 +55,18 @@ namespace tomocam {
         DeviceArray(dim3_t d) : dims_(d) {
             halo_ = {0, 0};
             size_ = d.x * d.y * d.z;
-            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+            size_t bytes = sizeof(T) * size_;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, bytes));
+            SAFE_CALL(cudaMemset(dev_ptr_, 0, bytes));
         }
 
         // Allocate space with halo
         DeviceArray(dim3_t d, int *h) : dims_(d) {
             halo_ = {h[0], h[1]};
             size_ = d.x * d.y * d.z;
-            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+            size_t bytes = sizeof(T) * size_;
+            SAFE_CALL(cudaMalloc(&dev_ptr_, bytes));
+            SAFE_CALL(cudaMemset(dev_ptr_, 0, bytes));
         }
 
         /* create device array from partition */
@@ -69,7 +74,7 @@ namespace tomocam {
             dims_ = rhs.dims();
             size_ = rhs.size();
             halo_ = {rhs.halo()[0], rhs.halo()[1]};
-            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
+            SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
             SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.begin(), rhs.bytes(),
                 cudaMemcpyHostToDevice));
         }
@@ -84,9 +89,9 @@ namespace tomocam {
             dims_ = rhs.dims_;
             halo_ = rhs.halo_;
             size_ = rhs.size_;
-            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
-            size_t bytes = sizeof(T) * size_;
-            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, bytes, cudaMemcpyDeviceToDevice));
+            SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
+            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, rhs.bytes(),
+                cudaMemcpyDeviceToDevice));
         }
 
         // assignment operator
@@ -95,9 +100,9 @@ namespace tomocam {
             size_ = rhs.size_;
             halo_ = rhs.halo_;
             if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_));
-            SAFE_CALL(cudaMalloc(&dev_ptr_, sizeof(T) * size_));
-            size_t bytes = sizeof(T) * size_;
-            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, bytes, cudaMemcpyDeviceToDevice));
+            SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
+            SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, rhs.bytes(),
+                cudaMemcpyDeviceToDevice));
             return *this;
         }
 
@@ -159,87 +164,80 @@ namespace tomocam {
         int ncols() const { return dims_.z; }
 
         // initialize
-        void init(T v, cudaStream_t s) {
-            gpu::init_array<T>(dev_ptr_, v, size_, s);
-        }
+        void init(T v) { gpu::init_array<T>(dev_ptr_, v, size_); }
 
         // copy to partition
-        void copy_to(Partition<T> &rhs, cudaStream_t s) const {
+        void copy_to(Partition<T> &rhs) const {
             if (dims_ == rhs.dims()) {
-                SAFE_CALL(cudaMemcpyAsync(rhs.begin(),
-                    dev_ptr_,
-                    sizeof(T) * size_,
-                    cudaMemcpyDeviceToHost, s));
+                SAFE_CALL(cudaMemcpy(rhs.begin(), dev_ptr_, rhs.bytes(),
+                    cudaMemcpyDeviceToHost));
             } else {
-                throw std::runtime_error("Partition dimensions do not match");
+                throw std::runtime_error(
+                    "Partition and DeviceArray dimensions do not match");
             }
+        }
+
+        // copy to host
+        std::vector<T> copy_to_host() const {
+            std::vector<T> h_ptr(size_);
+            SAFE_CALL(cudaMemcpy(h_ptr.data(), dev_ptr_, bytes(),
+                cudaMemcpyDeviceToHost));
+            return h_ptr;
         }
 
         /* arithmatic operations should be asychronized */
 
         // multiply (for FFT Convolution)
-        DeviceArray<T> multiply(const DeviceArray<T> &arr, cudaStream_t s) const {
+        DeviceArray<T> multiply(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
-                gpu::multiply_arrays<T>(
-                    dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_, s);
+                gpu::multiply_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
+                    size_);
             else if ((dims_.y == arr.dims_.y) && (dims_.z == arr.dims_.z)) {
-                gpu::broadcast_multiply<T>(
-                    dev_ptr_, arr.dev_ptr_, res.dev_ptr_, dims_, s);
+                gpu::broadcast_multiply<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
+                    dims_);
             }
             return res;
         }
 
         // division (for normalization)
-        DeviceArray<T> divide(T val, cudaStream_t s) const {
+        DeviceArray<T> divide(T val) const {
             DeviceArray<T> res(dims_);
             T val_inv = static_cast<T>(1) / val;
-            gpu::scale_array<T>(dev_ptr_, val_inv, res.dev_ptr_, size_, s);
+            gpu::scale_array<T>(dev_ptr_, val_inv, res.dev_ptr_, size_);
             return res;
         }
 
         // addition
-        DeviceArray<T> add(const DeviceArray<T> &arr, cudaStream_t s) const {
+        DeviceArray<T> add(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
-                gpu::add_arrays<T>(
-                    dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_, s);
+                gpu::add_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_);
             else
                 throw std::runtime_error("Array dimensions do not match");
             return res;
         }
 
         // subtraction
-        DeviceArray<T> subtract(const DeviceArray<T> &arr, cudaStream_t s) const {
+        DeviceArray<T> subtract(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
-                gpu::subtract_arrays<T>(
-                    dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_, s);
+                gpu::subtract_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
+                    size_);
             else
                 throw std::runtime_error("Array dimensions do not match");
             return res;
         }
 
-        // norm2
-        T norm2(cudaStream_t s) const {
-            return gpu::dot<T>(dev_ptr_, dev_ptr_, size_, s);
-        }
-
         // dot product
-        T dot(const DeviceArray<T> &arr, cudaStream_t s) const {
-            return gpu::dot(dev_ptr_, arr.dev_ptr_, size_, s);
+        T dot(const DeviceArray<T> &arr) const {
+            if (dims_ != arr.dims_)
+                throw std::runtime_error("Array dimensions do not match");
+            return gpu::dot(dev_ptr_, arr.dev_ptr_, size_);
         }
 
-        // dump to a binary file
-        void tofile(const char *filename) {
-            T *h_ptr = new T[size_];
-            SAFE_CALL(cudaMemcpy(
-                h_ptr, dev_ptr_, sizeof(T) * size_, cudaMemcpyDeviceToHost));
-            std::ofstream out(filename, std::ios::binary);
-            out.write((char *)h_ptr, sizeof(T) * size_);
-            out.close();
-            delete[] h_ptr;
-        }
+        // norm2
+        T norm2() const { return gpu::dot<T>(dev_ptr_, dev_ptr_, size_); }
     };
 
     typedef DeviceArray<float> DeviceArrayf;
@@ -249,20 +247,17 @@ namespace tomocam {
 
     // conversion from complex to real
     template <typename T>
-    DeviceArray<T> real(
-        const DeviceArray<gpu::complex_t<T>> &arr, cudaStream_t s) {
+    DeviceArray<T> real(const DeviceArray<gpu::complex_t<T>> &arr) {
         DeviceArray<T> res(arr.dims());
-        gpu::cast_array_to_real<T>(arr.dev_ptr(), res.dev_ptr(), arr.size(), s);
+        gpu::cast_array_to_real<T>(arr.dev_ptr(), res.dev_ptr(), arr.size());
         return res;
     }
 
     // conversion from real to complex
     template <typename T>
-    DeviceArray<gpu::complex_t<T>> complex(
-        const DeviceArray<T> &arr, cudaStream_t s) {
+    DeviceArray<gpu::complex_t<T>> complex(const DeviceArray<T> &arr) {
         DeviceArray<gpu::complex_t<T>> res(arr.dims());
-        gpu::cast_array_to_complex<T>(
-            arr.dev_ptr(), res.dev_ptr(), arr.size(), s);
+        gpu::cast_array_to_complex<T>(arr.dev_ptr(), res.dev_ptr(), arr.size());
         return res;
     }
 
