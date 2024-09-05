@@ -18,7 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <concepts>
 #include <iostream>
+#include <vector>
 
 #include "dev_array.h"
 #include "fft.h"
@@ -33,41 +35,34 @@ namespace tomocam {
 
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
-        const NUFFT::Grid<T> &grid, int offset, cudaStream_t s) {
+        const NUFFT::Grid<T> &grid, int offset) {
 
         // add zeropadding to put center of rotation at center of image
         PadType pad_type = PadType::RIGHT;
         if (offset < 0) pad_type = PadType::LEFT;
-        auto in1 = gpu::pad1d(sino, 2 * offset, pad_type, s);
+        auto in1 = gpu::pad1d(sino, 2 * offset, pad_type);
+
 
         // cast to complex
-        auto in2 = complex(in1, s);
+        auto in2 = complex(in1);
 
         /* back-project */
         // shift 0-frequency to corner
-        auto in3 = ifftshift(in2, s);
-        auto in4 = fft1D(in3, s);
-        auto in5 = in4.divide(in4.ncols(), s);
-        auto fk = fftshift(in5, s);
-
-        // wait for fft to finish
-        cudaStreamSynchronize(s);
-
-        // allocate memory for back-projection
-        dim3_t dims = {fk.nslices(), fk.ncols(), fk.ncols()};
-        DeviceArray<gpu::complex_t<T>> out(dims);
+        in2 = ifftshift(in2);
+        in2 = fft1D(in2);
+        in2 = fftshift(in2);
 
         // nufft type 1
-        nufft2d1(fk, out, grid);
+        auto out = nufft2d1(in2, grid);
         cudaDeviceSynchronize();
 
         // cast to real
-        return gpu::unpad2d(real(out, s), offset, s);
+        return gpu::unpad2d(real(out), offset);
     }
 
     // explicit instantiation
     template DeviceArray<float> backproject(const DeviceArray<float> &,
-        NUFFT::Grid<float> const &, int, cudaStream_t);
+        NUFFT::Grid<float> const &, int);
     template DeviceArray<double> backproject(const DeviceArray<double> &,
-        NUFFT::Grid<double> const &, int, cudaStream_t);
+        NUFFT::Grid<double> const &, int);
 } // namespace tomocam

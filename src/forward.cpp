@@ -32,44 +32,40 @@
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid, int offset, cudaStream_t s) {
+        const NUFFT::Grid<T> &grid, int offset) {
 
         // zero-padding
-        auto in1 = gpu::pad2d(input, 2 * offset, PadType::RIGHT, s);
+        auto in1 = gpu::pad2d(input, 2 * offset, PadType::RIGHT);
 
         // cast to complex
-        auto in2 = complex(in1, s);
-
-        // allocate nufft output
-        DeviceArray<gpu::complex_t<T>> out(
-            dim3_t(input.nslices(), grid.nprojs(), grid.npixels()));
+        auto in2 = complex(in1);
 
         // nufft type 2
-        nufft2d2(out, in2, grid);
+        auto out = nufft2d2(in2, grid);
         SAFE_CALL(cudaDeviceSynchronize());
 
         //  1d inverse fft along columns
-        auto out1 = fftshift(out, s);
-        auto out2 = ifft1D(out1, s);
-        auto out3 = out2.divide(out2.ncols(), s);
-        auto out4 = ifftshift(out3, s);
+        out = ifftshift(out);
+        out = ifft1D(out);
+        out = out.divide(out.ncols());
+        out = fftshift(out);
 
         // cast to real
-        auto out5 = real(out4, s);
+        auto out1 = real(out);
 
         // crop and return
         if (offset == 0) {
-            return out5;
+            return out1;
         } else {
             PadType pad_type = offset < 0 ? PadType::LEFT : PadType::RIGHT;
-            return gpu::unpad1d(out5, offset, pad_type, s);
+            return gpu::unpad1d(out1, offset, pad_type);
         }
     }
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &, int, cudaStream_t);
+        const NUFFT::Grid<float> &, int);
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &, int, cudaStream_t);
+        const NUFFT::Grid<double> &, int);
 
 } // namespace tomocam
