@@ -27,8 +27,9 @@
 #include "internals.h"
 #include "machine.h"
 #include "scheduler.h"
-#include "types.h"
+#include "shipper.h"
 #include "toeplitz.h"
+#include "types.h"
 
 namespace tomocam {
 
@@ -45,10 +46,8 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
 
-        // create cuda streams
-        cudaStream_t work_s = cudaStreamPerThread;
-        cudaStream_t copy_s;
-        SAFE_CALL(cudaStreamCreate(&copy_s));
+        // create a data shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
@@ -58,20 +57,13 @@ namespace tomocam {
                 auto [idx, d_f, d_sinoT] = work.value();
 
                 // compute gradient
-                auto tmp = psf.convolve(d_f, work_s);
-                auto d_g = tmp.subtract(d_sinoT, work_s);
-
-                // synchronize work stream
-                SAFE_CALL(cudaStreamSynchronize(work_s));
+                auto tmp = psf.convolve(d_f);
+                auto d_g = tmp.subtract(d_sinoT);
 
                 // copy gradient to host
-                d_g.copy_to(p3[idx], copy_s);
+                shipper.push(p3[idx], d_g);
             }
         }
-
-        // synchronize and destroy copy stream
-        SAFE_CALL(cudaStreamSynchronize(copy_s));
-        SAFE_CALL(cudaStreamDestroy(copy_s));
     }
 
     // Multi-GPU calll
