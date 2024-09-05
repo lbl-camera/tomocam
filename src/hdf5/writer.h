@@ -39,17 +39,17 @@ namespace tomocam {
     };
 
     namespace h5 {
-        class H5Writer {
+        class Writer {
           private:
             hid_t file_;
 
           public:
-            H5Writer(const char *filename) {
+            Writer(const char *filename) {
                 file_ = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT,
                     H5P_DEFAULT);
             }
 
-            ~H5Writer() { H5Fclose(file_); }
+            ~Writer() { H5Fclose(file_); }
 
             template <typename T>
             void write(const char *dataset_name, const DArray<T> &array) {

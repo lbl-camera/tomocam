@@ -30,16 +30,16 @@
 
 namespace tomocam {
     namespace h5 {
-        class H5Reader {
+        class Reader {
           private:
             hid_t fp_;
 
           public:
-            H5Reader(const char *filename) {
+            Reader(const char *filename) {
                 fp_ = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
             }
 
-            ~H5Reader() { H5Fclose(fp_); }
+            ~Reader() { H5Fclose(fp_); }
 
             /** read projection data into sinogram format
              * @param dataset dataset name
