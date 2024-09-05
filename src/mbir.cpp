@@ -29,67 +29,72 @@
 #include "tomocam.h"
 #include "machine.h"
 #include "nufft.h"
-#include "wrappers.h"
 
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &sino, T *angles, T center, T sigma, T p, int num_iters, T step_size, T tol, T penalty) {
-
-        // number of gpus available
-        int ndevice = Machine::config.num_of_gpus();
+    DArray<T> mbir(DArray<T> &sino, std::vector<T> angles, int center, T sigma,
+        T p, int num_iters, T step_size, T tol, T penalty) {
 
         // recon dimensions
-        int nproj = sino.dims().y;
-        int nslcs = sino.dims().x;
-        int ncols = sino.dims().z;
+        int nslcs = sino.nslices();
+        int nproj = sino.nrows();
+        int ncols = sino.ncols();
 
         dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> sinoT(dims);
-
-        // back-project data
-        back_project(sino, sinoT, angles, center);
+        DArray<T> sinoT = backproject(sino, angles, center);
 
         // sinogram dot sinogram
         T sino_norm = sino.norm();
 
-        // create uniform-grid on each device
-        std::cout << "starting to build NUGrids" << std::endl;
-        NUFFTGrid *nugrids = new NUFFTGrid[ndevice];
-        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            nugrids[dev_id] = NUFFTGrid(ncols, nproj, angles, dev_id); 
-        }
-        std::cout << "done building NUGrids" << std::endl;
-
-        // setup wrapper for optimizer
-        auto recon = MBIR<float>(&sinoT, nugrids, p, sigma);
-        
-        /* initialize solution vector */
+        // initialize x0
         DArray<T> x0(dims);
-        x0.init(static_cast<T>(1));
+        x0.init(1);
 
-        auto calc_grad = std::bind(&MBIR<float>::grad, recon, std::placeholders::_1);
-        auto calc_error = std::bind(&MBIR<float>::error, recon, std::placeholders::_1);
-        auto pf = calc_grad(x0);
+        // number of gpus available
+        int ndevice = Machine::config.num_of_gpus();
+        if (ndevice > nslcs) { ndevice = 1; }
 
-        /* divide step_size by Lipschitz */
-        auto L = pf.max();
-        step_size /= L; 
-        std::cout << "step_size: " << step_size << ", Lipschitz: " << L << std::endl;
+        // calculate point-spread function for each device
+        std::vector<PointSpreadFunction<T>> psfs(ndevice);
+        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
+            SAFE_CALL(cudaSetDevice(dev_id));
+            auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), dev_id);
+            psfs[dev_id] = PointSpreadFunction(nugrid);
+        }
 
-        return x0;
+        // compute Lipschitz constant
+        DArray<T> xtmp(dim3_t(1, ncols, ncols));
+        DArray<T> ytmp(dim3_t(1, ncols, ncols));
+        xtmp.init(1);
+        ytmp.init(0);
+        auto g = gradient2(xtmp, ytmp, psfs);
+        gpu::add_tv_hessian(g, sigma);
+        T L = g.max();
+        step_size = step_size / L;
+
+        // create callable functions for optimization
+        auto calc_gradient = [&sinoT, &psfs, p, sigma](
+                                 DArray<T> &x) -> DArray<T> {
+            auto g = gradient2(x, sinoT, psfs);
+            add_total_var(x, g, sigma, p);
+            return g;
+        };
+        auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
+            return function_value(x, sinoT, psfs, sino_norm);
+        };
+
+        // create optimizer
+        Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)> opt(
+            calc_gradient, calc_error);
+
+        // run optimization
+        return opt.run(x0, num_iters, step_size, tol);
     }
 
-    template DArray<float> mbir(
-                                DArray<float>&, // sinogram
-                                float *,  // angles 
-                                float,    // center 
-                                float,    // sigma
-                                float,    // p 
-                                int,      // num_iters
-                                float,    // step_size
-                                float,    // tol 
-                                float     // penalty
-                               );
-                
+    // explicit instantiation
+    template DArray<float> mbir(DArray<float> &, std::vector<float>, int, float,
+        float, int, float, float, float);
+    template DArray<double> mbir(DArray<double> &, std::vector<double>, int,
+        double, double, int, double, double, double);
 } // namespace tomocam
