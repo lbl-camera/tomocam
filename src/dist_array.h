@@ -167,24 +167,6 @@ namespace tomocam {
             return out;
         }
       
-        // normalize
-        void normalize() {
-            T mx = this->max();
-            T mn = this->min();
-            T scale = 1.0 / (mx - mn);
-
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                buffer_[i] = (buffer_[i] - mn) * scale;
-        }
-
-        // minus log
-        void minus_log() {
-            #pragma omp parallel for
-            for (uint64_t i = 0; i < size_; i++)
-                buffer_[i] = -std::log(buffer_[i]);
-        }
-
         // drop a column
         void dropcol() {
             dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
