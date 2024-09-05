@@ -51,7 +51,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
-    #${PROJECT_SOURCE_DIR}/src/tv_hessian.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/fftshift.cu
