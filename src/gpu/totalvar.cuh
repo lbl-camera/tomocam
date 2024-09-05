@@ -18,11 +18,10 @@ namespace tomocam {
          * @param[inout] grad The gradient of the current solution
          * @param[in] p The weight of the total variation term
          * @param[in] /f$\sigma/f$ The weight of the data term
-         * @param[in] stream The cuda stream to use
          */
         template <typename T>
         void add_total_var(const DeviceArray<T> &, DeviceArray<T> &, float,
-            float, cudaStream_t);
+            float);
 
     } // namespace gpu
 } // namespace tomocam
