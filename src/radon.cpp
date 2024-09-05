@@ -25,6 +25,7 @@
 #include "internals.h"
 #include "machine.h"
 #include "scheduler.h"
+#include "shipper.h"
 #include "types.h"
 
 namespace tomocam {
@@ -41,10 +42,8 @@ namespace tomocam {
         auto sub_ins = create_partitions(input, nparts);
         auto sub_outs = create_partitions(sino, nparts);
 
-        // create streams
-        cudaStream_t work_s = cudaStreamPerThread;
-        cudaStream_t copy_s;
-        SAFE_CALL(cudaStreamCreate(&copy_s));
+        // create data shipper to the host
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
         // create and scheduler
         Scheduler<Partition<T>, DeviceArray<T>> s(sub_ins);
@@ -52,16 +51,13 @@ namespace tomocam {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_input] = work.value();
-                auto d_sino = project(d_input, nugrid, offset, work_s);
-                // wait for the forward to finish
-                cudaStreamSynchronize(work_s);
+                auto d_sino = project(d_input, nugrid, offset);
+
                 // copy the result to the output
-                d_sino.copy_to(sub_outs[idx], copy_s);
+                // d_sino.copy_to(sub_outs[idx], copy_s);
+                shipper.push(sub_outs[idx], d_sino);
             }
         }
-        // wait for copy_s to finish, then destroy it
-        SAFE_CALL(cudaStreamSynchronize(copy_s));
-        SAFE_CALL(cudaStreamDestroy(copy_s));
     }
 
     // radon (Multi-GPU call)
