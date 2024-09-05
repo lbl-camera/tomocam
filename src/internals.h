@@ -39,11 +39,10 @@ namespace tomocam {
      *
      *  @param DeviceArray<T> Output from the gradient function
      *  @param DeviceArray<T> backprojection of the sinogram data
-     *  @param cudaStream_t for concurrencny
      *  @return T error
-     */ 
+     */
     template <typename T>
-    T calc_error(DeviceArray<T> &, DeviceArray<T> &, cudaStream_t);
+    T calc_error(DeviceArray<T> &, DeviceArray<T> &);
 
     /**
      * Computes back projection from sinograms using NUFFT
@@ -55,7 +54,7 @@ namespace tomocam {
      */
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &, const NUFFT::Grid<T> &,
-        int, cudaStream_t);
+        int);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
@@ -66,8 +65,7 @@ namespace tomocam {
      * @return DeviceArray<T> sinogram space
      */
     template <typename T>
-    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, int,
-        cudaStream_t);
+    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, int);
 
     /**
      * Parital calculation of the gradient of the objective function
@@ -77,11 +75,10 @@ namespace tomocam {
      *
      * @param DeviceArray<T> current solution
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
-     * @param cudaStream_t CUDA stream for concurrencny
      */
     template <typename T>
     std::tuple<DeviceArray<T>, T> gradient(DeviceArray<T> &, DeviceArray<T> &,
-        const NUFFT::Grid<T> &, cudaStream_t);
+        const NUFFT::Grid<T> &);
 
     /**
      * Parital calculation of the gradient of the objective function
@@ -93,7 +90,7 @@ namespace tomocam {
 
     template <typename T>
     std::tuple<DeviceArray<T>, T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
-        const PointSpreadFunction<T> &, cudaStream_t);
+        const PointSpreadFunction<T> &);
 
 } // namespace tomocam
 
