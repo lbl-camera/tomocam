@@ -29,7 +29,6 @@ namespace tomocam {
       private:
         int ndevice_;
         bool unified_;
-        int nStreams_;
         int slcsPerStream_;
 
       public:
@@ -47,8 +46,6 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-
-            nStreams_      = 8;
             slcsPerStream_ = 4; // slices
         }
 
@@ -71,32 +68,16 @@ namespace tomocam {
         // setters
         void setNumOfGPUs(int ndev) { ndevice_ = ndev; }
         void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
-        void setStreamsPerGPU(int strms) { nStreams_ = strms; }
 
         // getters
         int num_of_gpus() const { return ndevice_; }
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
-        int streamsPerGPU() const { return nStreams_; }
         int num_of_partitions(int slices) const {
             int n_partitions = slices / slcsPerStream_;
             if (slices % slcsPerStream_ != 0) n_partitions++;
             return n_partitions;
         }
-
-        void update_work(int work, int & slices, int & n_streams) {
-            if (work < nStreams_) {
-                slices = work; 
-                n_streams = 1;
-            } else if ( work < slcsPerStream_ * nStreams_) {
-                slices = slcsPerStream_;
-                n_streams = std::max(work / slcsPerStream_, 1);
-            } else {
-                slices = slcsPerStream_;
-                n_streams = nStreams_;
-            }
-            return;
-        } 
     };
 
     namespace Machine {

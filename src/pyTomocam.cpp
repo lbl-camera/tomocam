@@ -129,10 +129,6 @@ PYBIND11_MODULE(cTomocam, m) {
         tomocam::Machine::config.setNumOfGPUs(num);
     });
 
-    m.def("set_num_of_streams", [](int num) {
-        tomocam::Machine::config.setStreamsPerGPU(num);
-    });
-
     m.def("set_slices_per_stream", [](int num) {
         tomocam::Machine::config.setSlicesPerStream(num);
     });
