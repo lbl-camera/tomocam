@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 
     // compute error
     auto y = tomocam::backproject(sino, angs, center);
-    auto err2 = tomocam::function_value(x2, y, psfs, sino_norm);
+    auto err2 = tomocam::function_value2(x2, y, psfs, sino_norm);
 
     // compare
     std::cout << "Error 1: " << err1 << std::endl;

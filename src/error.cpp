@@ -32,8 +32,8 @@
 namespace tomocam {
 
     template <typename T>
-    T funcval(Partition<T> recon, Partition<T> sinoT,
-        const PointSpreadFunction<T> &psf, int device_id) {
+    T funcval(Partition<T> recon, Partition<T> sino,
+        const NUFFT::Grid<T> &nugrid, int offset, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -41,7 +41,7 @@ namespace tomocam {
         // sub-partitions
         int nslcs = Machine::config.num_of_partitions(recon.nslices());
         auto p1 = create_partitions(recon, nslcs);
-        auto p2 = create_partitions(sinoT, nslcs);
+        auto p2 = create_partitions(sino, nslcs);
         T sum = 0;
 
         // create a scheduler
@@ -51,34 +51,36 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto [idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve(d_recon);
-                auto t2 = d_recon.dot(t1);
-                auto t3 = d_recon.dot(d_sinoT);
-                sum += (t2 - 2 * t3);
+                auto [idx, d_recon, d_sino] = work.value();
+                auto t1 = project(d_recon, nugrid, offset);
+                auto t2 = t1 - d_sino;
+                sum += t2.dot(t2);
             }
         }
-        return sum / recon.ncols();
+        return sum;
     }
 
     // Multi-GPU calll
     template <typename T>
-    T function_value(DArray<T> &recon, DArray<T> &sinoT,
-        const std::vector<PointSpreadFunction<T>> &psf, T sino_sq) {
+    T function_value(DArray<T> &recon, DArray<T> &sino,
+        const std::vector<NUFFT::Grid<T>> &nugrids, int center) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
 
+        // center offset
+        int offset = center - sino.nslices() / 2;
+
         auto p1 = create_partitions(recon, nDevice);
-        auto p2 = create_partitions(sinoT, nDevice);
+        auto p2 = create_partitions(sino, nDevice);
 
         std::vector<T> retval(nDevice);
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < nDevice; i++)
-            retval[i] = funcval(p1[i], p2[i], psf[i], i);
+            retval[i] = funcval(p1[i], p2[i], nugrids[i], offset, i);
 
         // wait for devices to finish
-        T fval = sino_sq;
+        T fval = 0;
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
@@ -88,8 +90,8 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template float function_value(DArray<float> &, DArray<float> &,
-        const std::vector<PointSpreadFunction<float>> &, float);
-    template double function_value(DArray<double> &, DArray<double> &,
-        const std::vector<PointSpreadFunction<double>> &, double);
+    template float function_value(DArray<float> &recon, DArray<float> &sino,
+        const std::vector<NUFFT::Grid<float>> &nugrids, int center);
+    template double function_value(DArray<double> &recon, DArray<double> &sino,
+        const std::vector<NUFFT::Grid<double>> &nugrids, int center);
 } // namespace tomocam

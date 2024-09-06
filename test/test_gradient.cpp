@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
     }
 
-    /**
+    ///**
     size_t free, total;
     SAFE_CALL(cudaSetDevice(0));
     tomocam::DeviceArray<float> dx2(x2.dims());
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
         SAFE_CALL(cudaMemGetInfo(&free, &total));
         std::cout << "Free: " << free / 1024 / 1024 << " MB" << std::endl;
     }
-    */
+    //*/
 
     // compute gradient
     auto g2 = tomocam::gradient2(x2, y, psfs);

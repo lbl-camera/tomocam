@@ -27,79 +27,69 @@
 #include "internals.h"
 #include "machine.h"
 #include "scheduler.h"
+#include "shipper.h"
 #include "types.h"
 
 namespace tomocam {
 
     template <typename T>
-    T gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const NUFFT::Grid<T> &nugrid, int device_id) {
+    void gradient_(Partition<T> f, Partition<T> sino, Partition<T> df,
+        const NUFFT::Grid<T> &nugrid, int offset, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.nslices());
+        int nparts = Machine::config.num_of_partitions(sino.nslices());
         auto p1 = create_partitions(f, nparts);
-        auto p2 = create_partitions(sinoT, nparts);
+        auto p2 = create_partitions(sino, nparts);
         auto p3 = create_partitions(df, nparts);
 
-        // create cuda streams
-        cudaStream_t work_s = cudaStreamPerThread;
-        cudaStream_t copy_s;
-        SAFE_CALL(cudaStreamCreate(&copy_s));
-
-        // vector to store partial function values
-        std::vector<T> pfunc(nparts, 0);
+        // create a shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto [idx, d_f, d_sinoT] = work.value();
-                auto [d_g, pf] = gradient<T>(d_f, d_sinoT, nugrid, work_s);
-                // synchronize work stream
-                SAFE_CALL(cudaStreamSynchronize(work_s));
+                auto [idx, d_f, d_sino] = work.value();
+
+                auto t1 = backproject(d_f, nugrid, offset);
+                auto t2 = t1 - d_sino;
+                auto d_g = project(t2, nugrid, offset);
 
                 // copy gradient to host
-                d_g.copy_to(p3[idx], copy_s);
-                pfunc[idx] = pf;
+                shipper.push(p3[idx], d_g);
             }
         }
-
-        // accumulate partial function values
-        float partial_func = 0;
-        for (int i = 0; i < nparts; i++) { partial_func += pfunc[i]; }
-
-        // synchronize and destroy copy stream
-        SAFE_CALL(cudaStreamSynchronize(copy_s));
-        SAFE_CALL(cudaStreamDestroy(copy_s));
-        return partial_func;
     }
 
     // Multi-GPU calll
     template <typename T>
-    std::tuple<DArray<T>, T> gradient(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<NUFFT::Grid<T>> &nugrids) {
+    DArray<T> gradient(DArray<T> &solution, DArray<T> &sino,
+        const std::vector<NUFFT::Grid<T>> &nugrids, int center) {
 
         int nDevice = Machine::config.num_of_gpus();
-        if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
+        if (nDevice > sino.nslices()) nDevice = sino.nslices();
+
+        // offset
+        int offset = center - sino.ncols() / 2;
 
         // allocate memory for gradient
         DArray<T> gradient(solution.dims());
 
         auto p1 = create_partitions(solution, nDevice);
-        auto p2 = create_partitions(sinoT, nDevice);
+        auto p2 = create_partitions(sino, nDevice);
         auto p3 = create_partitions(gradient, nDevice);
 
         // vecor to store partial function values
         std::vector<T> pfunc(nDevice, 0);
 
         // launch all the available devices
-        //#pragma omp parallel for num_threads(nDevice)
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            pfunc[i] = gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], i);
+            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], offset, i);
         }
 
         // wait for devices to finish
@@ -109,17 +99,13 @@ namespace tomocam {
             SAFE_CALL(cudaDeviceSynchronize());
         }
 
-        float partial_func_val = 0;
-        for (int i = 0; i < nDevice; i++) { partial_func_val += pfunc[i]; }
-
-        return std::make_tuple(gradient, partial_func_val);
+        return gradient;
     }
 
     // Explicit instantiation
-    template std::tuple<DArray<float>, float> gradient<float>(DArray<float> &,
-        DArray<float> &, const std::vector<NUFFT::Grid<float>> &);
-    template std::tuple<DArray<double>, double> gradient<double>(
-        DArray<double> &, DArray<double> &,
-        const std::vector<NUFFT::Grid<double>> &);
+    template DArray<float> gradient<float>(DArray<float> &, DArray<float> &,
+        const std::vector<NUFFT::Grid<float>> &, int);
+    template DArray<double> gradient<double>(DArray<double> &, DArray<double> &,
+        const std::vector<NUFFT::Grid<double>> &, int);
 
 } // namespace tomocam
