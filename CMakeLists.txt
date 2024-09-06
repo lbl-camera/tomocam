@@ -46,7 +46,9 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/iradon.cpp
     ${PROJECT_SOURCE_DIR}/src/forward.cpp
     ${PROJECT_SOURCE_DIR}/src/radon.cpp
+    ${PROJECT_SOURCE_DIR}/src/error.cpp
     ${PROJECT_SOURCE_DIR}/src/error2.cpp
+    ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
