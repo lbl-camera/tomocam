@@ -81,7 +81,7 @@ namespace tomocam {
      * @return the value of the objective function
      */
     template <typename T>
-    T function_value(DArray<T> &, DArray<T> &,
+    T function_value2(DArray<T> &, DArray<T> &,
         const std::vector<PointSpreadFunction<T>> &, T);
 
     /**
@@ -105,6 +105,35 @@ namespace tomocam {
         template <typename T>
         void add_tv_hessian(DArray<T> &, float);
     }
+
+    /**
+     * @brief classical gradeint calculation
+     *
+     *  @param current solution.
+     *  @param sinogram
+     *  @param NUFFT object for each GPU device
+     *  @param center of rotation
+     *
+     *  @return the gradient
+     */
+    template <typename T>
+    DArray<T> gradient(DArray<T> &, DArray<T> &,
+        const std::vector<NUFFT::Grid<T>> &, int);
+
+    /**
+     * @brief Compute the value of the objective function, given current
+     * solution
+     *
+     * @param current solution.
+     * @param sinogram
+     * @param vector of NUFFT objects for each GPU device
+     * @param center of rotation
+     *
+     * @return the value of the objective function
+     */
+    template <typename T>
+    T function_value(DArray<T> &, DArray<T> &,
+        const std::vector<NUFFT::Grid<T>> &, int);
 
 } // namespace tomocam
 
