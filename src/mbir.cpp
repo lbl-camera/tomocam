@@ -81,7 +81,7 @@ namespace tomocam {
             return g;
         };
         auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
-            return function_value(x, sinoT, psfs, sino_norm);
+            return function_value2(x, sinoT, psfs, sino_norm);
         };
 
         // create optimizer
