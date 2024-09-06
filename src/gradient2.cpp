@@ -58,7 +58,7 @@ namespace tomocam {
 
                 // compute gradient
                 auto tmp = psf.convolve(d_f);
-                auto d_g = tmp.subtract(d_sinoT);
+                auto d_g = tmp - d_sinoT;
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
