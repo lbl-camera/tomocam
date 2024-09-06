@@ -33,12 +33,17 @@ namespace tomocam {
     template <typename T>
     class PointSpreadFunction {
       private:
+        int device_;
         DeviceArray<gpu::complex_t<T>> psf_;
 
       public:
         PointSpreadFunction() = default;
 
         PointSpreadFunction(const NUFFT::Grid<T> &grid) {
+
+            // set the device
+            device_ = grid.dev_id();
+
             int nproj = grid.nprojs();
             int ncols = grid.npixels();
             int N1 = 2 * ncols - 1;
@@ -64,6 +69,15 @@ namespace tomocam {
 
         DeviceArray<T> convolve(const DeviceArray<T> &x) const {
 
+            // set the device
+            int dev;
+            SAFE_CALL(cudaGetDevice(&dev));
+            if (dev != device_) {
+                std::cerr
+                    << "Error: device mismatch in PointSpreadFunction::convolve"
+                    << std::endl;
+            }
+
             // pad x to match the size of the psf
             int padding = psf_.nrows() - x.nrows();
 
@@ -77,16 +91,13 @@ namespace tomocam {
             auto xft_psf = xft.multiply(psf_);
 
             // scale by the size of the image
-            T scale = static_cast<T>(xpad.nrows() * xpad.ncols());
-            xft_psf = xft_psf.divide(scale);
+            xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
 
             // ifft(g * x) complex -> real
             auto tmp2 = irfft2D<T>(xft_psf);
 
             // remove padding
-            auto tmp3 = gpu::unpad2d<T>(tmp2, padding);
-
-            return tmp3;
+            return gpu::unpad2d<T>(tmp2, padding);
         }
     };
 }
