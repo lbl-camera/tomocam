@@ -47,7 +47,7 @@ namespace tomocam {
         //  1d inverse fft along columns
         out = ifftshift(out);
         out = ifft1D(out);
-        out = out.divide(out.ncols());
+        out /= static_cast<T>(out.ncols());
         out = fftshift(out);
 
         // cast to real
