@@ -185,27 +185,40 @@ namespace tomocam {
             return h_ptr;
         }
 
-        /* arithmatic operations should be asychronized */
+        // operator overloading
+        DeviceArray<T> operator*(const DeviceArray<T> &rhs) const {
+            DeviceArray<T> res(dims_);
+            gpu::multiply_arrays<T>(dev_ptr_, rhs.dev_ptr_, res.dev_ptr_,
+                size_);
+            return res;
+        }
 
         // multiply (for FFT Convolution)
         DeviceArray<T> multiply(const DeviceArray<T> &arr) const {
+
             DeviceArray<T> res(dims_);
-            if (dims_ == arr.dims_)
-                gpu::multiply_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
-                    size_);
-            else if ((dims_.y == arr.dims_.y) && (dims_.z == arr.dims_.z)) {
-                gpu::broadcast_multiply<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
-                    dims_);
-            }
+            if ((arr.dims_.x != 1) || (arr.dims_.y != dims_.y) ||
+                (arr.dims_.z != dims_.z))
+                throw std::runtime_error(
+                    "Array is not a point spread function");
+            gpu::broadcast_multiply<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
+                dims_);
             return res;
         }
 
         // division (for normalization)
-        DeviceArray<T> divide(T val) const {
+        DeviceArray<T> operator/(const T val) const {
             DeviceArray<T> res(dims_);
             T val_inv = static_cast<T>(1) / val;
             gpu::scale_array<T>(dev_ptr_, val_inv, res.dev_ptr_, size_);
             return res;
+        }
+
+        // /= operator
+        DeviceArray<T> operator/=(const T val) {
+            T val_inv = static_cast<T>(1) / val;
+            gpu::scale_array<T>(dev_ptr_, val_inv, dev_ptr_, size_);
+            return *this;
         }
 
         // addition
