@@ -49,7 +49,7 @@ namespace tomocam {
         int2 halo_;
 
       public:
-        DeviceArray() = default;
+        DeviceArray() : dims_({0, 0, 0}), size_(0), dev_ptr_(nullptr) {}
 
         // Allocate space
         DeviceArray(dim3_t d) : dims_(d) {
@@ -95,7 +95,8 @@ namespace tomocam {
         }
 
         // assignment operator
-        DeviceArray<T> operator=(const DeviceArray &rhs) {
+        DeviceArray<T> &operator=(const DeviceArray &rhs) {
+            if (this == &rhs) return *this;
             dims_ = rhs.dims_;
             size_ = rhs.size_;
             halo_ = rhs.halo_;
@@ -111,17 +112,19 @@ namespace tomocam {
             dims_ = rhs.dims_;
             halo_ = rhs.halo_;
             size_ = rhs.size_;
-            dev_ptr_ = std::move(rhs.dev_ptr_);
+            dev_ptr_ = rhs.dev_ptr_;
             rhs.dev_ptr_ = nullptr;
         }
 
 
         // move assignment operator
-        DeviceArray<T> operator=(DeviceArray<T> &&rhs) {
+        DeviceArray<T> &operator=(DeviceArray<T> &&rhs) {
+            if (this == &rhs) return *this;
             dims_ = rhs.dims_;
             size_ = rhs.size_;
             halo_ = rhs.halo_;
-            dev_ptr_ = std::move(rhs.dev_ptr_);
+            if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_));
+            dev_ptr_ = rhs.dev_ptr_;
             rhs.dev_ptr_ = nullptr;
             return *this;
         }
@@ -222,7 +225,7 @@ namespace tomocam {
         }
 
         // addition
-        DeviceArray<T> add(const DeviceArray<T> &arr) const {
+        DeviceArray<T> operator+(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
                 gpu::add_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_);
@@ -232,7 +235,7 @@ namespace tomocam {
         }
 
         // subtraction
-        DeviceArray<T> subtract(const DeviceArray<T> &arr) const {
+        DeviceArray<T> operator-(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
                 gpu::subtract_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
