@@ -85,7 +85,7 @@ namespace tomocam {
             return sol;
         }
 
-        Array<T> run_wsl(Array<T> sol, int max_iters, T step_size, T tol) {
+        Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol) {
 
             // initialize 
             Array<T> x = sol;
