@@ -1,4 +1,4 @@
-# -------------------------------------------------------------------------------
+
 # Tomocam Copyright (c) 2018
 #
 # The Regents of the University of California, through Lawrence Berkeley
@@ -26,7 +26,6 @@ set(tomocam_VERSION_MINOR 5)
 set(CMAKE_CXX_STANDARD 20) 
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
-
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
@@ -53,6 +52,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
+    ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
