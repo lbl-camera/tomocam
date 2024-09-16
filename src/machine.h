@@ -20,6 +20,8 @@
 #include <cuda_runtime.h>
 #include <vector>
 
+#include "common.h"
+
 #ifndef TOMOCAM_MACINE__H
 #define TOMOCAM_MACINE__H
 
@@ -77,6 +79,22 @@ namespace tomocam {
             int n_partitions = slices / slcsPerStream_;
             if (slices % slcsPerStream_ != 0) n_partitions++;
             return n_partitions;
+        }
+
+        int slicesPerPartition(dim3_t dims, size_t bytes) {
+
+            size_t total_mem = 0;
+            size_t free_mem = 0;
+            cudaMemGetInfo(&free_mem, &total_mem);
+            size_t max_allowed = 0.05 * free_mem;
+
+            size_t bytes_per_slice = bytes / dims.x;
+            int partition_slices = max_allowed / bytes_per_slice;
+
+            // number of partions
+            int n_partitions = dims.x / partition_slices;
+            if (dims.x % partition_slices != 0) n_partitions++;
+            return partition_slices;
         }
     };
 
