@@ -55,9 +55,9 @@ namespace tomocam {
             if (work.has_value()) {
                 auto [idx, d_f, d_sino] = work.value();
 
-                auto t1 = backproject(d_f, nugrid, offset);
+                auto t1 = project(d_f, nugrid, offset);
                 auto t2 = t1 - d_sino;
-                auto d_g = project(t2, nugrid, offset);
+                auto d_g = backproject(t2, nugrid, offset);
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
