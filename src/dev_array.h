@@ -230,7 +230,7 @@ namespace tomocam {
             if (dims_ == arr.dims_)
                 gpu::add_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_);
             else
-                throw std::runtime_error("Array dimensions do not match");
+                throw std::runtime_error("Array dimensions do not match in +");
             return res;
         }
 
@@ -241,14 +241,15 @@ namespace tomocam {
                 gpu::subtract_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
                     size_);
             else
-                throw std::runtime_error("Array dimensions do not match");
+                throw std::runtime_error("Array dimensions do not match in -");
             return res;
         }
 
         // dot product
         T dot(const DeviceArray<T> &arr) const {
             if (dims_ != arr.dims_)
-                throw std::runtime_error("Array dimensions do not match");
+                throw std::runtime_error(
+                    "Array dimensions do not match in dot");
             return gpu::dot(dev_ptr_, arr.dev_ptr_, size_);
         }
 
