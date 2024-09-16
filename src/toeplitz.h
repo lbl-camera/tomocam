@@ -43,6 +43,7 @@ namespace tomocam {
 
             // set the device
             device_ = grid.dev_id();
+            SAFE_CALL(cudaSetDevice(device_));
 
             int nproj = grid.nprojs();
             int ncols = grid.npixels();
