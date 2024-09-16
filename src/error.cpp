@@ -69,7 +69,7 @@ namespace tomocam {
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
 
         // center offset
-        int offset = center - sino.nslices() / 2;
+        int offset = center - sino.ncols() / 2;
 
         auto p1 = create_partitions(recon, nDevice);
         auto p2 = create_partitions(sino, nDevice);
