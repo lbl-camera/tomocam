@@ -96,6 +96,9 @@ namespace tomocam {
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
     template <typename T>
+    DArray<T> mbir2(DArray<T> &, std::vector<T>, int, T, T, int, T, T, T);
+
+    template <typename T>
     DArray<T> mbir(DArray<T> &, std::vector<T>, int, T, T, int, T, T, T);
 
     /**
