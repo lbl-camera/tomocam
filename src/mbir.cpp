@@ -41,13 +41,8 @@ namespace tomocam {
         int nproj = sino.nrows();
         int ncols = sino.ncols();
 
-        dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> sinoT = backproject(sino, angles, center);
-
-        // sinogram dot sinogram
-        T sino_norm = sino.norm();
-
         // initialize x0
+        dim3_t dims(nslcs, ncols, ncols);
         DArray<T> x0(dims);
         x0.init(1);
 
@@ -56,32 +51,33 @@ namespace tomocam {
         if (ndevice > nslcs) { ndevice = 1; }
 
         // calculate point-spread function for each device
-        std::vector<PointSpreadFunction<T>> psfs(ndevice);
+        int current_dev = 0;
+        SAFE_CALL(cudaGetDevice(&current_dev));
+        std::vector<NUFFT::Grid<T>> grids(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            SAFE_CALL(cudaSetDevice(dev_id));
-            auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), dev_id);
-            psfs[dev_id] = PointSpreadFunction(nugrid);
+            grids[dev_id] = NUFFT::Grid<T>(nproj, ncols, angles.data(), dev_id);
         }
+        SAFE_CALL(cudaSetDevice(current_dev));
 
         // compute Lipschitz constant
         DArray<T> xtmp(dim3_t(1, ncols, ncols));
-        DArray<T> ytmp(dim3_t(1, ncols, ncols));
+        DArray<T> ytmp(dim3_t(1, nproj, ncols));
         xtmp.init(1);
         ytmp.init(0);
-        auto g = gradient2(xtmp, ytmp, psfs);
+        auto g = gradient(xtmp, ytmp, grids, center);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
         step_size = step_size / L;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &psfs, p, sigma](
+        auto calc_gradient = [&sino, &grids, center, p, sigma](
                                  DArray<T> &x) -> DArray<T> {
-            auto g = gradient2(x, sinoT, psfs);
+            auto g = gradient(x, sino, grids, center);
             add_total_var(x, g, sigma, p);
             return g;
         };
-        auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
-            return function_value2(x, sinoT, psfs, sino_norm);
+        auto calc_error = [&sino, &grids, center](DArray<T> &x) -> T {
+            return function_value(x, sino, grids, center);
         };
 
         // create optimizer
@@ -89,12 +85,14 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        return opt.run(x0, num_iters, step_size, tol);
+        return opt.run2(x0, num_iters, step_size, tol);
     }
 
     // explicit instantiation
-    template DArray<float> mbir(DArray<float> &, std::vector<float>, int, float,
-        float, int, float, float, float);
-    template DArray<double> mbir(DArray<double> &, std::vector<double>, int,
-        double, double, int, double, double, double);
+    template DArray<float> mbir(DArray<float> &sino, std::vector<float> angles,
+        int center, float sigma, float p, int num_iters, float step_size,
+        float tol, float penalty);
+    template DArray<double> mbir(DArray<double> &sino,
+        std::vector<double> angles, int center, double sigma, double p,
+        int num_iters, double step_size, double tol, double penalty);
 } // namespace tomocam
