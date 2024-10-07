@@ -53,6 +53,8 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/postproc.cpp
+    ${PROJECT_SOURCE_DIR}/src/preproc.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
