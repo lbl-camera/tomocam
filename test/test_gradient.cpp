@@ -15,10 +15,11 @@
 
 int main(int argc, char **argv) {
 
-    const int nprojs = 200;
-    const int npixel = 2047;
-    const int center = npixel / 2;
+    const int nprojs = 360;
+    const int npixel = 511;
+    const float center = static_cast<float>(npixel - 1) / 2;
 
+    srand(13);
     auto random = []() { return static_cast<float>(rand()) / RAND_MAX; };
 
     // create data
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
     auto x2 = x1;
 
     // backproject sinogram
-    auto y = tomocam::backproject(sino, angs, center);
+    auto yT = tomocam::backproject(sino, angs, center);
 
     // gradient 1
     auto t1 = tomocam::project(x1, angs, center) - sino;
@@ -53,25 +54,13 @@ int main(int argc, char **argv) {
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
     }
 
-    ///**
-    size_t free, total;
-    SAFE_CALL(cudaSetDevice(0));
-    tomocam::DeviceArray<float> dx2(x2.dims());
-    cudaMemcpy(dx2.dev_ptr(), x2.begin(), x2.bytes(), cudaMemcpyHostToDevice);
-    for (int i = 0; i < 100; i++) {
-        psfs[0].convolve(dx2);
-        SAFE_CALL(cudaMemGetInfo(&free, &total));
-        std::cout << "Free: " << free / 1024 / 1024 << " MB" << std::endl;
-    }
-    //*/
-
     // compute gradient
-    auto g2 = tomocam::gradient2(x2, y, psfs);
+    auto g2 = tomocam::gradient2(x2, yT, psfs);
 
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");
-    h5fw.write("g1", g1);
-    h5fw.write("g2", g2);
+    h5fw.write("sino", sino);
+    h5fw.write("yT", yT);
 
     // compare
     auto e = g1 - g2;
