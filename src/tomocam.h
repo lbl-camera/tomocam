@@ -182,7 +182,7 @@ namespace tomocam {
      * @return cropped reconstruction
      */
     template <typename T>
-    DArray<T> postproc(DArray<T> &, T);
+    DArray<T> postproc(DArray<T> &, int);
 
 } // namespace tomocam
 
