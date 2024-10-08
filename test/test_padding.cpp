@@ -36,33 +36,29 @@ int main(int argc, char **argv) {
     // file name
     std::string fname = config["filename"];
     std::string dataset = config["dataset"];
-    int center = config["axis"];
+    std::string angs = config["angles"];
+    float center = config["axis"];
 
     // read hdf5 file
     tomocam::h5::Reader reader(fname.c_str());
-    auto sino = reader.read_sinogram<float>(dataset.c_str(), 1, 0);
+    auto sino = reader.read_sinogram<float>(dataset.c_str(), 0, 1);
+    auto angles = reader.read<float>(angs.c_str());
 
     // hdf5 file
     tomocam::h5::Writer fp("padding_test.h5");
+
     // write sinogram to file
     fp.write("unpadded", sino);
 
-    // create a device array
-    tomocam::DeviceArray<float> d_sino(sino.dims());
-    SAFE_CALL(cudaMemcpy(d_sino.dev_ptr(), sino.begin(),
-        sizeof(float) * sino.size(), cudaMemcpyHostToDevice));
+    // pad sinogram
+    auto sino2 = tomocam::preproc(sino, center);
+    fp.write("padded", sino2);
 
-    int shift = center - d_sino.ncols() / 2;
-    std::cout << "Shift: " << shift << std::endl;
-    tomocam::PadType type = tomocam::PadType::RIGHT;
-    if (shift < 0) { type = tomocam::PadType::LEFT; }
-    auto padded = tomocam::gpu::pad1d(d_sino, shift, type);
+    auto recon = tomocam::backproject(sino2, angles, center);
+    fp.write("backproj", recon);
 
-    // copy to host
-    tomocam::DArray<float> arr(padded.dims());
-    SAFE_CALL(cudaMemcpy(arr.begin(), padded.dev_ptr(),
-        sizeof(float) * padded.size(), cudaMemcpyDeviceToHost));
-    fp.write("padded", arr);
+    auto recon2 = tomocam::postproc(recon, sino.ncols());
+    fp.write("cropped", recon2);
 
     return 0;
 }
