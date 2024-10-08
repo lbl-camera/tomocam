@@ -30,14 +30,25 @@ namespace tomocam {
 
         /** roll
          * Shifts the elements of the array by a specified number of positions.
-         * 
+         *
          * @param in input array
-         * @param shift number of positions to shift
+         * @param shift number of pixels to shift
          * @return shifted array
          */
         template <typename T>
         DeviceArray<T> roll(const DeviceArray<T> &, int);
 
+        /** fftshift
+         * Shifts the zero-frequency component to the center of the array.
+         *
+         * @param in input array
+         * @param shfit numper of pixels to shift
+         *
+         * @return shifted array
+         */
+        template <typename T>
+        DeviceArray<complex_t<T>> phase_shift(const DeviceArray<complex_t<T>> &,
+            T);
     } // namespace gpu
 } // namespace tomocam
 #endif // TOMOCAM_GPU_OPS_CUH
