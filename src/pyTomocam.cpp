@@ -76,8 +76,8 @@ inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
     return np_array_t<T>(shape, buf);
 }
 
-np_array_t<float> 
-radon_wrapper(np_array_t<float> &imgstack, np_array_t<float> angs, int cen) {
+np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
+    np_array_t<float> angs, float cen) {
 
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(imgstack));
@@ -89,8 +89,8 @@ radon_wrapper(np_array_t<float> &imgstack, np_array_t<float> angs, int cen) {
     return to_numpy<float>(arg2);
 }
 
-np_array_t<float> 
-backproject_wrapper(np_array_t<float> &sino, np_array_t<float> angs, int cen) {
+np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
+    np_array_t<float> angs, float cen) {
 
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(sino));
@@ -103,7 +103,7 @@ backproject_wrapper(np_array_t<float> &sino, np_array_t<float> angs, int cen) {
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
-    np_array_t<float> &np_angles, int center, int num_iters, float sigma,
+    np_array_t<float> &np_angles, float center, int num_iters, float sigma,
     float tol, float step_size, float penalty) {
 
     // create DArray from numpy
