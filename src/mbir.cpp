@@ -92,7 +92,7 @@ namespace tomocam {
 
         // run optimization
         auto recon = opt.run2(x0, num_iters, step_size, tol);
-        return postproc(recon, center);
+        return postproc(recon, sino.ncols());
     }
 
     // explicit instantiation
