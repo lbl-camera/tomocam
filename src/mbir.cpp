@@ -33,8 +33,11 @@
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &sino, std::vector<T> angles, int center, T sigma,
+    DArray<T> mbir(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
         T p, int num_iters, T step_size, T tol, T penalty) {
+
+        // preprocess
+        sino = preproc(sino, center);
 
         // recon dimensions
         int nslcs = sino.nslices();
@@ -59,9 +62,12 @@ namespace tomocam {
         }
         SAFE_CALL(cudaSetDevice(current_dev));
 
+        // backproject sinogram
+        auto sinoT = backproject(sino, angles, center);
+
         // compute Lipschitz constant
         DArray<T> xtmp(dim3_t(1, ncols, ncols));
-        DArray<T> ytmp(dim3_t(1, nproj, ncols));
+        DArray<T> ytmp(dim3_t(1, ncols, ncols));
         xtmp.init(1);
         ytmp.init(0);
         auto g = gradient(xtmp, ytmp, grids, center);
@@ -70,9 +76,9 @@ namespace tomocam {
         step_size = step_size / L;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sino, &grids, center, p, sigma](
+        auto calc_gradient = [&sinoT, &grids, center, p, sigma](
                                  DArray<T> &x) -> DArray<T> {
-            auto g = gradient(x, sino, grids, center);
+            auto g = gradient(x, sinoT, grids, center);
             add_total_var(x, g, sigma, p);
             return g;
         };
@@ -85,14 +91,15 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        return opt.run2(x0, num_iters, step_size, tol);
+        auto recon = opt.run2(x0, num_iters, step_size, tol);
+        return postproc(recon, center);
     }
 
     // explicit instantiation
     template DArray<float> mbir(DArray<float> &sino, std::vector<float> angles,
-        int center, float sigma, float p, int num_iters, float step_size,
+        float center, float sigma, float p, int num_iters, float step_size,
         float tol, float penalty);
     template DArray<double> mbir(DArray<double> &sino,
-        std::vector<double> angles, int center, double sigma, double p,
+        std::vector<double> angles, double center, double sigma, double p,
         int num_iters, double step_size, double tol, double penalty);
 } // namespace tomocam
