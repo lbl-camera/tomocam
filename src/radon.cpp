@@ -31,14 +31,20 @@
 namespace tomocam {
 
     template <typename T>
-    void radon_(Partition<T> input, Partition<T> sino, NUFFT::Grid<T> &nugrid,
-        int offset, int device) {
+    void project(Partition<T> input, Partition<T> sino,
+        const std::vector<T> &angles, T center, int device) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device));
 
+        // create NUFFT Grid
+        int nproj = static_cast<int>(angles.size());
+        int ncols = input.ncols();
+        auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), device);
+
         // create subpartitions
-        int nparts = Machine::config.num_of_partitions(input.nslices());
+        int nparts =
+            Machine::config.num_of_partitions(input.dims(), input.bytes());
         auto sub_ins = create_partitions(input, nparts);
         auto sub_outs = create_partitions(sino, nparts);
 
@@ -51,10 +57,9 @@ namespace tomocam {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_input] = work.value();
-                auto d_sino = project(d_input, nugrid, offset);
+                auto d_sino = project(d_input, nugrid, center);
 
                 // copy the result to the output
-                // d_sino.copy_to(sub_outs[idx], copy_s);
                 shipper.push(sub_outs[idx], d_sino);
             }
         }
@@ -63,47 +68,38 @@ namespace tomocam {
     // radon (Multi-GPU call)
     template <typename T>
     DArray<T> project(DArray<T> &input, const std::vector<T> &angles,
-        int center) {
+        T center) {
 
         int nDevice = Machine::config.num_of_gpus();
-        if (nDevice > input.nslices()) nDevice = input.nslices();
+        if (nDevice > input.nslices()) nDevice = 1;
 
         // allocate output
         int nprojs = angles.size();
-        int ncols = input.ncols();
-        dim3_t dims(input.nslices(), nprojs, ncols);
+        dim3_t dims(input.nslices(), nprojs, input.ncols());
         DArray<T> output(dims);
 
-        // axis offset from the center of the image
-        int offset = center - ncols / 2;
-
-        // create the nugrids
-        if (offset != 0) { ncols += 2 * abs(offset); }
-        std::vector<NUFFT::Grid<T>> grids(nDevice);
-        for (int i = 0; i < nDevice; i++)
-            grids[i] = NUFFT::Grid<T>(nprojs, ncols, angles.data(), i);
-
+        // partition the arrays
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
-            radon_(p1[i], p2[i], grids[i], offset, i);
+            project(p1[i], p2[i], angles, center, i);
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            cudaDeviceSynchronize();
+            SAFE_CALL(cudaSetDevice(i));
+            SAFE_CALL(cudaDeviceSynchronize());
         }
         return output;
     }
 
     // specializations for float and double
-    template DArray<float> project(DArray<float> &input,
-        const std::vector<float> &angles, int center);
-    template DArray<double> project(DArray<double> &input,
-        const std::vector<double> &angles, int center);
+    template DArray<float> project(DArray<float> &, const std::vector<float> &,
+        float);
+    template DArray<double> project(DArray<double> &,
+        const std::vector<double> &, double);
 
 } // namespace tomocam
