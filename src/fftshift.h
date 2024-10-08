@@ -47,6 +47,13 @@ namespace tomocam {
         int delta = dims.z / 2;
         return gpu::roll(arr, delta);
     }
+
+    template <typename T>
+    DeviceArray<gpu::complex_t<T>> phase_shift(
+        const DeviceArray<gpu::complex_t<T>> &arr, T delta) {
+
+        return gpu::phase_shift(arr, delta);
+    }
 } // namespace tomocam
 
 #endif // FFTSHIFT__H
