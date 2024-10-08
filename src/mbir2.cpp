@@ -36,16 +36,19 @@ namespace tomocam {
     DArray<T> mbir2(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
         T p, int num_iters, T step_size, T tol, T penalty) {
 
+        // pad and shift sinogram
+        auto sino2 = preproc(sino, center);
+
         // recon dimensions
-        int nslcs = sino.nslices();
-        int nproj = sino.nrows();
-        int ncols = sino.ncols();
+        int nslcs = sino2.nslices();
+        int nproj = sino2.nrows();
+        int ncols = sino2.ncols();
 
         dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> sinoT = backproject(sino, angles, center);
+        DArray<T> sinoT = backproject(sino2, angles, center);
 
         // sinogram dot sinogram
-        T sino_norm = sino.norm();
+        T sino_norm = sino2.norm();
 
         // initialize x0
         DArray<T> x0(dims);
@@ -89,7 +92,8 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        return opt.run2(x0, num_iters, step_size, tol);
+        auto rec = opt.run2(x0, num_iters, step_size, tol);
+        return postproc(rec, sino.ncols());
     }
 
     // explicit instantiation
