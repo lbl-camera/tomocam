@@ -63,18 +63,13 @@ namespace tomocam {
     }
 
     template <typename T>
-    DArray<T> postproc(DArray<T> &soln, T center) {
+    DArray<T> postproc(DArray<T> &soln, int npixels) {
 
         int ndevices = Machine::config.num_of_gpus();
         if (soln.nslices() < ndevices) { ndevices = 1; }
 
-        // center shift
-        int cen = static_cast<int>(std::round(center));
-        int cen_offset = soln.ncols() / 2 - cen;
-
-        // calculate the number of padding pixels ( ≥ √2  * soln.ncols())
-        int npad = static_cast<int>(0.42 * soln.ncols()) / 2;
-        if (std::abs(cen_offset) > npad) npad = std::abs(cen_offset);
+        // calculate the dimensions of cropped image
+        int npad = (soln.ncols() - npixels) / 2;
 
         // dimensions of the cropped reconstruction
         int nslcs = soln.nslices();
@@ -103,7 +98,7 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> postproc(DArray<float> &, float);
-    template DArray<double> postproc(DArray<double> &, double);
+    template DArray<float> postproc(DArray<float> &, int);
+    template DArray<double> postproc(DArray<double> &, int);
 
 } // namespace tomocam
