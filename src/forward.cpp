@@ -32,13 +32,10 @@
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid, int offset) {
-
-        // zero-padding
-        auto in1 = gpu::pad2d(input, 2 * offset, PadType::RIGHT);
+        const NUFFT::Grid<T> &grid, T center) {
 
         // cast to complex
-        auto in2 = complex(in1);
+        auto in2 = complex(input);
 
         // nufft type 2
         auto out = nufft2d2(in2, grid);
@@ -47,25 +44,17 @@ namespace tomocam {
         //  1d inverse fft along columns
         out = ifftshift(out);
         out = ifft1D(out);
-        out /= static_cast<T>(out.ncols());
         out = fftshift(out);
+        out /= static_cast<T>(out.ncols());
 
         // cast to real
-        auto out1 = real(out);
-
-        // crop and return
-        if (offset == 0) {
-            return out1;
-        } else {
-            PadType pad_type = offset < 0 ? PadType::LEFT : PadType::RIGHT;
-            return gpu::unpad1d(out1, offset, pad_type);
-        }
+        return real(out);
     }
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &, int);
+        const NUFFT::Grid<float> &, float);
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &, int);
+        const NUFFT::Grid<double> &, double);
 
 } // namespace tomocam
