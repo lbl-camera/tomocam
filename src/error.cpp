@@ -33,7 +33,7 @@ namespace tomocam {
 
     template <typename T>
     T funcval(Partition<T> recon, Partition<T> sino,
-        const NUFFT::Grid<T> &nugrid, int offset, int device_id) {
+        const NUFFT::Grid<T> &nugrid, T center, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -52,7 +52,7 @@ namespace tomocam {
             auto work = scheduler.get_work();
             if (work.has_value()) {
                 auto [idx, d_recon, d_sino] = work.value();
-                auto t1 = project(d_recon, nugrid, offset);
+                auto t1 = project(d_recon, nugrid, center);
                 auto t2 = t1 - d_sino;
                 sum += t2.dot(t2);
             }
@@ -63,21 +63,19 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     T function_value(DArray<T> &recon, DArray<T> &sino,
-        const std::vector<NUFFT::Grid<T>> &nugrids, int center) {
+        const std::vector<NUFFT::Grid<T>> &nugrids, T center) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
 
-        // center offset
-        int offset = center - sino.ncols() / 2;
-
+        // create one partition per device
         auto p1 = create_partitions(recon, nDevice);
         auto p2 = create_partitions(sino, nDevice);
 
         std::vector<T> retval(nDevice);
         #pragma omp parallel for
         for (int i = 0; i < nDevice; i++)
-            retval[i] = funcval(p1[i], p2[i], nugrids[i], offset, i);
+            retval[i] = funcval(p1[i], p2[i], nugrids[i], center, i);
 
         // wait for devices to finish
         T fval = 0;
@@ -90,8 +88,8 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template float function_value(DArray<float> &recon, DArray<float> &sino,
-        const std::vector<NUFFT::Grid<float>> &nugrids, int center);
-    template double function_value(DArray<double> &recon, DArray<double> &sino,
-        const std::vector<NUFFT::Grid<double>> &nugrids, int center);
+    template float function_value(DArray<float> &, DArray<float> &,
+        const std::vector<NUFFT::Grid<float>> &, float);
+    template double function_value(DArray<double> &, DArray<double> &,
+        const std::vector<NUFFT::Grid<double>> &, double);
 } // namespace tomocam
