@@ -34,10 +34,15 @@ namespace tomocam {
 
     template <typename T>
     void backproject(Partition<T> sino, Partition<T> output,
-        NUFFT::Grid<T> grid, int offset, int device) {
+        const std::vector<T> &angles, T center, int device) {
 
         // select device
-        cudaSetDevice(device);
+        SAFE_CALL(cudaSetDevice(device));
+
+        // create NUFFT Grid
+        int nproj = static_cast<int>(angles.size());
+        int ncols = sino.ncols();
+        auto grid = NUFFT::Grid<T>(nproj, ncols, angles.data(), device);
 
         // create a data shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
@@ -46,23 +51,21 @@ namespace tomocam {
         dim3_t idims = sino.dims();
 
         // subpartitions
-        int nslcs = Machine::config.slicesPerStream();
         int nparts =
-            idims.x % nslcs == 0 ? idims.x / nslcs : idims.x / nslcs + 1;
-        std::vector<Partition<T>> sub_sinos = create_partitions(sino, nparts);
-        std::vector<Partition<T>> sub_outputs =
-            create_partitions(output, nparts);
+            Machine::config.num_of_partitions(output.dims(), output.bytes());
+        auto sub_sinos = create_partitions(sino, nparts);
+        auto sub_outputs = create_partitions(output, nparts);
 
         // start a scheduler
         Scheduler<Partition<T>, DeviceArray<T>> scheduler(sub_sinos);
         while(scheduler.has_work()) {
             auto task = scheduler.get_work();
             if (task.has_value()) {
-              auto [i, d_sino] = task.value();
-              auto d_recn = backproject(d_sino, grid, offset);
+                auto [i, d_sino] = task.value();
+                auto d_recn = backproject(d_sino, grid, center);
 
-              // copy the result to the output
-              shipper.push(sub_outputs[i], d_recn);
+                // copy the result to the output
+                shipper.push(sub_outputs[i], d_recn);
             }
         }
     }
@@ -70,7 +73,7 @@ namespace tomocam {
     // back projection
     template <typename T>
     DArray<T> backproject(DArray<T> &input, const std::vector<T> &angles,
-        int center) {
+        T center) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > input.nslices()) nDevice = input.nslices();
@@ -79,18 +82,6 @@ namespace tomocam {
         dim3_t dims = {input.nslices(), input.ncols(), input.ncols()};
         DArray<T> output(dims);
 
-        // axis offset from the center of the image
-        int offset = center - input.ncols() / 2;
-
-        // create NUFFT grids
-        int nprojs = angles.size();
-        int ncols = input.ncols();
-        if (offset != 0) { ncols += 2 * std::abs(offset); }
-        std::vector<NUFFT::Grid<T>> grids(nDevice);
-        for (int i = 0; i < nDevice; i++) {
-            grids[i] = NUFFT::Grid<T>(nprojs, ncols, angles.data(), i);
-        }
-
         // create partitions
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
@@ -98,13 +89,13 @@ namespace tomocam {
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
-            backproject(p1[i], p2[i], grids[i], offset, i);
+            backproject(p1[i], p2[i], angles, center, i);
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            cudaDeviceSynchronize();
+            SAFE_CALL(cudaSetDevice(i));
+            SAFE_CALL(cudaDeviceSynchronize());
         }
 
         return output;
@@ -112,8 +103,8 @@ namespace tomocam {
 
     // explicit instantiation
     template DArray<float> backproject(DArray<float> &,
-        const std::vector<float> &, int);
+        const std::vector<float> &, float);
     template DArray<double> backproject(DArray<double> &,
-        const std::vector<double> &, int);
+        const std::vector<double> &, double);
 
 } // namespace tomocam
