@@ -48,7 +48,7 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-            slcsPerStream_ = 4; // slices
+            slcsPerStream_ = 16; // slices
         }
 
         MachineConfig(const MachineConfig &) = delete;
@@ -75,13 +75,16 @@ namespace tomocam {
         int num_of_gpus() const { return ndevice_; }
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
+
+        /* calculate number of sub-partitions */
         int num_of_partitions(int slices) const {
             int n_partitions = slices / slcsPerStream_;
-            if (slices % slcsPerStream_ != 0) n_partitions++;
+            if (slices % slcsPerStream_ > 0) n_partitions++;
             return n_partitions;
         }
 
-        int slicesPerPartition(dim3_t dims, size_t bytes) {
+        /* calculate number of sub-partitions, based on free memory */
+        int num_of_partitions(dim3_t dims, size_t bytes) {
 
             size_t total_mem = 0;
             size_t free_mem = 0;
@@ -89,12 +92,13 @@ namespace tomocam {
             size_t max_allowed = 0.05 * free_mem;
 
             size_t bytes_per_slice = bytes / dims.x;
-            int partition_slices = max_allowed / bytes_per_slice;
+            int slcs_per_partition = max_allowed / bytes_per_slice;
+            int slcs = std::max(slcsPerStream_, slcs_per_partition);
 
             // number of partions
-            int n_partitions = dims.x / partition_slices;
-            if (dims.x % partition_slices != 0) n_partitions++;
-            return partition_slices;
+            int n_partitions = dims.x / slcs;
+            if (dims.x % slcs > 0) n_partitions++;
+            return n_partitions;
         }
     };
 
