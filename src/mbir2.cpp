@@ -37,18 +37,19 @@ namespace tomocam {
         T p, int num_iters, T step_size, T tol, T penalty) {
 
         // pad and shift sinogram
-        auto sino2 = preproc(sino, center);
+        int nrays = sino.ncols();
+        sino = preproc(sino, center);
 
         // recon dimensions
-        int nslcs = sino2.nslices();
-        int nproj = sino2.nrows();
-        int ncols = sino2.ncols();
+        int nslcs = sino.nslices();
+        int nproj = sino.nrows();
+        int ncols = sino.ncols();
 
         dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> sinoT = backproject(sino2, angles, center);
+        DArray<T> sinoT = backproject(sino, angles, center);
 
         // sinogram dot sinogram
-        T sino_norm = sino2.norm();
+        T sino_norm = sino.norm();
 
         // initialize x0
         DArray<T> x0(dims);
@@ -93,7 +94,7 @@ namespace tomocam {
 
         // run optimization
         auto rec = opt.run2(x0, num_iters, step_size, tol);
-        return postproc(rec, sino.ncols());
+        return postproc(rec, nrays);
     }
 
     // explicit instantiation

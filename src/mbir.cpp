@@ -37,6 +37,7 @@ namespace tomocam {
         T p, int num_iters, T step_size, T tol, T penalty) {
 
         // preprocess
+        int nrays = sino.ncols();
         sino = preproc(sino, center);
 
         // recon dimensions
@@ -92,7 +93,7 @@ namespace tomocam {
 
         // run optimization
         auto recon = opt.run2(x0, num_iters, step_size, tol);
-        return postproc(recon, sino.ncols());
+        return postproc(recon, nrays);
     }
 
     // explicit instantiation
