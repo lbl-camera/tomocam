@@ -56,8 +56,9 @@ target_link_libraries(forward PRIVATE ${HDF5_LIBRARIES})
 
 
 # test for Toeplitz matrix
-add_executable(error test_error.cpp)
-target_link_libraries(error PRIVATE tomocam)
+add_executable(toeplitz test_toeplitz.cpp)
+target_link_libraries(toeplitz PRIVATE tomocam)
+target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
 
 # MBIR
 add_executable(mbir test_mbir.cpp)
@@ -65,4 +66,6 @@ target_link_libraries(mbir tomocam)
 target_link_libraries(mbir ${HDF5_LIBRARIES})
 target_link_libraries(mbir nlohmann_json::nlohmann_json)
 add_test(test_mbir mbir)
+
+
 
