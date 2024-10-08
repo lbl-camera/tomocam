@@ -56,9 +56,13 @@ int main(int argc, char **argv) {
     // if number of columns is even, drop one column
     sino.dropcol();
     center -= 1;
+    float cen = static_cast<float>(center);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto recn = tomocam::backproject(sino, angs, center);
+    auto sino2 = tomocam::preproc(sino, cen);
+    auto recn2 = tomocam::backproject(sino2, angs, cen);
+    auto recn = tomocam::postproc(recn2, cen);
+
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Backprojection time: " << elapsed.count() << " s"
