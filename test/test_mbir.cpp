@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
     std::string dataset = cfg["dataset"];
     std::string angles = cfg["angles"];
     int center = cfg["axis"];
+
     int ibeg = 0, iend = -1;
     // chcek for "slices" key
     if (cfg.find("slices") != cfg.end()) {
@@ -65,12 +66,14 @@ int main(int argc, char **argv) {
         center -= 1;
     }
 
+    float cen = static_cast<float>(center);
+
     // run MBIR
     float step = 0.1;
     float penalty = 1;
     Timer t;
     t.start();
-    auto recon = tomocam::mbir<float>(sino, angs, center, sigma, p, max_iters,
+    auto recon = tomocam::mbir<float>(sino, angs, cen, sigma, p, max_iters,
         step, tol, penalty);
     t.stop();
     std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
