@@ -33,7 +33,7 @@
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir2(DArray<T> &sino, std::vector<T> angles, int center, T sigma,
+    DArray<T> mbir2(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
         T p, int num_iters, T step_size, T tol, T penalty) {
 
         // recon dimensions
@@ -93,8 +93,8 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> mbir2(DArray<float> &, std::vector<float>, int,
+    template DArray<float> mbir2(DArray<float> &, std::vector<float>, float,
         float, float, int, float, float, float);
-    template DArray<double> mbir2(DArray<double> &, std::vector<double>, int,
+    template DArray<double> mbir2(DArray<double> &, std::vector<double>, double,
         double, double, int, double, double, double);
 } // namespace tomocam
