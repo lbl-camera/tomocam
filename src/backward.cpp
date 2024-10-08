@@ -29,40 +29,37 @@
 #include "nufft.h"
 #include "types.h"
 
+#include "debug.h"
 #include "gpu/padding.cuh"
 
 namespace tomocam {
 
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
-        const NUFFT::Grid<T> &grid, int offset) {
-
-        // add zeropadding to put center of rotation at center of image
-        PadType pad_type = PadType::RIGHT;
-        if (offset < 0) pad_type = PadType::LEFT;
-        auto in1 = gpu::pad1d(sino, 2 * offset, pad_type);
-
+        const NUFFT::Grid<T> &grid, T center) {
 
         // cast to complex
-        auto in2 = complex(in1);
+        auto in2 = complex(sino);
 
         /* back-project */
         // shift 0-frequency to corner
         in2 = ifftshift(in2);
+        // forward FFT in radial direction
         in2 = fft1D(in2);
+        // shift 0-frequency  to center
         in2 = fftshift(in2);
 
         // nufft type 1
         auto out = nufft2d1(in2, grid);
-        cudaDeviceSynchronize();
+        SAFE_CALL(cudaDeviceSynchronize());
 
-        // cast to real
-        return gpu::unpad2d(real(out), offset);
+        // return real part
+        return real(out);
     }
 
     // explicit instantiation
     template DeviceArray<float> backproject(const DeviceArray<float> &,
-        NUFFT::Grid<float> const &, int);
+        NUFFT::Grid<float> const &, float);
     template DeviceArray<double> backproject(const DeviceArray<double> &,
-        NUFFT::Grid<double> const &, int);
+        NUFFT::Grid<double> const &, double);
 } // namespace tomocam
