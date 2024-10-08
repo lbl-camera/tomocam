@@ -31,7 +31,7 @@
 
 namespace tomocam {
 
-    /** 
+    /**
      * @brief Compute the backprojection of a sinogram.
      *
      * @param sinogram The sinogram to backproject.
@@ -41,7 +41,7 @@ namespace tomocam {
      * @return The backprojected image.
      */
     template <typename T>
-    DArray<T> backproject(DArray<T> &, const std::vector<T> &, int);
+    DArray<T> backproject(DArray<T> &, const std::vector<T> &, T);
 
     /**
      * @brief Compute the forward projection of an image.
@@ -53,7 +53,21 @@ namespace tomocam {
      * @return The forward projected sinogram.
      */
     template <typename T>
-    DArray<T> project(DArray<T> &, const std::vector<T> &, int);
+    DArray<T> project(DArray<T> &, const std::vector<T> &, T);
+
+    /**
+     * @brief Compute the gradient of the objective function, given current
+     * image estimate and sinogram.
+     *
+     * @param current solution.
+     * @param transposed_sinogram the transposed sinogram.
+     * @param A copy of NUFFT Grid on each GPU
+     *
+     * @return a tuple containing the gradient and the partial function value
+     */
+    template <typename T>
+    DArray<T> gradient(DArray<T> &, DArray<T> &,
+        const std::vector<NUFFT::Grid<T>> &, T);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -81,6 +95,20 @@ namespace tomocam {
      * @return the value of the objective function
      */
     template <typename T>
+    T function_value(DArray<T> &, DArray<T> &,
+        const std::vector<NUFFT::Grid<T>> &, T);
+
+    /**
+     * @brief Compute the value of the objective function, given current
+     * solution
+     *
+     * @param current solution.
+     * @param transposed_sinogram the transposed sinogram.
+     * @param dot product of sinograom with itself.
+     *
+     * @return the value of the objective function
+     */
+    template <typename T>
     T function_value2(DArray<T> &, DArray<T> &,
         const std::vector<PointSpreadFunction<T>> &, T);
 
@@ -96,10 +124,10 @@ namespace tomocam {
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
     template <typename T>
-    DArray<T> mbir2(DArray<T> &, std::vector<T>, int, T, T, int, T, T, T);
+    DArray<T> mbir2(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &, std::vector<T>, int, T, T, int, T, T, T);
+    DArray<T> mbir(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
 
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
@@ -137,6 +165,24 @@ namespace tomocam {
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
         const std::vector<NUFFT::Grid<T>> &, int);
+
+    /**
+     * @brief Zero pad the sinogram by a factor of \sqrt{2}
+     * @param sinogram
+     *
+     * @return zero padded sinogram
+     */
+    template <typename T>
+    DArray<T> preproc(DArray<T> &, T);
+
+    /**
+     * @brief Crop the reconstruction by a factor of \sqrt{2}
+     * @param reconstruction
+     *
+     * @return cropped reconstruction
+     */
+    template <typename T>
+    DArray<T> postproc(DArray<T> &, T);
 
 } // namespace tomocam
 
