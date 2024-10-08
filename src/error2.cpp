@@ -73,7 +73,7 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nDevice);
 
         std::vector<T> retval(nDevice);
-        // #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < nDevice; i++)
             retval[i] = funcval2(p1[i], p2[i], psf[i], i);
 
