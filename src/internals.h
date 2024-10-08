@@ -48,24 +48,24 @@ namespace tomocam {
      * Computes back projection from sinograms using NUFFT
      *
      * @param DeviceArray<T> sinogram space
-     * @param int center of rotation
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
      * @return DeviceArray<T> Image space
      */
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &, const NUFFT::Grid<T> &,
-        int);
+        T);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
      *
      * @param DeviceArray<T> Image space
-     * @param int center of rotation
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
      * @return DeviceArray<T> sinogram space
      */
     template <typename T>
-    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, int);
+    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, T);
 
     /**
      * Parital calculation of the gradient of the objective function
@@ -77,7 +77,7 @@ namespace tomocam {
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
      */
     template <typename T>
-    std::tuple<DeviceArray<T>, T> gradient(DeviceArray<T> &, DeviceArray<T> &,
+    DeviceArray<T> gradient(DeviceArray<T> &, DeviceArray<T> &,
         const NUFFT::Grid<T> &);
 
     /**
@@ -89,7 +89,7 @@ namespace tomocam {
      */
 
     template <typename T>
-    std::tuple<DeviceArray<T>, T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
+    DeviceArray<T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
         const PointSpreadFunction<T> &);
 
 } // namespace tomocam
