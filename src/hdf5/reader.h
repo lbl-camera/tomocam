@@ -41,6 +41,22 @@ namespace tomocam {
 
             ~Reader() { H5Fclose(fp_); }
 
+            // get data dimenstions
+            int dims(const char *dsetname, int dim) {
+
+                hid_t dset = H5Dopen2(fp_, dsetname, H5P_DEFAULT);
+                hid_t dspc = H5Dget_space(dset);
+                hsize_t dims[3] = {0, 0, 0}; // max 3D
+                int ndim = H5Sget_simple_extent_dims(dspc, dims, NULL);
+                if (ndim != 3) { throw std::runtime_error("Data is not 3D"); }
+                if (dim < 0 || dim > 2) {
+                    throw std::runtime_error("Invalid dimension");
+                }
+                H5Sclose(dspc);
+                H5Dclose(dset);
+                return static_cast<int>(dims[dim]);
+            }
+
             /** read projection data into sinogram format
              * @param dataset dataset name
              * @param nslice number of slices to read, 0 for all
