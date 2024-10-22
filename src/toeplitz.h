@@ -32,74 +32,74 @@ namespace tomocam {
 
     template <typename T>
     class PointSpreadFunction {
-      private:
-        int device_;
-        DeviceArray<gpu::complex_t<T>> psf_;
+        private:
+            int device_;
+            DeviceArray<gpu::complex_t<T>> psf_;
 
-      public:
-        PointSpreadFunction() = default;
+        public:
+            PointSpreadFunction() = default;
 
-        PointSpreadFunction(const NUFFT::Grid<T> &grid) {
+            PointSpreadFunction(const NUFFT::Grid<T> &grid) {
 
-            // set the device
-            device_ = grid.dev_id();
-            SAFE_CALL(cudaSetDevice(device_));
+                // set the device
+                device_ = grid.dev_id();
+                SAFE_CALL(cudaSetDevice(device_));
 
-            int nproj = grid.nprojs();
-            int ncols = grid.npixels();
-            int N1 = 2 * ncols - 1;
+                int nproj = grid.nprojs();
+                int ncols = grid.npixels();
+                int N1 = 2 * ncols - 1;
 
-            // allocate ones
-            constexpr gpu::complex_t<T> v(1, 0);
-            DeviceArray<gpu::complex_t<T>> ones(dim3_t(1, nproj, ncols));
-            ones.init(v);
+                // allocate ones
+                constexpr gpu::complex_t<T> v(1, 0);
+                DeviceArray<gpu::complex_t<T>> ones(dim3_t(1, nproj, ncols));
+                ones.init(v);
 
-            // compute nufft type 1
-            dim3_t out_dims(1, N1, N1);
-            auto temp = NUFFT::nufft2d1(ones, grid, out_dims);
+                // compute nufft type 1
+                dim3_t out_dims(1, N1, N1);
+                auto temp = NUFFT::nufft2d1(ones, grid, out_dims);
 
-            // get the real part
-            auto psf = real(temp);
+                // get the real part
+                auto psf = real(temp);
 
-            // zero pad for convolution (N1 + ncols - 1)
-            psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT);
+                // zero pad for convolution (N1 + ncols - 1)
+                psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT);
 
-            // compute FFT(psf)
-            psf_ = rfft2D(psf);
-        }
-
-        DeviceArray<T> convolve(const DeviceArray<T> &x) const {
-
-            // set the device
-            int dev;
-            SAFE_CALL(cudaGetDevice(&dev));
-            if (dev != device_) {
-                std::cerr
-                    << "Error: device mismatch in PointSpreadFunction::convolve"
-                    << std::endl;
+                // compute FFT(psf)
+                psf_ = rfft2D(psf);
             }
 
-            // pad x to match the size of the psf
-            int padding = psf_.nrows() - x.nrows();
+            DeviceArray<T> convolve(const DeviceArray<T> &x) const {
 
-            // zero pad
-            auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT);
+                // set the device
+                int dev;
+                SAFE_CALL(cudaGetDevice(&dev));
+                if (dev != device_) {
+                    std::cerr
+                            << "Error: device mismatch in PointSpreadFunction::convolve"
+                        << std::endl;
+                }
 
-            // fft(x) Real -> complex
-            auto xft = rfft2D<T>(xpad);
+                // pad x to match the size of the psf
+                int padding = psf_.nrows() - x.nrows();
 
-            // broadcast-multiply
-            auto xft_psf = xft.multiply(psf_);
+                // zero pad
+                auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT);
 
-            // scale by the size of the image
-            xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
+                // fft(x) Real -> complex
+                auto xft = rfft2D<T>(xpad);
 
-            // ifft(g * x) complex -> real
-            auto tmp2 = irfft2D<T>(xft_psf);
+                // broadcast-multiply
+                auto xft_psf = xft.multiply(psf_);
 
-            // remove padding
-            return gpu::unpad2d<T>(tmp2, padding);
-        }
+                // scale by the size of the image
+                xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
+
+                // ifft(g * x) complex -> real
+                auto tmp2 = irfft2D<T>(xft_psf);
+
+                // remove padding
+                return gpu::unpad2d<T>(tmp2, padding, PadType::RIGHT);
+            }
     };
 }
 
