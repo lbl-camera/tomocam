@@ -36,98 +36,103 @@ namespace tomocam {
     template <typename T, template <typename> class Array, typename Gradient,
         typename Error>
     class Optimizer {
-      private:
-        Gradient gradient_;
-        Error error_;
+        private:
+            Gradient gradient_;
+            Error error_;
 
-      public:
-        // constructor
-        Optimizer(Gradient gradient, Error error) :
-            gradient_(gradient), error_(error) {}
+        public:
+            // constructor
+            Optimizer(Gradient gradient, Error error) :
+                gradient_(gradient), error_(error) {}
 
-        // fixed step-size
-        Array<T> run(Array<T> sol, int max_iters, T step_size, T tol) {
+            // fixed step-size
+            Array<T> run(Array<T> sol, int max_iters, T step_size, T tol) {
 
-            // initialize 
-            Array<T> x = sol;
-            Array<T> y = sol;
-            T t = 1;
-            T tnew = 1;
+                // initialize
+                Array<T> x = sol;
+                Array<T> y = sol;
+                T t = 1;
+                T tnew = 1;
 
-            // set error to infinity
-            T e_old = std::numeric_limits<T>::infinity();
-            for (int iter = 0; iter < max_iters; iter++) {
+                // set error to infinity
+                T e_old = std::numeric_limits<T>::infinity();
+                for (int iter = 0; iter < max_iters; iter++) {
 
-                
-                T beta = tnew * (1/t - 1);
-                y = sol + (sol - x) * beta;
-                auto g = gradient_(y);
-
-                x = sol;
-                sol = y - g * step_size;
-
-                // update theta
-                T temp = 0.5 * (std::sqrt(std::pow(t,4) 
-                            + 4 * std::pow(t,2))
-                        - std::pow(t,2));
-                t = tnew;
-                tnew = temp;
-
-                auto e = error_(sol);
-                if (e > e_old) {
-                    g = gradient_(x);
-                    sol = x - g * step_size;
-                    e = error_(sol);
-                }
-                e_old = e;
-                std::cout << "iter: " << iter << ", error: " << e << std::endl;
-            }
-            return sol;
-        }
-
-        Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol) {
-
-            // initialize 
-            Array<T> x = sol;
-            Array<T> y = sol;
-            T t = 1;
-            T tnew = 1; 
-            T step0 = step_size;
-
-            for (int iter = 0; iter < max_iters; iter++) {
-                while (true) {
-
-                    // update theta
-                    T beta = tnew * (1/t - 1);
-                    tnew = 0.5 * (std::sqrt(std::pow(t,4) 
-                             + 4 * std::pow(t,2))
-                         - std::pow(t,2));
-
-                    // update y
+                    T beta = tnew * (1 / t - 1);
                     y = sol + (sol - x) * beta;
                     auto g = gradient_(y);
-                   
-                    // update x
+
+                    x = sol;
                     sol = y - g * step_size;
-                 
-                    // check if step size is small enough
-                    T fx = error_(sol);
-                    T fy = error_(y);
-                    T gy = 0.5 * step_size * g.norm();
-                    if (fx > (fy + gy))
-                        step_size *= 0.9;
-                    else {
-                        step_size = step0;
-                        t = tnew;
-                        x = sol;
-                        break;
+
+                    // update theta
+                    T temp = 0.5 * (std::sqrt(std::pow(t, 4)
+                        + 4 * std::pow(t, 2))
+                        - std::pow(t, 2));
+                    t = tnew;
+                    tnew = temp;
+
+                    auto e = error_(sol);
+                    if (e > e_old) {
+                        g = gradient_(x);
+                        sol = x - g * step_size;
+                        e = error_(sol);
                     }
+                    e_old = e;
+                    #ifdef MULTIPROC
+                    if (multiproc::mp.first())
+                    #endif
+                        std::cout << "iter: " << iter << ", error: " << e << std::endl;
                 }
-                T e = error_(sol);
-                std::cout << "iter: " << iter << ", error: " << e << std::endl;
+                return sol;
             }
-            return sol;
-        }
+
+            Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol) {
+
+                // initialize
+                Array<T> x = sol;
+                Array<T> y = sol;
+                T t = 1;
+                T tnew = 1;
+                T step0 = step_size;
+
+                for (int iter = 0; iter < max_iters; iter++) {
+                    while (true) {
+
+                        // update theta
+                        T beta = tnew * (1 / t - 1);
+                        tnew = 0.5 * (std::sqrt(std::pow(t, 4)
+                            + 4 * std::pow(t, 2))
+                            - std::pow(t, 2));
+
+                        // update y
+                        y = sol + (sol - x) * beta;
+                        auto g = gradient_(y);
+
+                        // update x
+                        sol = y - g * step_size;
+
+                        // check if step size is small enough
+                        T fx = error_(sol);
+                        T fy = error_(y);
+                        T gy = 0.5 * step_size * g.norm();
+                        if (fx > (fy + gy))
+                            step_size *= 0.9;
+                        else {
+                            step_size = step0;
+                            t = tnew;
+                            x = sol;
+                            break;
+                        }
+                    }
+                    T e = error_(sol);
+                    #ifdef MULTIPROC
+                    if (multiproc::mp.first())
+                    #endif
+                        std::cout << "iter: " << iter << ", error: " << e << std::endl;
+                }
+                return sol;
+            }
     };
 
 } // namespace tomocam
