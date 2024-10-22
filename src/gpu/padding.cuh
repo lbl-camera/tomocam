@@ -77,11 +77,11 @@ namespace tomocam {
          * @tparam T
          * @param arr
          * @param pad_size
-         * @param stream
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
          * @return DeviceArray<T>
          */
         template <typename T>
-        DeviceArray<T> unpad2d(const DeviceArray<T> &, int);
+        DeviceArray<T> unpad2d(const DeviceArray<T> &, int, PadType);
 
     } // namespace gpu
 } // namespace tomocam
