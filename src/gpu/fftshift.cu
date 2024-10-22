@@ -1,3 +1,22 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ *National Laboratory (subject to receipt of any required approvals from the
+ *U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ *IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ *the U.S. Government has been granted for itself and others acting on its
+ *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ *to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
 
 #include "gpu/dev_memory.cuh"
 #include "gpu/utils.cuh"
@@ -26,7 +45,7 @@ namespace tomocam {
             auto dims = arr.dims();
             DeviceArray<T> out(dims);
             Grid grid(dims);
-            roll_kernel<T><<<grid.blocks(), grid.threads()>>>(arr, out, delta);
+            roll_kernel<T> <<< grid.blocks(), grid.threads()>>>(arr, out, delta);
             return out;
         }
         // explicit instantiation
@@ -49,7 +68,7 @@ namespace tomocam {
             if (idx < dims) {
                 T q = 2 * M_PI * idx.z / dims.z * delta;
                 out[idx] = complex_t<T>(cuda::std::cos(q), cuda::std::sin(q)) *
-                           in[idx];
+                    in[idx];
             }
         }
 
@@ -60,7 +79,7 @@ namespace tomocam {
             DeviceArray<complex_t<T>> out(in.dims());
             Grid grid(in.dims());
             phase_shift_kernel<T>
-                <<<grid.blocks(), grid.threads()>>>(in, out, delta);
+            <<< grid.blocks(), grid.threads()>>>(in, out, delta);
             return out;
         }
 
