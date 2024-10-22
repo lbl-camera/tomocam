@@ -51,10 +51,11 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto [idx, d_soln] = work.value();
+                auto[idx, d_soln] = work.value();
 
                 // remove padding
-                auto d_soln2 = gpu::unpad2d(d_soln, 2 * npad);
+                auto d_soln2 =
+                    gpu::unpad2d(d_soln, 2 * npad, PadType::SYMMETRIC);
 
                 // copy data to partition
                 shipper.push(p2[idx], d_soln2);
@@ -66,7 +67,9 @@ namespace tomocam {
     DArray<T> postproc(DArray<T> &soln, int npixels) {
 
         int ndevices = Machine::config.num_of_gpus();
-        if (soln.nslices() < ndevices) { ndevices = 1; }
+        if (soln.nslices() < ndevices) {
+            ndevices = 1;
+        }
 
         // calculate the dimensions of cropped image
         int npad = (soln.ncols() - npixels) / 2;
