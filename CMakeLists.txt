@@ -73,7 +73,7 @@ find_package(pybind11 REQUIRED)
 include_directories(${pybind11_INCLUDE_DIR})
 option(USING_SETUP_PY "building through setup.py" OFF)
 if (USING_SETUP_PY)
-    add_definitions(-DUSE_PYBIND11_PRINT)
+    add_compile_definitions(USING_SETUP_PY)
 endif(USING_SETUP_PY)
 
 # openmp
@@ -81,6 +81,14 @@ find_package(OpenMP)
 if (OpenMP_FOUND) 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
+
+
+# MPI
+enable_language(C)
+find_package(MPI COMPONENTS C)
+if (MPI_FOUND)
+    add_compile_definitions(MULTIPROC)
+endif(MPI_FOUND)
 
 # finufft
 find_package(finufft REQUIRED)
@@ -93,6 +101,7 @@ target_link_libraries(tomocam PUBLIC finufft::finufft)
 target_link_libraries(tomocam PUBLIC CUDA::cufft)
 target_link_libraries(tomocam PUBLIC CUDA::cudart)
 target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
+target_link_libraries(tomocam PUBLIC ${MPI_C_LIBRARIES})
 target_compile_features(tomocam PUBLIC cxx_std_20)
 
 
