@@ -22,6 +22,7 @@
 #define TOMOCAM_COMMON__H
 
 namespace tomocam {
+
     struct dim3_t {
         int x, y, z;
         dim3_t() : x(1), y(1), z(1) {}
@@ -42,17 +43,17 @@ namespace tomocam {
         }
 
         dim3_t operator-(const dim3_t &other) const {
-            dim3_t v(x-other.x, y-other.y, z-other.z);
+            dim3_t v(x - other.x, y - other.y, z - other.z);
             return v;
         }
 
         dim3_t operator+(const dim3_t &other) const {
-            dim3_t v(x+other.x, y+other.y, z+other.z);
+            dim3_t v(x + other.x, y + other.y, z + other.z);
             return v;
         }
 
         dim3_t operator*(int scalar) const {
-            dim3_t v(x*scalar, y*scalar, z*scalar);
+            dim3_t v(x * scalar, y * scalar, z * scalar);
             return v;
         }
 
@@ -62,7 +63,7 @@ namespace tomocam {
                 return false;
         }
 
-#ifdef __NVCC__
+        #ifdef __NVCC__
         __host__ __device__
         dim3_t operator=(const int3 & rhs) {
             x = rhs.x;
@@ -70,17 +71,17 @@ namespace tomocam {
             z = rhs.z;
             return *this;
         }
-        
+
         __host__ __device__
         operator int3() const {
             return make_int3(x, y, z);
         }
-#endif // __NVCC__ 
+        #endif // __NVCC__
     };
 
-    inline dim3_t operator*(int scalar, const dim3_t &v){
-        return v*scalar;
+    inline dim3_t operator*(int scalar, const dim3_t &v) {
+        return v * scalar;
     }
 
-} // namespace 
+} // namespace
 #endif // TOMOCAM_COMMON__H
