@@ -21,6 +21,7 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
 #include <omp.h>
+#include <format>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -29,6 +30,10 @@
 #include "scheduler.h"
 #include "shipper.h"
 #include "types.h"
+
+#ifdef MULTIPROC
+#include "multiproc.h"
+#endif
 
 #include "gpu/totalvar.cuh"
 
@@ -64,7 +69,7 @@ namespace tomocam {
             if (work.has_value()) {
 
                 // unpack the data
-                auto [idx, d_s, d_g] = work.value();
+                auto[idx, d_s, d_g] = work.value();
 
                 // update the total variation
                 gpu::add_total_var<T>(d_s, d_g, p, sigma);
@@ -81,11 +86,27 @@ namespace tomocam {
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sol.nslices()) nDevice = sol.nslices();
 
+        dim3_t dims = sol.dims();
+        #ifdef MULTIPROC
+        int myrank = multiproc::mp.myrank();
+        int size = multiproc::mp.nprocs();
+        if (myrank > 0) dims.x += 1;
+        if (myrank < size - 1) dims.x += 1;
+        int start = myrank == 0 ? 0 : 1;
+
+        // allcate memory for halo
+        DArray<T> sol2(dims);
+        std::copy(sol.begin(), sol.end(), sol2.slice(start));
+        sol2.update_neigh_proc();
+        auto p1 = create_partitions(sol2, nDevice, 1);
+        #else
         auto p1 = create_partitions(sol, nDevice, 1);
+        #endif
+
         auto p2 = create_partitions(grad, nDevice);
 
         #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++){
+        for (int i = 0; i < nDevice; i++) {
             total_var<T>(p1[i], p2[i], p, sigma, i);
         }
 
