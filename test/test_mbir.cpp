@@ -1,6 +1,9 @@
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <nlohmann/json.hpp>
 
 #include "dist_array.h"
@@ -8,6 +11,10 @@
 #include "hdf5/writer.h"
 #include "timer.h"
 #include "tomocam.h"
+
+#ifdef MULTIPROC
+#include <mpi.h>
+#endif
 
 using json = nlohmann::json;
 
@@ -17,6 +24,16 @@ int main(int argc, char **argv) {
         std::cout << "Usage: " << argv[0] << " <json>" << std::endl;
         return 1;
     }
+
+    // initialize MPI
+    #ifdef MULTIPROC
+    tomocam::multiproc::mp.init(argc, argv);
+    int nprocs = tomocam::multiproc::mp.nprocs();
+    int myrank = tomocam::multiproc::mp.myrank();
+    #else
+    int nprocs = 1;
+    int myrank = 0;
+    #endif
 
     // get JSON file
     std::ifstream json_file(argv[1]);
@@ -57,6 +74,24 @@ int main(int argc, char **argv) {
 
     // load tomogrmaphic data
     tomocam::h5::Reader fp(filename.c_str());
+    if (iend < 0) iend = fp.dims(dataset.c_str(), 1);
+    int nslices = iend - ibeg;
+
+    #ifdef MULTIPROC
+    int slcs_per_proc = nslices / nprocs;
+    int extra_slcs = nslices % nprocs;
+    if ((extra_slcs > 0) && (myrank < extra_slcs)) slcs_per_proc += 1;
+
+    // set local ibegs and iends
+    ibeg = myrank * slcs_per_proc;
+    iend = ibeg + slcs_per_proc;
+    if (myrank > extra_slcs) {
+        ibeg = extra_slcs * (slcs_per_proc + 1) +
+            (myrank - extra_slcs) * slcs_per_proc;
+        iend = ibeg + slcs_per_proc;
+    }
+    #endif
+
     auto sino = fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
     auto angs = fp.read<float>(angles.c_str());
 
@@ -76,12 +111,29 @@ int main(int argc, char **argv) {
     auto recon = tomocam::mbir<float>(sino, angs, cen, sigma, p, max_iters,
         step, tol, penalty);
     t.stop();
-    std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
+
+    #ifdef MULTIPROC
+    if (myrank == 0)
+    #endif
+        std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
 
     // save reconstruction
+    #ifdef MULTIPROC
+    auto fname = cfg["output"].get<std::string>();
+    auto prefix = fname.substr(0, fname.find_last_of("."));
+    auto suffix = fname.substr(fname.find_last_of("."));
+    std::stringstream tag;
+    tag << std::setw(3) << std::setfill('0') << myrank;
+    auto outf = prefix + tag.str() + suffix;
+    #else
     auto outf = cfg["output"].get<std::string>();
-    tomocam::h5::Writer writer(outf.c_str());
-    writer.write("recon", recon);
+    #endif
+    //tomocam::h5::Writer writer(outf.c_str());
+    //writer.write("recon", recon);
+
+    #ifdef MULTIPROC
+    tomocam::multiproc::mp.finalize();
+    #endif
 
     return 0;
 }

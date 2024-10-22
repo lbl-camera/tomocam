@@ -25,10 +25,14 @@
 #include <pybind11/pybind11.h>
 
 #include "dist_array.h"
-#include "optimize.h"
-#include "tomocam.h"
 #include "machine.h"
 #include "nufft.h"
+#include "optimize.h"
+#include "tomocam.h"
+
+#ifdef MULTIPROC
+#include "multiproc.h"
+#endif
 
 namespace tomocam {
 
@@ -52,7 +56,9 @@ namespace tomocam {
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
-        if (ndevice > nslcs) { ndevice = 1; }
+        if (ndevice > nslcs) {
+            ndevice = 1;
+        }
 
         // calculate point-spread function for each device
         int current_dev = 0;
@@ -74,29 +80,38 @@ namespace tomocam {
         auto g = gradient(xtmp, ytmp, grids, center);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
+
+        #ifdef MULTIPROC
+        L = multiproc::mp.MaxReduce(L);
+        #endif
         step_size = step_size / L;
 
         // create callable functions for optimization
         auto calc_gradient = [&sinoT, &grids, center, p, sigma](
-                                 DArray<T> &x) -> DArray<T> {
+            DArray<T> &x) -> DArray<T> {
             auto g = gradient(x, sinoT, grids, center);
             add_total_var(x, g, sigma, p);
             return g;
-        };
+            };
+
         auto calc_error = [&sino, &grids, center](DArray<T> &x) -> T {
-            return function_value(x, sino, grids, center);
+            T e = function_value(x, sino, grids, center);
+            #ifdef MULTIPROC
+            e = multiproc::mp.SumReduce(e) / multiproc::mp.nprocs();
+            #endif
+            return e;
         };
 
         // create optimizer
-        Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)> opt(
-            calc_gradient, calc_error);
+        Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)>
+        opt(calc_gradient, calc_error);
 
         // run optimization
         auto recon = opt.run2(x0, num_iters, step_size, tol);
         return postproc(recon, nrays);
     }
 
-    // explicit instantiation
+// explicit instantiation
     template DArray<float> mbir(DArray<float> &sino, std::vector<float> angles,
         float center, float sigma, float p, int num_iters, float step_size,
         float tol, float penalty);
