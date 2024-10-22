@@ -156,22 +156,29 @@ namespace tomocam {
         }
 
         template <typename T>
-        DeviceArray<T> unpad2d(const DeviceArray<T> &in, int padding) {
+        DeviceArray<T> unpad2d(const DeviceArray<T> &in, int padding,
+            PadType type) {
 
-            int shift = std::abs(padding) / 2;
             int nrows = in.nrows() - std::abs(padding);
             int ncols = in.ncols() - std::abs(padding);
             dim3_t new_dim = {in.nslices(), nrows, ncols};
             DeviceArray<T> out(new_dim);
-        
+
+            // shift for symmetric padding
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = std::abs(padding);
+
             // cuda kernel launch
             Grid grid(new_dim);
             crop2d_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
             return out;
         }
         // specializations for float and double
-        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int);
-        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int);
+        template DeviceArray<float> unpad2d(const DeviceArray<float> &, int,
+            PadType);
+        template DeviceArray<double> unpad2d(const DeviceArray<double> &, int,
+            PadType);
 
     } // namespace gpu
 } // namespace tomocam
