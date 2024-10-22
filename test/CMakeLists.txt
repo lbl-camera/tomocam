@@ -18,6 +18,7 @@ add_test(test_padding padding)
 
 add_executable(partition test_partition.cpp)
 target_link_libraries(partition PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(partition PRIVATE ${MPI_C_LIBRARIES})
 
 # test dropcol
 add_executable(dropcol test_dropcol.cpp)
@@ -29,6 +30,7 @@ target_link_libraries(dropcol PRIVATE nlohmann_json::nlohmann_json)
 add_executable(read test_reader.cpp)
 target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(read PRIVATE ${Python_LIBRARIES})
+target_link_libraries(read PRIVATE ${MPI_C_LIBRARIES})
 target_link_libraries(read PRIVATE nlohmann_json::nlohmann_json)
 add_test(test_reader read)
 
@@ -65,6 +67,7 @@ add_executable(mbir test_mbir.cpp)
 target_link_libraries(mbir tomocam)
 target_link_libraries(mbir ${HDF5_LIBRARIES})
 target_link_libraries(mbir nlohmann_json::nlohmann_json)
+target_link_libraries(mbir ${MPI_C_LIBRARIES})
 add_test(test_mbir mbir)
 
 
