@@ -12,11 +12,11 @@
 
 namespace tomocam {
 
-    const float weight [3][3][3] = {
-            {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}},
-            {{0.037, 0.0523, 0.037}, {0.0523, 0., 0.0523}, {0.037, 0.0523, 0.037}},
-            {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
-        };
+    const float weight[3][3][3] = {
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}},
+        {{0.037, 0.0523, 0.037}, {0.0523, 0., 0.0523}, {0.037, 0.0523, 0.037}},
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
+    };
 
     const float MRF_Q = 2.f;
     const float MRF_C = 0.001;
@@ -29,15 +29,15 @@ namespace tomocam {
         float temp2 = std::pow(std::abs(delta), MRF_Q - 1);
         float temp3 = MRF_C + temp1;
 
-        if (delta > 0.f) 
+        if (delta > 0.f)
             return ((temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
-        else if (delta < 0.f) 
+        else if (delta < 0.f)
             return ((-1 * temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
-        else 
-            return 0; 
+        else
+            return 0;
     }
 
-    // calculate contraints on CPU 
+    // calculate contraints on CPU
     void cpuTotalVar(DArray<float> &input, DArray<float> &output, float sigma, float mrf_p) {
 
         // dims
@@ -55,7 +55,16 @@ namespace tomocam {
                     for (int z = 0; z < 3; z++) {
                         for (int y = 0; y < 3; y++) {
                             for (int x = 0; x < 3; x++) {
-                                float d = u - input.padded(i + z - 1, j + y -1, k + x -1);
+                                int i1 = i + z - 1;
+                                if (i1 < 0) i1 = 0;
+                                if (i1 >= nslc) i1 = nslc - 1;
+                                int j1 = j + y - 1;
+                                if (j1 < 0) j1 = 0;
+                                if (j1 >= nrow) j1 = nrow - 1;
+                                int k1 = k + x - 1;
+                                if (k1 < 0) k1 = 0;
+                                if (k1 >= ncol) k1 = ncol - 1;
+                                float d = u - input(i1, j1, k1);
                                 v += weight[z][y][x] * d_potfun(d, sigma, mrf_p);
                             }
                         }
@@ -71,23 +80,25 @@ int main(int argc, char **argv) {
 
     float p = 1.2;
     float sigma = 0.01;
-    int n = 21;
-    if (argc > 1) n = atoi(argv[1]);
+    int nz = 21;
+    if (argc > 1) nz = atoi(argv[1]);
+    int ny = 16;
+    int nx = 16;
 
     // data
     std::cout << "allocating memory .. " << std::endl;
-    tomocam::dim3_t dims = {n, 4, 4};
+    tomocam::dim3_t dims = {nz, ny, nx};
     tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
     tomocam::DArray<float> d(dims);
 
-    // initializing 
+    // initializing
     std::cout << "initializing ... " << std::endl;
     std::default_random_engine e(0);
-    std::uniform_real_distribution<float> dist(0.0,1.0);
+    std::uniform_real_distribution<float> dist(0.0, 1.0);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (uint64_t i = 0; i < a.size(); i++)
         a[i] = dist(e);
 
@@ -124,5 +135,5 @@ int main(int argc, char **argv) {
     std::cout << "L2 error: " << err2.norm() / err2.size() << std::endl;
 
     return 0;
-    // create 
+    // create
 }
