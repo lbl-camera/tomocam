@@ -45,6 +45,9 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
 
+        // normalization factor
+        auto scale = static_cast<T>(std::pow(f.ncols(), 3));
+
         // create a shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
@@ -53,12 +56,13 @@ namespace tomocam {
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto [idx, d_f, d_sinoT] = work.value();
+                auto[idx, d_f, d_sinoT] = work.value();
 
                 auto t1 = complex(d_f);
                 auto t2 = nufft2d2(t1, nugrid);
                 auto t3 = nufft2d1(t2, nugrid);
-                auto d_g = real(t3) - d_sinoT;
+                auto t4 = real(t3) / scale;
+                auto d_g = t4 - d_sinoT;
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
