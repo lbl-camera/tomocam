@@ -40,6 +40,13 @@ namespace tomocam {
     DArray<T> mbir(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
         T p, int num_iters, T step_size, T tol, T penalty) {
 
+        // normalize
+        auto maxv = sino.max();
+        #ifdef MULTIPROC
+        maxv = multiproc::mp.MaxReduce(maxv);
+        #endif
+        sino /= maxv;
+
         // preprocess
         int nrays = sino.ncols();
         sino = preproc(sino, center);
@@ -87,17 +94,16 @@ namespace tomocam {
         step_size = step_size / L;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &grids, center, p, sigma](
-            DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &grids, center, p, sigma](DArray<T> &x) -> DArray<T> {
             auto g = gradient(x, sinoT, grids, center);
-            add_total_var(x, g, sigma, p);
+            add_total_var(x, g, p, sigma);
             return g;
-            };
+        };
 
         auto calc_error = [&sino, &grids, center](DArray<T> &x) -> T {
             T e = function_value(x, sino, grids, center);
             #ifdef MULTIPROC
-            e = multiproc::mp.SumReduce(e) / multiproc::mp.nprocs();
+            e = multiproc::mp.SumReduce(e);
             #endif
             return e;
         };
