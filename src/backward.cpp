@@ -54,7 +54,8 @@ namespace tomocam {
         SAFE_CALL(cudaDeviceSynchronize());
 
         // return real part
-        return real(out);
+        T scale =  static_cast<T>(sino.ncols() * sino.ncols());
+        return (real(out) / scale);
     }
 
     // explicit instantiation
