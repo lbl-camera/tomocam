@@ -168,11 +168,11 @@ namespace tomocam {
                 T temp = 0.f;
                 for (int ix = 0; ix < 3; ix++)
                     for (int iy = 0; iy < 3; iy++)
-                        for (int iz = 0; iz < 3; iz++)
-                            temp +=
-                                weight(ix, iy, iz) *
-                                d_pot_func(v - s_val[i + ix][j + iy][k + iz], p,
-                                    sigma);
+                        for (int iz = 0; iz < 3; iz++) {
+                            auto del = v - s_val[i + ix][j + iy][k + iz];
+                            auto tv = d_pot_func(del, p, sigma);
+                            temp += weight(ix, iy, iz) * tv;
+                        }
                 objfn(x, y, z) += temp;
             }
         }
@@ -186,7 +186,7 @@ namespace tomocam {
 
             // update gradients inplace
             tvd_update_kernel<T>
-                <<<g.blocks(), g.threads()>>>(sol, grad, p, sigma);
+            <<< g.blocks(), g.threads()>>>(sol, grad, p, sigma);
             SAFE_CALL(cudaGetLastError());
         }
 
