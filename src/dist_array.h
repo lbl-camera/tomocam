@@ -24,7 +24,6 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
-#include <format>
 
 #include "types.h"
 #include "common.h"

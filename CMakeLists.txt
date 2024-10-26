@@ -87,6 +87,7 @@ endif(OpenMP_FOUND)
 enable_language(C)
 find_package(MPI COMPONENTS C)
 if (MPI_FOUND)
+    include_directories(${MPI_C_INCLUDE_DIRS})
     add_compile_definitions(MULTIPROC)
 endif(MPI_FOUND)
 
@@ -94,6 +95,9 @@ endif(MPI_FOUND)
 find_package(finufft REQUIRED)
 include_directories(${finufft_INCLUDE_DIR})
 
+# hdf5
+find_package(hdf5 REQUIRED)
+include_directories(${HDF5_INCLUDE_DIR})
 
 # build shared library
 add_library(tomocam SHARED ${SRC})

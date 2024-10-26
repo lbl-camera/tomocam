@@ -21,7 +21,6 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
 #include <omp.h>
-#include <format>
 
 #include "dev_array.h"
 #include "dist_array.h"
