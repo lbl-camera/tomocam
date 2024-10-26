@@ -37,7 +37,7 @@ namespace tomocam {
         template <typename T>
         void add_arrays(const T *a, const T *b, T *out, int size) {
             Grid grid(size);
-            gpu_add_arrays<<<grid.blocks(), grid.threads()>>>(a, b, out, size);
+            gpu_add_arrays <<< grid.blocks(), grid.threads()>>>(a, b, out, size);
         }
 
         // specialize
@@ -60,7 +60,7 @@ namespace tomocam {
         template <typename T>
         void subtract_arrays(const T *a, const T *b, T *out, int size) {
             Grid grid(size);
-            gpu_subtract_arrays<<<grid.blocks(), grid.threads()>>>(a, b, out,
+            gpu_subtract_arrays <<< grid.blocks(), grid.threads()>>>(a, b, out,
                 size);
         }
 
@@ -86,7 +86,7 @@ namespace tomocam {
         template <typename T>
         void multiply_arrays(const T *a, const T *b, T *out, int size) {
             Grid grid(size);
-            gpu_multiply_arrays<<<grid.blocks(), grid.threads()>>>(a, b, out,
+            gpu_multiply_arrays <<< grid.blocks(), grid.threads()>>>(a, b, out,
                 size);
         }
 
@@ -117,7 +117,7 @@ namespace tomocam {
         template <typename T>
         void broadcast_multiply(const T *a, const T *b, T *c, dim3_t dims) {
             Grid grid(dims);
-            gpu_broadcast_multiply<<<grid.blocks(), grid.threads()>>>(a, b, c,
+            gpu_broadcast_multiply <<< grid.blocks(), grid.threads()>>>(a, b, c,
                 dims);
         }
         template void broadcast_multiply(const float *, const float *, float *,
@@ -141,7 +141,7 @@ namespace tomocam {
         template <typename T>
         void divide_arrays(const T *a, const T *b, T *out, int size) {
             Grid grid(size);
-            gpu_divide_arrays<<<grid.blocks(), grid.threads()>>>(a, b, out,
+            gpu_divide_arrays <<< grid.blocks(), grid.threads()>>>(a, b, out,
                 size);
         }
 
@@ -166,7 +166,7 @@ namespace tomocam {
         template <typename T>
         void scale_array(const T *a, T b, T *out, int size) {
             Grid grid(size);
-            gpu_scale_array<<<grid.blocks(), grid.threads()>>>(a, b, out, size);
+            gpu_scale_array <<< grid.blocks(), grid.threads()>>>(a, b, out, size);
         }
 
         // specialize
@@ -189,7 +189,7 @@ namespace tomocam {
         template <typename T>
         void shift_array(const T *a, T b, T *out, int size) {
             Grid grid(size);
-            gpu_shift_array<<<grid.blocks(), grid.threads()>>>(a, b, out, size);
+            gpu_shift_array <<< grid.blocks(), grid.threads()>>>(a, b, out, size);
         }
 
         // specialize
@@ -212,7 +212,7 @@ namespace tomocam {
         template <typename T>
         void init_array(T *a, T b, int size) {
             Grid grid(size);
-            gpu_init_array<T><<<grid.blocks(), grid.threads()>>>(a, b, size);
+            gpu_init_array<T> <<< grid.blocks(), grid.threads()>>>(a, b, size);
         }
 
         // specialize
@@ -233,6 +233,7 @@ namespace tomocam {
             int idx = Index1D();
             int tid = threadIdx.x;
             T * temp = SharedMemory<T>();
+            temp[tid] = 0;
 
             if (idx < size) {
                 temp[tid] = a[idx] * b[idx];
@@ -252,12 +253,12 @@ namespace tomocam {
 
             Grid grid(size);
             T result;
-            T *d_result; 
+            T *d_result;
 
             SAFE_CALL(cudaMalloc(&d_result, sizeof(T)));
             SAFE_CALL(cudaMemset(d_result, 0, sizeof(T)));
             size_t shamem = grid.threads().x * sizeof(T);
-            gpu_dot<<<grid.blocks(), grid.threads(), shamem>>>(a, b, d_result,
+            gpu_dot <<< grid.blocks(), grid.threads(), shamem>>>(a, b, d_result,
                 size);
             SAFE_CALL(cudaMemcpy(&result, d_result, sizeof(T),
                 cudaMemcpyDeviceToHost));
@@ -282,7 +283,7 @@ namespace tomocam {
         void cast_array_to_complex(const T *a, gpu::complex_t<T> *b, int size) {
             Grid grid(size);
             gpu_cast_array_to_complex<T>
-                <<<grid.blocks(), grid.threads()>>>(a, b, size);
+            <<< grid.blocks(), grid.threads()>>>(a, b, size);
         }
 
         // specialize
@@ -305,7 +306,7 @@ namespace tomocam {
         void cast_array_to_real(const gpu::complex_t<T> *a, T *b, int size) {
             Grid grid(size);
             gpu_cast_array_to_real<T>
-                <<<grid.blocks(), grid.threads()>>>(a, b, size);
+            <<< grid.blocks(), grid.threads()>>>(a, b, size);
         }
         // specialize
         template void cast_array_to_real(const gpu::complex_t<float> *, float *,
