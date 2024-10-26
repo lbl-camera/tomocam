@@ -48,7 +48,7 @@ namespace tomocam {
             bool is_last_;
 
         public:
-            MultiProc() = default;
+            MultiProc(): myrank_(0), nprocs_(1), is_first_(true), is_last_(true) {}
 
             // initialize MPI
             void init(int argc, char **argv) {
