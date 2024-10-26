@@ -51,7 +51,7 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto [idx, d_recon, d_sino] = work.value();
+                auto[idx, d_recon, d_sino] = work.value();
                 auto t1 = project(d_recon, nugrid, center);
                 auto t2 = t1 - d_sino;
                 sum += t2.dot(t2);
@@ -84,7 +84,7 @@ namespace tomocam {
             SAFE_CALL(cudaDeviceSynchronize());
             fval += retval[i];
         }
-        return (fval / recon.size());
+        return fval;
     }
 
     // explicit instantiation
