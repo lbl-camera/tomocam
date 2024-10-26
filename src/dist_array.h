@@ -173,6 +173,39 @@ namespace tomocam {
                 return out;
             }
 
+            // in-place multiply
+            DArray<T> &operator*=(T v) {
+                #pragma omp parallel for
+                for (uint64_t i = 0; i < size_; i++)
+                    buffer_[i] *= v;
+                return *this;
+            }
+
+            // divide
+            DArray<T> operator/(T v) const {
+                if (v == 0) {
+                    std::cerr << "Error: division by zero" << std::endl;
+                    exit(1);
+                }
+                DArray<T> out(dims_);
+                #pragma omp parallel for
+                for (uint64_t i = 0; i < size_; i++)
+                    out.buffer_[i] = buffer_[i] / v;
+                return out;
+            }
+
+            // in-place divide
+            DArray<T> &operator/=(T v) {
+                if (v == 0) {
+                    std::cerr << "Error: division by zero" << std::endl;
+                    exit(1);
+                }
+                #pragma omp parallel for
+                for (uint64_t i = 0; i < size_; i++)
+                    buffer_[i] /= v;
+                return *this;
+            }
+
             // drop a column
             void dropcol() {
                 dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
