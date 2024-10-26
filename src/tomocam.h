@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #ifndef TOMOCAM__H
 #define TOMOCAM__H
 
@@ -89,8 +88,8 @@ namespace tomocam {
      * solution
      *
      * @param current solution.
-     * @param transposed_sinogram the transposed sinogram.
-     * @param dot product of sinograom with itself.
+     * @param std::vector of NUFFT::Grid types per device
+     * @param center of rotation
      *
      * @return the value of the objective function
      */
