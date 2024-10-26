@@ -79,6 +79,9 @@ namespace tomocam {
                         << std::endl;
                 }
 
+                // scale for normalization
+                T scale = std::pow(x.nrows(), 3);
+
                 // pad x to match the size of the psf
                 int padding = psf_.nrows() - x.nrows();
 
@@ -98,7 +101,9 @@ namespace tomocam {
                 auto tmp2 = irfft2D<T>(xft_psf);
 
                 // remove padding
-                return gpu::unpad2d<T>(tmp2, padding, PadType::RIGHT);
+                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::SYMMETRIC);
+
+                return g / scale;
             }
     };
 }
