@@ -45,10 +45,10 @@ namespace tomocam {
         out = ifftshift(out);
         out = ifft1D(out);
         out = fftshift(out);
-        out /= static_cast<T>(out.ncols());
 
+        T scale = static_cast<T>(input.ncols() * input.ncols());
         // cast to real
-        return real(out);
+        return (real(out) / scale);
     }
 
     // explicit instantiation
