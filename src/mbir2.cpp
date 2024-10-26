@@ -78,12 +78,12 @@ namespace tomocam {
         step_size = step_size / L;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &psfs, p, sigma](
-                                 DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &psfs, p, sigma](DArray<T> &x) -> DArray<T> {
             auto g = gradient2(x, sinoT, psfs);
-            add_total_var(x, g, sigma, p);
+            add_total_var(x, g, p, sigma);
             return g;
         };
+
         auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
             return function_value2(x, sinoT, psfs, sino_norm);
         };
