@@ -96,8 +96,15 @@ find_package(finufft REQUIRED)
 include_directories(${finufft_INCLUDE_DIR})
 
 # hdf5
-find_package(hdf5 REQUIRED)
-include_directories(${HDF5_INCLUDE_DIR})
+# TRY the official package
+find_package(HDF5)
+if (NOT HDF5_FOUND)
+    # use environment variable HDF5_DIR
+    find_package(hdf5 REQUIRED)
+    set(HDF5_INCLUDE_DIRS ${hdf5_INCLUDE_DIR})
+    set(HDF5_LIBRARIES ${hdf5_LIBRARY})
+endif()
+include_directories(${HDF5_INCLUDE_DIRS})
 
 # build shared library
 add_library(tomocam SHARED ${SRC})
@@ -105,6 +112,7 @@ target_link_libraries(tomocam PUBLIC finufft::finufft)
 target_link_libraries(tomocam PUBLIC CUDA::cufft)
 target_link_libraries(tomocam PUBLIC CUDA::cudart)
 target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
+target_link_libraries(tomocam PUBLIC ${HDF5_LIBRARIES})
 target_link_libraries(tomocam PUBLIC ${MPI_C_LIBRARIES})
 target_compile_features(tomocam PUBLIC cxx_std_20)
 
@@ -123,5 +131,6 @@ target_compile_features(cTomocam PUBLIC cxx_std_20)
 
 option(ENABLE_TESTS "Enable tests" OFF)
 if (${ENABLE_TESTS})
+    message("-- Enabling tests ...")
     add_subdirectory(test)
 endif()
