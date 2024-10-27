@@ -96,8 +96,13 @@ find_package(finufft REQUIRED)
 include_directories(${finufft_INCLUDE_DIR})
 
 # hdf5
-find_package(hdf5 REQUIRED)
-include_directories(${HDF5_INCLUDE_DIR})
+find_package(HDF5)
+if (NOT HDF5_FOUND)
+    find_package(hdf5 REQUIRED)
+    set(HDF5_INCLUDE_DIRS ${hdf5_INCLUDE_DIR})
+    set(HDF5_LIBRARIES ${hdf5_LIBRARY})
+    include_directories(${HDF5_INCLUDE_DIRS})
+endif()
 
 # build shared library
 add_library(tomocam SHARED ${SRC})
@@ -106,6 +111,7 @@ target_link_libraries(tomocam PUBLIC CUDA::cufft)
 target_link_libraries(tomocam PUBLIC CUDA::cudart)
 target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
 target_link_libraries(tomocam PUBLIC ${MPI_C_LIBRARIES})
+target_link_libraries(tomocam PUBLIC ${HDF5_LIBRARIES})
 target_compile_features(tomocam PUBLIC cxx_std_20)
 
 
