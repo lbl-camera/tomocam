@@ -15,6 +15,7 @@ using json = nlohmann::json;
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
 #include "internals.h"
+#include "utils.h"
 #include "tomocam.h"
 
 uint64_t millisec() {
