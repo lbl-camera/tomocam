@@ -10,6 +10,7 @@
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
 #include "tomocam.h"
+#include "utils.h"
 
 using json = nlohmann::json;
 

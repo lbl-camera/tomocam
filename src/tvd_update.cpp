@@ -52,11 +52,6 @@ namespace tomocam {
         auto sub_sols = create_partitions(sol, nparts, 1);
         auto sub_grads = create_partitions(grad, nparts);
 
-        if (sub_sols.size() != sub_grads.size()) {
-            throw std::runtime_error(
-                "Error: sub_sols and sub_grads have different sizes");
-        }
-
         // create a shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
@@ -72,7 +67,8 @@ namespace tomocam {
 
                 // update the total variation
                 gpu::add_total_var<T>(d_s, d_g, p, sigma);
-                // d_g.copy_to(sub_grads[idx], out_s);
+                
+                // push to outgoing queue
                 shipper.push(sub_grads[idx], d_g);
             }
         }
@@ -109,7 +105,7 @@ namespace tomocam {
             total_var<T>(p1[i], p2[i], p, sigma, i);
         }
 
-        #pragma omp parallel for num_threads(nDevice)
+        // #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());

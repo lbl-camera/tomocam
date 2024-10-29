@@ -24,6 +24,7 @@
 #include "dev_array.h"
 #include "gpu/utils.cuh"
 
+#include "debug.h"
 #include "potential_function.cuh"
 
 namespace tomocam {
