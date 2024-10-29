@@ -60,8 +60,8 @@ int main(int argc, char **argv) {
 
     auto start = std::chrono::high_resolution_clock::now();
     auto sino2 = tomocam::preproc(sino, cen);
-    auto recn2 = tomocam::backproject(sino2, angs, cen);
-    auto recn = tomocam::postproc(recn2, sino.ncols());
+    auto temp = tomocam::backproject(sino2, angs, cen);
+    auto sinoT = tomocam::postproc(temp, sino.ncols());
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
@@ -69,6 +69,6 @@ int main(int argc, char **argv) {
         << std::endl;
 
     tomocam::h5::Writer w("backproj.h5");
-    w.write("backproj", recn);
+    w.write("backproj", sinoT);
     return 0;
 }
