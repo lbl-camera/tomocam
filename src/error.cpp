@@ -84,7 +84,7 @@ namespace tomocam {
             SAFE_CALL(cudaDeviceSynchronize());
             fval += retval[i];
         }
-        return fval;
+        return (fval / recon.size());
     }
 
     // explicit instantiation
