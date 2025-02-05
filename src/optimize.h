@@ -21,6 +21,7 @@
 #include <cmath>
 #include <limits>
 #include <tuple>
+#include <format>
 
 #include "dist_array.h"
 #include "tomocam.h"
@@ -53,6 +54,7 @@ namespace tomocam {
                 Array<T> y = sol;
                 T t = 1;
                 T tnew = 1;
+                T xerr = static_cast<T>(sol.size());
 
                 // set error to infinity
                 T e_old = std::numeric_limits<T>::infinity();
@@ -76,18 +78,21 @@ namespace tomocam {
                     if (e > e_old) {
                         g = gradient_(x);
                         sol = x - g * step_size;
+                        xerr = (sol - x).norm();
                         e = error_(sol);
                     }
                     e_old = e;
                     #ifdef MULTIPROC
                     if (multiproc::mp.first())
                     #endif
-                        std::cout << "iter: " << iter << ", error: " << e << std::endl;
+                        // ensure that output prints in nice columns
+                        std::cout << std::format("iter: {:10}, error: {:10}, x-err: {:10}",
+                            iter, e, std::sqrt(xerr)) << std::endl;
                 }
                 return sol;
             }
 
-            Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol) {
+            Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol, T xtol) {
 
                 // initialize
                 Array<T> x = sol;
@@ -95,6 +100,7 @@ namespace tomocam {
                 T t = 1;
                 T tnew = 1;
                 T step0 = step_size;
+                T xerr = static_cast<T>(sol.size());
 
                 for (int iter = 0; iter < max_iters; iter++) {
                     while (true) {
@@ -121,6 +127,10 @@ namespace tomocam {
                         else {
                             step_size = step0;
                             t = tnew;
+                            xerr = (sol - x).norm();
+                            #ifdef MULTIPROC
+                            xerr = multiproc::mp.SumReduce(xerr);
+                            #endif
                             x = sol;
                             break;
                         }
@@ -129,7 +139,9 @@ namespace tomocam {
                     #ifdef MULTIPROC
                     if (multiproc::mp.first())
                     #endif
-                        std::cout << "iter: " << iter << ", error: " << e << std::endl;
+                        // ensure that output prints in nice columns
+                        std::cout << std::format("iter: {:4}, error: {:5.4e}, x-err: {:5.4e}",
+                            iter, e, std::sqrt(xerr)) << std::endl;
                 }
                 return sol;
             }
