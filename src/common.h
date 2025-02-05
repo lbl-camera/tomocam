@@ -18,10 +18,14 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+
 #ifndef TOMOCAM_COMMON__H
 #define TOMOCAM_COMMON__H
 
 namespace tomocam {
+
+    enum class PadType {LEFT, RIGHT, SYMMETRIC};
 
     struct dim3_t {
         int x, y, z;
@@ -83,5 +87,9 @@ namespace tomocam {
         return v * scalar;
     }
 
+    inline std::ostream &operator<<(std::ostream &os, const dim3_t &v) {
+        os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+        return os;
+    }
 } // namespace
 #endif // TOMOCAM_COMMON__H
