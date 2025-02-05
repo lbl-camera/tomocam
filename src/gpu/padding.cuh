@@ -26,7 +26,6 @@
 
 namespace tomocam {
 
-    enum class PadType { LEFT, RIGHT, SYMMETRIC };
     namespace gpu {
 
         /**
