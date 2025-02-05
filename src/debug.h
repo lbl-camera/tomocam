@@ -18,11 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #include "dist_array.h"
 #include "dev_array.h"
 #include "hdf5/writer.h"
-
 
 #pragma once
 
@@ -30,22 +28,22 @@ namespace tomocam {
 
     template <typename T>
     class HostArray {
-      private:
-        dim3_t dims_;
-        std::vector<T> data_;
+        private:
+            dim3_t dims_;
+            std::vector<T> data_;
 
-      public:
-        HostArray(const DeviceArray<T> &d) : dims_(d.dims()) {
-            data_ = d.copy_to_host();
-        }
+        public:
+            HostArray(const DeviceArray<T> &d) : dims_(d.dims()) {
+                data_ = d.copy_to_host();
+            }
 
-        T operator()(int i, int j, int k) {
-            return data_[i * dims_.y * dims_.z + j * dims_.z + k];
-        }
+            T operator()(int i, int j, int k) {
+                return data_[i * dims_.y * dims_.z + j * dims_.z + k];
+            }
 
-        int nslice() const { return dims_.x; }
-        int nrows() const { return dims_.y; }
-        int ncols() const { return dims_.z; }
+            int nslice() const { return dims_.x; }
+            int nrows() const { return dims_.y; }
+            int ncols() const { return dims_.z; }
     };
 
     template <typename T>
@@ -64,8 +62,10 @@ namespace tomocam {
 
     template <typename T>
     concept Complex_t = requires(T t) {
-        { t.real() } -> Real;
-        { t.imag() } -> Real;
+        { t.real() }
+        -> Real;
+        { t.imag() }
+        -> Real;
     };
 
     template <typename Real>
@@ -95,11 +95,10 @@ namespace tomocam {
         for (int i = 0; i < nrows; i++) {
             for (int j = 0; j < h.ncols(); j++) {
                 std::cout << "(" << h(0, i, j).real() << ", "
-                          << h(0, i, j).imag() << ") ";
+                    << h(0, i, j).imag() << ") ";
             }
             std::cout << std::endl;
         }
     }
 
 } // namespace tomocam
-
