@@ -63,13 +63,14 @@ int main(int argc, char **argv) {
     }
 
     // MBIR parameters
-    auto mbir = cfg["MBIR"];
-    int max_iters = mbir["num_iters"];
-    float sigma = mbir["sigma"];
-    float p = mbir["p"];
+    auto params = cfg["MBIR"];
+    int max_iters = params["num_iters"];
+    float sigma = params["sigma"];
 
     float tol = 0.001;
-    if (mbir.find("tol") != mbir.end()) tol = mbir["tol"];
+    if (params.find("tol") != params.end()) tol = params["tol"];
+    float xtol = 0.001;
+    if (params.find("xtol") != params.end()) xtol = params["xtol"];
 
     // load tomogrmaphic data
     tomocam::h5::Reader fp(filename.c_str());
@@ -102,13 +103,14 @@ int main(int argc, char **argv) {
 
     float cen = static_cast<float>(center);
 
+    // inital guess
+    auto x0 = tomocam::DArray<float>({sino.nslices(), sino.ncols(), sino.ncols()});
+    x0.init(1.f);
+
     // run MBIR
-    float step = 0.1;
-    float penalty = 1;
     Timer t;
     t.start();
-    auto recon = tomocam::mbir<float>(sino, angs, cen, sigma, p, max_iters,
-        step, tol, penalty);
+    auto recon = tomocam::mbir<float>(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
     t.stop();
 
     #ifdef MULTIPROC
