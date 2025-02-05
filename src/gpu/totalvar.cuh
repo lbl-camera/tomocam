@@ -35,12 +35,11 @@ namespace tomocam {
          *
          * @param[in] img The current solution
          * @param[inout] grad The gradient of the current solution
-         * @param[in] p The weight of the total variation term
          * @param[in] /f$\sigma/f$ The weight of the data term
+         * @param[in] p The weight of the total variation term
          */
         template <typename T>
-        void add_total_var(const DeviceArray<T> &, DeviceArray<T> &, float,
-            float);
+        void add_total_var(const DeviceArray<T> &, DeviceArray<T> &, T, T);
 
     } // namespace gpu
 } // namespace tomocam
