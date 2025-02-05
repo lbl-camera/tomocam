@@ -93,7 +93,7 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        auto rec = opt.run2(x0, num_iters, step_size, tol);
+        auto rec = opt.run2(x0, num_iters, step_size, tol, tol);
         return postproc(rec, nrays);
     }
 
