@@ -125,8 +125,20 @@ namespace tomocam {
     template <typename T>
     DArray<T> mbir2(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
 
+    /**
+     * @brief Compute the MBIR reconstruction.
+     *
+     * @param initial guess
+     * @param sinogram The sinogram to reconstruct.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
+     * @param num_iter The number of iterations.
+     * @param sigma The regularization parameter.
+     * @param tolerance The stopping criterion.
+     * @param xtol The tolerance for the solution.
+     */
     template <typename T>
-    DArray<T> mbir(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
+    DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
 
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
@@ -182,6 +194,11 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T> postproc(DArray<T> &, int);
+
+    /**
+     */
+    template <typename T>
+    DArray<T> pad2d(DArray<T> &, int, PadType);
 
 } // namespace tomocam
 
