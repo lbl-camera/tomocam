@@ -37,8 +37,8 @@
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
-        T p, int num_iters, T step_size, T tol, T penalty) {
+    DArray<T> mbir(DArray<T> &x0, DArray<T> &sino, std::vector<T> angles, T center,
+        int num_iters, T sigma, T tol, T xtol) {
 
         // normalize
         auto maxv = sino.max();
@@ -50,16 +50,13 @@ namespace tomocam {
         // preprocess
         int nrays = sino.ncols();
         sino = preproc(sino, center);
+        int npad = (sino.ncols() - x0.ncols());
+        x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
         // recon dimensions
         int nslcs = sino.nslices();
         int nproj = sino.nrows();
         int ncols = sino.ncols();
-
-        // initialize x0
-        dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> x0(dims);
-        x0.init(1);
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
@@ -91,12 +88,13 @@ namespace tomocam {
         #ifdef MULTIPROC
         L = multiproc::mp.MaxReduce(L);
         #endif
-        step_size = step_size / L;
+        T step_size = 1 / L;
+        T p = 1.2;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &grids, center, p, sigma](DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &grids, center, sigma, p](DArray<T> &x) -> DArray<T> {
             auto g = gradient(x, sinoT, grids, center);
-            add_total_var(x, g, p, sigma);
+            add_total_var(x, g, sigma, p);
             return g;
         };
 
@@ -113,15 +111,13 @@ namespace tomocam {
         opt(calc_gradient, calc_error);
 
         // run optimization
-        auto recon = opt.run2(x0, num_iters, step_size, tol);
+        auto recon = opt.run2(x0, num_iters, step_size, tol, xtol);
         return postproc(recon, nrays);
     }
 
 // explicit instantiation
-    template DArray<float> mbir(DArray<float> &sino, std::vector<float> angles,
-        float center, float sigma, float p, int num_iters, float step_size,
-        float tol, float penalty);
-    template DArray<double> mbir(DArray<double> &sino,
-        std::vector<double> angles, double center, double sigma, double p,
-        int num_iters, double step_size, double tol, double penalty);
+    template DArray<float> mbir(DArray<float> &, DArray<float> &, std::vector<float>, float,
+        int, float, float, float);
+    template DArray<double> mbir(DArray<double> &, DArray<double> &, std::vector<double>,
+        double, int, double, double, double);
 } // namespace tomocam
