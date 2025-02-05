@@ -31,7 +31,7 @@ namespace tomocam {
 
         template <typename T>
         __global__ void tvd_update_kernel(DeviceMemory<T> model,
-            DeviceMemory<T> objfn, float p, float sigma) {
+            DeviceMemory<T> objfn, T sigma, T p) {
 
             // thread ids
             int i = threadIdx.z;
@@ -178,15 +178,14 @@ namespace tomocam {
         }
 
         template <typename T>
-        void add_total_var(const DeviceArray<T> &sol, DeviceArray<T> &grad,
-            float p, float sigma) {
+        void add_total_var(const DeviceArray<T> &sol, DeviceArray<T> &grad, T sigma, T p) {
 
             // CUDA kernel parameters
             Grid g(grad.dims());
 
             // update gradients inplace
             tvd_update_kernel<T>
-            <<< g.blocks(), g.threads()>>>(sol, grad, p, sigma);
+            <<< g.blocks(), g.threads()>>>(sol, grad, sigma, p);
             SAFE_CALL(cudaGetLastError());
         }
 
@@ -194,7 +193,7 @@ namespace tomocam {
         template void add_total_var(const DeviceArray<float> &,
             DeviceArray<float> &, float, float);
         template void add_total_var(const DeviceArray<double> &,
-            DeviceArray<double> &, float, float);
+            DeviceArray<double> &, double, double);
 
     } // namespace gpu
 } // namespace tomocam
