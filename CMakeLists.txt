@@ -17,7 +17,7 @@
 # perform publicly and display publicly, and to permit other to do so.
 #---------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.18)
 project(tomocam CXX CUDA) 
 set(tomocam_VERSION_MAJOR 2) 
 set(tomocam_VERSION_MINOR 5)
@@ -31,13 +31,15 @@ find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
-if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-  set(CMAKE_CUDA_ARCHITECTURES 60)
-endif()
+set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
 
 #  local CMake modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+# Set option to use MPI
+option(MULTI_PROC "Enable MPI" OFF)
+message("-- MPI is ${MULTI_PROC}")
+message("-- To enable MPI, run cmake with -DMULTI_PROC:BOOL=ON")
 
 # Source files
 set(SRC 
@@ -55,6 +57,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
+    ${PROJECT_SOURCE_DIR}/src/padding.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
@@ -84,12 +87,16 @@ endif(OpenMP_FOUND)
 
 
 # MPI
-enable_language(C)
-find_package(MPI COMPONENTS C)
-if (MPI_FOUND)
-    include_directories(${MPI_C_INCLUDE_DIRS})
-    add_compile_definitions(MULTIPROC)
-endif(MPI_FOUND)
+if (MULTI_PROC)
+    enable_language(C)
+    find_package(MPI COMPONENTS C)
+    if (MPI_FOUND)
+        include_directories(${MPI_C_INCLUDE_DIRS})
+        add_compile_definitions(MULTIPROC)
+    else()
+        message(FATAL_ERROR "MPI not found")
+    endif(MPI_FOUND)
+endif(MULTI_PROC)
 
 # finufft
 find_package(finufft REQUIRED)
