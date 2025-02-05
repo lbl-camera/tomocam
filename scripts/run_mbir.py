@@ -45,6 +45,14 @@ if __name__ == '__main__':
         tol = 1e-4
         xtol = 1e-4
     
+    # print input data 
+    print("Input data:")
+    print("Data file: ", datadir + '/' + filename)
+    print("axis: ", axis)
+    print("num_iters: ", num_iters)
+    print("smoothness: ", smoothness)
+    print("tol: ", tol)
+    print("xtol: ", xtol)
 
     dataset = Path(datadir) / filename
     if not dataset.exists():
@@ -64,8 +72,8 @@ if __name__ == '__main__':
 
     t0 = time.time()
     tomo = np.transpose(tomo, (1, 0, 2))
-    rec = tomocam.MBIR(tomo, theta, center = 952, num_iters=600, smoothness=0.0095)
-    rec = tomopy.circ_mask(rec, ratio=1.0)
+    rec = tomocam.MBIR(tomo, theta, center=axis, num_iters=num_iters, smoothness=smoothness, tol=tol, xtol=xtol)
+    rec = tomopy.circ_mask(rec, axis=0, ratio=1.0)
     print(time.time() - t0)
 
     # plot reconstruction
