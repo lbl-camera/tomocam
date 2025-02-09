@@ -1,6 +1,11 @@
+
+# this is a workaround for Perlmutter
 include(FindPackageHandleStandardArgs)
 
-set(hdf5_SEARCH_PATHS ${HDF5_DIR})
+set(hdf5_SEARCH_PATHS 
+    ${HDF5_DIR}
+    ${CMAKE_PREFIX_PATH}
+   )
 
 find_path(hdf5_INCLUDE_DIR
     NAMES hdf5.h
