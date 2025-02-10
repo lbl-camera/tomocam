@@ -18,9 +18,9 @@
 #---------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.18)
-project(tomocam CXX CUDA) 
-set(tomocam_VERSION_MAJOR 2) 
-set(tomocam_VERSION_MINOR 5)
+project(tomocam LANGUAGES C CXX CUDA)
+set(tomocam_VERSION_MAJOR 3) 
+set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
 set(CMAKE_CXX_STANDARD 20) 
@@ -107,6 +107,8 @@ ExternalProject_Add(
     GIT_TAG v2.3.1
     CMAKE_ARGS 
         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/finufft
+        -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/finufft/lib
+        -DCMAKE_BUILD_TYPE=Release
         -DBUILD_TESTING=OFF 
         -DFINUFFT_USE_CPU=ON 
         -DFINUFFT_USE_CUDA=ON 
