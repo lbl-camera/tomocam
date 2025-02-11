@@ -21,7 +21,6 @@
 #include <cmath>
 #include <limits>
 #include <tuple>
-#include <format>
 
 #include "dist_array.h"
 #include "tomocam.h"
@@ -86,8 +85,8 @@ namespace tomocam {
                     if (multiproc::mp.first())
                     #endif
                         // ensure that output prints in nice columns
-                        std::cout << std::format("iter: {:10}, error: {:10}, x-err: {:10}",
-                            iter, e, std::sqrt(xerr)) << std::endl;
+                        fprintf(stdout, "iter: %4d, error: %5.4e, x-err: %5.4e\n",
+                            iter, e, std::sqrt(xerr));
                 }
                 return sol;
             }
@@ -140,8 +139,8 @@ namespace tomocam {
                     if (multiproc::mp.first())
                     #endif
                         // ensure that output prints in nice columns
-                        std::cout << std::format("iter: {:4}, error: {:5.4e}, x-err: {:5.4e}",
-                            iter, e, std::sqrt(xerr)) << std::endl;
+                        fprintf(stdout, "iter: %4d, error: %5.4e, x-err: %5.4e\n",
+                            iter, e, std::sqrt(xerr));
                 }
                 return sol;
             }
