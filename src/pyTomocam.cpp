@@ -21,157 +21,127 @@
 #include <iostream>
 
 #include <pybind11/operators.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 #include "dist_array.h"
 #include "machine.h"
+#include "nufft.h"
 #include "optimize.h"
 #include "tomocam.h"
 #include "types.h"
+
+namespace py = pybind11;
+
+template <typename T>
+using np_array_t = py::array_t<T, py::array::c_style>;
 
 template <typename T>
 inline T *getPtr(np_array_t<T> array) {
     return (T *)array.request().ptr;
 }
 
-np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
-    np_array_t<float> angs,
-    double cen,
-    double oversamp) {
-    tomocam::DArray<float> arg1(imgstack);
-    int num_angs = static_cast<int>(angs.size());
-    tomocam::dim3_t dims = arg1.dims();
+template <typename T>
+inline std::vector<T> getVec(np_array_t<T> array) {
+    auto buffer_info = array.request();
+    return std::vector<T>((T *)buffer_info.ptr,
+        (T *)buffer_info.ptr + buffer_info.size);
+}
 
-    // create output array
-    auto sino = py::array_t<float>({dims.x, num_angs, dims.z});
-    tomocam::DArray<float> arg2(sino);
+template<typename T>
+inline tomocam::DArray<T> from_numpy(const np_array_t<T> &np_arr) {
+    auto buffer_info = np_arr.request();
+    tomocam::dim3_t dims(1, 1, 1);
+    if (buffer_info.ndim == 2) {
+        dims.y = np_arr.shape(0);
+        dims.z = np_arr.shape(1);
+    } else if (buffer_info.ndim == 3) {
+        dims.x = np_arr.shape(0);
+        dims.y = np_arr.shape(1);
+        dims.z = np_arr.shape(2);
+    }
+    tomocam::DArray<T> rv(dims);
+    std::copy((T *)buffer_info.ptr, (T *)buffer_info.ptr + rv.size(),
+        rv.begin());
+    return rv;
+}
+
+template<typename T>
+inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
+    auto dims = arr.dims();
+    std::vector<ssize_t> shape{(ssize_t) dims.x, (ssize_t)dims.y, (ssize_t)dims.z};
+    size_t N = arr.size();
+    T * buf = new T[N];
+    std::copy(arr.begin(), arr.end(), buf);
+    return np_array_t<T>(shape, buf);
+}
+
+np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
+    np_array_t<float> angs, float cen) {
+
+    // create DArray from numpy
+    tomocam::DArray<float> arg1(from_numpy<float>(imgstack));
 
     // radon call
-    tomocam::radon(
-        arg1, arg2, getPtr<float>(angs), (float)cen, (float)oversamp);
+    auto arg2 = tomocam::project(arg1, getVec<float>(angs), cen);
 
     // return numpy array
-    return sino;
+    return to_numpy<float>(arg2);
 }
 
-np_array_t<float> iradon_wrapper(np_array_t<float> &sino,
-    np_array_t<float> angs,
-    double cen,
-    double oversamp) {
-    tomocam::DArray<float> arg1(sino);
-    tomocam::dim3_t dims = arg1.dims();
+np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
+    np_array_t<float> angs, float cen) {
 
-    // create output array
-    auto recon = py::array_t<float>({dims.x, dims.z, dims.z});
-    tomocam::DArray<float> arg2(recon);
+    // create DArray from numpy
+    tomocam::DArray<float> arg1(from_numpy<float>(sino));
 
-    // iradon call
-    tomocam::iradon(
-        arg1, arg2, getPtr<float>(angs), (float)cen, (float)oversamp);
+    // backproject call
+    auto arg2 = tomocam::backproject(arg1, getVec<float>(angs), cen);
 
     // return recon as numpy array
-    return recon;
-}
-
-void gradient_wrapper(np_array_t<float> &recon,
-    np_array_t<float> &sino, np_array_t<float> angs,
-    double cen, double oversamp) {
-
-    tomocam::DArray<float> arg1(recon);
-    tomocam::DArray<float> arg2(sino);
-    tomocam::gradient(
-        arg1, arg2, getPtr<float>(angs), (float)cen, (float)oversamp);
-}
-
-void tv_wrapper(np_array_t<float> &recon,
-    np_array_t<float> &gradients,
-    double s) {
-    float p = 1.2;
-    tomocam::DArray<float> arg1(recon);
-    tomocam::DArray<float> arg2(gradients);
-    tomocam::add_total_var(arg1, arg2, p, static_cast<float>(s));
+    return to_numpy<float>(arg2);
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
-    np_array_t<float> &np_angles,
-    float center,
-    int num_iters,
-    float oversample,
-    float sigma) {
+    np_array_t<float> &np_angles, float center, int num_iters, float sigma,
+    float tol, float xtol) {
 
     // create DArray from numpy
-    tomocam::DArray<float> sino(np_sino);
+    tomocam::DArray<float> sino(from_numpy<float>(np_sino));
     tomocam::dim3_t dims = sino.dims();
 
-    // allocate return array
-    auto recn = py::array_t<float>({dims.x, dims.z, dims.z});
-    tomocam::DArray<float> model(recn);
+    // initial guess
+    tomocam::dim3_t dims2 = {sino.nslices(), sino.ncols(), sino.ncols()};
+    tomocam::DArray<float> x0(dims2);
+    x0.init(1.0f);
 
     // get data pointer to angles
-    float p = 1.2;
-    float *angles = static_cast<float *>(np_angles.request().ptr);
-    tomocam::mbir(sino, model, angles, center, num_iters, oversample, sigma, p);
+    auto angles = getVec<float>(np_angles);
+    tomocam::DArray<float> recon =
+        tomocam::mbir(x0, sino, angles, center, num_iters, sigma, tol, xtol);
 
     // return numpy array
-    return recn;
+    return to_numpy<float>(recon);
 }
 
 /* setup methods table */
 PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
-    // DArray class
-    py::class_<tomocam::DArray<float>>(m, "DArray")
-        .def(py::init<np_array_t<float> &>())
-        .def("init",
-            static_cast<void (tomocam::DArray<float>::*)(float)>(
-                &tomocam::DArray<float>::init),
-            "initialize array with a value")
-        .def("__add__", 
-            [] (tomocam::DArray<float> & a, 
-                tomocam::DArray<float> & b) {
-                return (a + b); }, 
-                py::is_operator())
-        .def("__iadd__", 
-            [] (tomocam::DArray<float> & a,
-                tomocam::DArray<float> & b) {
-                a += b;
-                return a; },
-                py::is_operator())
-        .def("__sub__", 
-            [] (tomocam::DArray<float> & a,
-                tomocam::DArray<float> & b) {
-                return (a - b); },
-                py::is_operator())
-        .def("norm", &tomocam::DArray<float>::norm)
-        .def("sum", &tomocam::DArray<float>::sum)
-        .def("max", &tomocam::DArray<float>::max)
-        .def("min", &tomocam::DArray<float>::min);
-
-
     // set gpu paramters
     m.def("set_num_of_gpus", [](int num) {
-        tomocam::MachineConfig::getInstance().setNumOfGPUs(num);
-    });
-
-    m.def("set_num_of_streams", [](int num) {
-        tomocam::MachineConfig::getInstance().setStreamsPerGPU(num);
-    });
+        tomocam::Machine::config.setNumOfGPUs(num);
+        });
 
     m.def("set_slices_per_stream", [](int num) {
-        tomocam::MachineConfig::getInstance().setSlicesPerStream(num);
-    });
+        tomocam::Machine::config.setSlicesPerStream(num);
+        });
 
     // radon transform
     m.def("radon", &radon_wrapper);
 
-    // iradon transform
-    m.def("iradon", &iradon_wrapper);
-
-    // gradients
-    m.def("gradients", &gradient_wrapper);
-
-    // add_tv
-    m.def("total_variation", &tv_wrapper);
+    // radon transform
+    m.def("backproject", &backproject_wrapper);
 
     // mbir
     m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");

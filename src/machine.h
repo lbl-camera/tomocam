@@ -20,6 +20,8 @@
 #include <cuda_runtime.h>
 #include <vector>
 
+#include "common.h"
+
 #ifndef TOMOCAM_MACINE__H
 #define TOMOCAM_MACINE__H
 
@@ -29,13 +31,14 @@ namespace tomocam {
       private:
         int ndevice_;
         bool unified_;
-        int nStreams_;
         int slcsPerStream_;
+
+      public:
         MachineConfig() {
 
             cudaGetDeviceCount(&ndevice_);
 
-            //    check avilable GPU for managed memory access
+            //check avilable GPU for managed memory access
             std::vector<int> devices;
             for (int i = 0; i < ndevice_; i++) {
                 int result = -1;
@@ -45,17 +48,11 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-            nStreams_      = 8;
             slcsPerStream_ = 16; // slices
         }
 
-      public:
         MachineConfig(const MachineConfig &) = delete;
         MachineConfig &operator=(const MachineConfig &) = delete;
-        static MachineConfig &getInstance() {
-            static MachineConfig instance;
-            return instance;
-        }
 
         // sync all devices
         void synchronize() {
@@ -73,28 +70,42 @@ namespace tomocam {
         // setters
         void setNumOfGPUs(int ndev) { ndevice_ = ndev; }
         void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
-        void setStreamsPerGPU(int strms) { nStreams_ = strms; }
 
         // getters
         int num_of_gpus() const { return ndevice_; }
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
-        int streamsPerGPU() const { return nStreams_; }
 
-        void update_work(int work, int & slices, int & n_streams) {
-            if (work < nStreams_) {
-                slices = work; 
-                n_streams = 1;
-            } else if ( work < slcsPerStream_ * nStreams_) {
-                slices = slcsPerStream_;
-                n_streams = work / slcsPerStream_;
-            } else {
-                slices = slcsPerStream_;
-                n_streams = nStreams_;
-            }
-            return;
-        } 
+        /* calculate number of sub-partitions */
+        int num_of_partitions(int slices) const {
+            int n_partitions = slices / slcsPerStream_;
+            if (slices % slcsPerStream_ > 0) n_partitions++;
+            return n_partitions;
+        }
+
+        /* calculate number of sub-partitions, based on free memory */
+        int num_of_partitions(dim3_t dims, size_t bytes) {
+
+            size_t total_mem = 0;
+            size_t free_mem = 0;
+            cudaMemGetInfo(&free_mem, &total_mem);
+            size_t max_allowed = 0.05 * free_mem;
+
+            size_t bytes_per_slice = bytes / dims.x;
+            int slcs_per_partition = max_allowed / bytes_per_slice;
+            int slcs = std::max(slcsPerStream_, slcs_per_partition);
+
+            // number of partions
+            int n_partitions = dims.x / slcs;
+            if (dims.x % slcs > 0) n_partitions++;
+            return n_partitions;
+        }
     };
+
+    namespace Machine {
+        inline MachineConfig config;
+    }
+
 } // namespace tomocam
 
 #endif // TOMOCAM_MACINE__H

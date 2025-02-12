@@ -19,57 +19,133 @@
  */
 
 #include <cmath>
+#include <limits>
+#include <tuple>
 
 #include "dist_array.h"
 #include "tomocam.h"
+#include "machine.h"
+
+#include "debug.h"
 
 #ifndef TOMOCAM_OPTIMIZE__H
 #define TOMOCAM_OPTIMIZE__H
+
 namespace tomocam {
+
+    template <typename T, template <typename> class Array, typename Gradient,
+        typename Error>
     class Optimizer {
-      private:
-        float lipschitz_;
-        DArray<float> t_;
-        DArray<float> z_;
+        private:
+            Gradient gradient_;
+            Error error_;
 
-      public:
-        Optimizer(dim3_t recon_dims,
-            dim3_t sino_dims,
-            float *angles,
-            float cen,
-            float over_samp,
-            float sigma) :
-            t_(recon_dims), z_(recon_dims) {
+        public:
+            // constructor
+            Optimizer(Gradient gradient, Error error) :
+                gradient_(gradient), error_(error) {}
 
-            dim3_t d1 = recon_dims;
-            d1.x = 1;
+            // fixed step-size
+            Array<T> run(Array<T> sol, int max_iters, T step_size, T tol) {
 
-            dim3_t d2 = sino_dims;
-            d2.x = 1;
+                // initialize
+                Array<T> x = sol;
+                Array<T> y = sol;
+                T t = 1;
+                T tnew = 1;
+                T xerr = static_cast<T>(sol.size());
 
-            DArray<float> x(d1);
-            x.init(1);
-            DArray<float> g(d1);
-            DArray<float> y(d2);
+                // set error to infinity
+                T e_old = std::numeric_limits<T>::infinity();
+                for (int iter = 0; iter < max_iters; iter++) {
 
-            radon(x, y, angles, cen, over_samp);
-            iradon(y, g, angles, cen, over_samp);
-            add_tv_hessian(g, sigma);
-            lipschitz_ = g.max();
-        }
+                    T beta = tnew * (1 / t - 1);
+                    y = sol + (sol - x) * beta;
+                    auto g = gradient_(y);
 
-        template <typename T>
-        void update(DArray<T> &recon, DArray<T> &gradient) {
-#pragma omp parallel for
-            for (int i = 0; i < recon.size(); i++) {
-                float z_new = recon[i] - lipschitz_ * gradient[i];
-                float t_new = 0.5 * (1 + std::sqrt(1 + 4 * t_[i] * t_[i]));
-                recon[i] = z_new + (t_[i] - 1) / t_new * (z_new - z_[i]);
-                t_[i] = t_new;
-                z_[i] = z_new;
+                    x = sol;
+                    sol = y - g * step_size;
+
+                    // update theta
+                    T temp = 0.5 * (std::sqrt(std::pow(t, 4)
+                        + 4 * std::pow(t, 2))
+                        - std::pow(t, 2));
+                    t = tnew;
+                    tnew = temp;
+
+                    auto e = error_(sol);
+                    if (e > e_old) {
+                        g = gradient_(x);
+                        sol = x - g * step_size;
+                        xerr = (sol - x).norm();
+                        e = error_(sol);
+                    }
+                    e_old = e;
+                    #ifdef MULTIPROC
+                    if (multiproc::mp.first())
+                    #endif
+                        // ensure that output prints in nice columns
+                        fprintf(stdout, "iter: %4d, error: %5.4e, x-err: %5.4e\n",
+                            iter, e, std::sqrt(xerr));
+                }
+                return sol;
             }
-        }
+
+            Array<T> run2(Array<T> sol, int max_iters, T step_size, T tol, T xtol) {
+
+                // initialize
+                Array<T> x = sol;
+                Array<T> y = sol;
+                T t = 1;
+                T tnew = 1;
+                T step0 = step_size;
+                T xerr = static_cast<T>(sol.size());
+
+                for (int iter = 0; iter < max_iters; iter++) {
+                    while (true) {
+
+                        // update theta
+                        T beta = tnew * (1 / t - 1);
+                        tnew = 0.5 * (std::sqrt(std::pow(t, 4)
+                            + 4 * std::pow(t, 2))
+                            - std::pow(t, 2));
+
+                        // update y
+                        y = sol + (sol - x) * beta;
+                        auto g = gradient_(y);
+
+                        // update x
+                        sol = y - g * step_size;
+
+                        // check if step size is small enough
+                        T fx = error_(sol);
+                        T fy = error_(y);
+                        T gy = 0.5 * step_size * g.norm();
+                        if (fx > (fy + gy))
+                            step_size *= 0.9;
+                        else {
+                            step_size = step0;
+                            t = tnew;
+                            xerr = (sol - x).norm();
+                            #ifdef MULTIPROC
+                            xerr = multiproc::mp.SumReduce(xerr);
+                            #endif
+                            x = sol;
+                            break;
+                        }
+                    }
+                    T e = error_(sol);
+                    #ifdef MULTIPROC
+                    if (multiproc::mp.first())
+                    #endif
+                        // ensure that output prints in nice columns
+                        fprintf(stdout, "iter: %4d, error: %5.4e, x-err: %5.4e\n",
+                            iter, e, std::sqrt(xerr));
+                }
+                return sol;
+            }
     };
+
 } // namespace tomocam
 
 #endif // TOMOCAM_OPTIMIZE__H

@@ -24,104 +24,102 @@
 
 #include "dev_array.h"
 #include "dist_array.h"
-#include "machine.h"
-#include "types.h"
 #include "internals.h"
+#include "machine.h"
+#include "scheduler.h"
+#include "shipper.h"
+#include "types.h"
+
+#ifdef MULTIPROC
+#include "multiproc.h"
+#endif
+
+#include "gpu/totalvar.cuh"
 
 namespace tomocam {
 
-    void total_var_(Partition<float> model, Partition<float> objfn, float p, float sigma, int device) {
-
-        cudaError_t status;
+    template <typename T>
+    void total_var(Partition<T> sol, Partition<T> grad, float p, float sigma,
+        int device) {
 
         // initalize the device
-        cudaSetDevice(device);
-
-        //  output
-        dim3_t idims  = objfn.dims();
-
-        int nStreams = 0;
-        int slcs     = 0;
-        MachineConfig::getInstance().update_work(idims.x, slcs, nStreams);
-
-        //  stream size
-        std::vector<cudaStream_t> streams;
-        for (int i = 0; i < nStreams; i++) {
-            cudaStream_t temp;
-            cudaStreamCreate(&temp);
-            streams.push_back(temp);
-        }
+        SAFE_CALL(cudaSetDevice(device));
 
         // create sub-partitions with halo
-        std::vector<Partition<float>> mods = model.sub_partitions(slcs, 1);
-     
-        // create sub-partitions of `slcs` slices each
-        std::vector<Partition<float>> objs = objfn.sub_partitions(slcs);
+        int nslcs = Machine::config.slicesPerStream();
+        int nparts = sol.nslices() / nslcs;
+        if (sol.nslices() % nslcs != 0) nparts++;
+        auto sub_sols = create_partitions(sol, nparts, 1);
+        auto sub_grads = create_partitions(grad, nparts);
 
-        // run batches of nStreams
-        int n_parts = objs.size();
-        int n_batch = ceili(n_parts, nStreams);
-        for (int i = 0; i < n_batch; i++) {
-          
-            // current batch size
-            int n_sub = std::min(nStreams, n_parts - i * nStreams);
-            std::vector<dev_arrayf> d_model;
-            std::vector<dev_arrayf> d_objfn;
-
-            // copy model to device array
-            for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHost<float>(mods[i * nStreams + j], streams[j]);
-                d_model.push_back(t1);
-            }
-
-            // copy objective function to devie array
-            for (int j = 0; j < n_sub; j++) {
-                auto t1 = DeviceArray_fromHost<float>(objs[i * nStreams + j], streams[j]);
-                d_objfn.push_back(t1);
-            }
-
-            // calcuate constraints and update the objective function in-place
-            for (int j = 0; j < n_sub; j++)
-                add_total_var(d_model[j], d_objfn[j], p, sigma, streams[j]);
-
-            // copy data back to host memeory
-            for (int j = 0; j < n_sub; j++) {
-                cudaStreamSynchronize(streams[j]);
-                copy_fromDeviceArray<float>(objs[i * nStreams + j], d_objfn[j], streams[j]);
-                d_model[j].free();
-                d_objfn[j].free();
-            }
+        if (sub_sols.size() != sub_grads.size()) {
+            throw std::runtime_error(
+                "Error: sub_sols and sub_grads have different sizes");
         }
-            
-        for (auto &s : streams) {
-            cudaStreamDestroy(s);
+
+        // create a shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
+
+        // create scheduler
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(
+            sub_sols, sub_grads);
+        while (scheduler.has_work()) {
+            auto work = scheduler.get_work();
+            if (work.has_value()) {
+
+                // unpack the data
+                auto[idx, d_s, d_g] = work.value();
+
+                // update the total variation
+                gpu::add_total_var<T>(d_s, d_g, p, sigma);
+                // d_g.copy_to(sub_grads[idx], out_s);
+                shipper.push(sub_grads[idx], d_g);
+            }
         }
     }
 
     // multi-GPU call
-    void add_total_var(DArray<float> &model, DArray<float> &objfn, float p, float sigma) {
+    template <typename T>
+    void add_total_var(DArray<T> &sol, DArray<T> &grad, float p, float sigma) {
 
-        int nDevice = MachineConfig::getInstance().num_of_gpus();
-        if (nDevice > model.slices()) nDevice = model.slices();
-        int halo = 1;
+        int nDevice = Machine::config.num_of_gpus();
+        if (nDevice > sol.nslices()) nDevice = sol.nslices();
 
-        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(objfn.data(), objfn.bytes(), cudaHostRegisterPortable);
-        std::vector<Partition<float>> m = model.create_partitions(nDevice, halo);
-        std::vector<Partition<float>> f = objfn.create_partitions(nDevice);
+        dim3_t dims = sol.dims();
+        #ifdef MULTIPROC
+        int myrank = multiproc::mp.myrank();
+        int size = multiproc::mp.nprocs();
+        if (myrank > 0) dims.x += 1;
+        if (myrank < size - 1) dims.x += 1;
+        int start = myrank == 0 ? 0 : 1;
 
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++){
-            cudaSetDevice(i);
-            total_var_(m[i], f[i], p, sigma, i);
-        }
+        // allcate memory for halo
+        DArray<T> sol2(dims);
+        std::copy(sol.begin(), sol.end(), sol2.slice(start));
+        sol2.update_neigh_proc();
+        auto p1 = create_partitions(sol2, nDevice, 1);
+        #else
+        auto p1 = create_partitions(sol, nDevice, 1);
+        #endif
+
+        auto p2 = create_partitions(grad, nDevice);
 
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            cudaDeviceSynchronize();
+            total_var<T>(p1[i], p2[i], p, sigma, i);
         }
-        cudaHostUnregister(model.data());
-        cudaHostUnregister(objfn.data());
+
+        //#pragma omp parallel for num_threads(nDevice)
+        for (int i = 0; i < nDevice; i++) {
+            SAFE_CALL(cudaSetDevice(i));
+            SAFE_CALL(cudaDeviceSynchronize());
+        }
     }
+
+    // explicit instantiation
+    template void add_total_var<float>(DArray<float> &, DArray<float> &, float,
+        float);
+    template void add_total_var<double>(DArray<double> &, DArray<double> &,
+        float, float);
+
 } // namespace tomocam

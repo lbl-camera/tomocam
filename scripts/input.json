@@ -1,0 +1,12 @@
+{
+    "input_dir": "/path/to/input/dir",
+    "input_file": "filename.h5",
+    "output_dir": "/path/to/output/dir",
+    "axis": 0,
+    "MBIR": {
+        "num_iters": 200,
+        "smoothness": 0.01,
+        "tolerance": 1.0e-4,
+        "xtol": 1.0e-4
+    }
+}

@@ -22,19 +22,16 @@
 #define TOMOCAM_TYPES__H
 
 #include <complex>
-#include <cuComplex.h>
+#include <cuda/std/complex>
 
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-namespace py = pybind11;
+namespace tomocam {
+    template <typename T>
+    using complex_t = std::complex<T>;
 
-namespace {
-    typedef std::complex<float> complex_t;
-    typedef cuFloatComplex cuComplex_t;
-
-    template < typename T >
-    using np_array_t = py::array_t< T, py::array::c_style>;
-
+    namespace gpu {
+        template <typename T>
+        using complex_t = cuda::std::complex<T>;
+    }
 } // namespace
 
 #endif // TOMOCAM_TYPES__H

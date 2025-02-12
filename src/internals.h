@@ -1,3 +1,25 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ *National Laboratory (subject to receipt of any required approvals from the
+ *U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ *IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ *the U.S. Government has been granted for itself and others acting on its
+ *behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ *to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
+
+
 #ifndef TOMOCAM_INTERNALS__H
 #define TOMOCAM_INTERNALS__H
 
@@ -5,141 +27,70 @@
 #include <cuda_runtime.h>
 
 #include "dev_array.h"
-#include "kernel.h"
 #include "dist_array.h"
+#include "nufft.h"
+#include "toeplitz.h"
 #include "types.h"
 
 namespace tomocam {
 
     /**
-     * Calculates differene between model and data, and resets zero-padding in model
+     * Calculates the error between the model and the sinogram data
      *
-     *  @param DeviceArray<cuComplex_t> model as complex array on device
-     *  @param DeviceArray<float> sinogram data as array on device
-     *  @param int size of padding
-     *  @param cudaStream_t for concurrencny
-     */ 
-    void calc_error(dev_arrayc &, dev_arrayf &, int ipad, cudaStream_t);
-
-    /**
-     * Rescales output from cufft, by dividing by N^2
-     *
-     * @param DeviceArray<cuComplex_t> cufft output
-     * @param cudaStream_t for concurrencny
-     */ 
-    void rescale(dev_arrayc &, cudaStream_t);
-
-    /**
-     * Deconvolves the NUFFT output with the convolution kernel for forward projection
-     *
-     * @param DeviceArray<cuComplex_t> NUFFT output
-     * @param kernel_t convolution kernel (Kaiser window)
-     * @param cudaStream_t for concurrencny
-     */ 
-    void deapodize1D(dev_arrayc &, kernel_t, cudaStream_t);
-
-    /**
-     * Deconvolves the NUFFT output with the convolution kernel for backward projection
-     *
-     * @param DeviceArray<cuComplex_t> NUFFT output
-     * @param kernel_t convolution kernel (Kaiser window)
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void deapodize2D(dev_arrayc &, kernel_t, cudaStream_t);
+     *  @param DeviceArray<T> Output from the gradient function
+     *  @param DeviceArray<T> backprojection of the sinogram data
+     *  @return T error
+     */
+    template <typename T>
+    T calc_error(DeviceArray<T> &, DeviceArray<T> &);
 
     /**
      * Computes back projection from sinograms using NUFFT
      *
-     * @param DeviceArray<cuComplex_t> sinogram
-     * @param DeviceArray<cuComplex_t> reconstructed volume
-     * @param float correction to the center of rotation
-     * @param DeviceArray<float> angles at the projections
-     * @param kernel_t convolution kernel (Kaiser window)
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void back_project(dev_arrayc &, dev_arrayc &, float, dev_arrayf &, kernel_t, cudaStream_t);
+     * @param DeviceArray<T> sinogram space
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
+     * @return DeviceArray<T> Image space
+     */
+    template <typename T>
+    DeviceArray<T> backproject(const DeviceArray<T> &, const NUFFT::Grid<T> &,
+        T);
 
     /**
-     * Rconstructs voxels from sinograms (inverse radon transform)
+     * Computes forward projection from a stack of images using NUFFT
      *
-     * @param DeviceArray<cuComplex_t> partial sinogram data on device
-     * @param DeviceArray<cuComplex_t> reconstructed output, corresponding to input sinogram
-     * @param int Padding for oversampling the FFT
-     * @param float Correction to the center of rotation (correction + padding/2)
-     * @param DeviceArray<float> Projection angles
-     * @param kernel_t Window function for convolution
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void stage_back_project(dev_arrayc &, dev_arrayc &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
+     * @param DeviceArray<T> Image space
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
+     * @return DeviceArray<T> sinogram space
+     */
+    template <typename T>
+    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, T);
 
     /**
-     * Wrapper to launch CUDA kernel for computing covolutions (Polar -> Cartesian)
+     * Parital calculation of the gradient of the objective function
+     * \nabala f = R^*R\,x - R^*y + TV(f)
+     * this function calculates the term R^*R\,x
+     * the term R^*y is calculated at the beginning of the optimization
      *
-     * @param DeviceArray<cuComplex_t> Sinograms in the Fourier space on a polar grid
-     * @param DeviceArray<cuComplex_t> Output
-     * @param DeviceArray<float> Projection angles
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void polarsample_transpose(dev_arrayc &, dev_arrayc &, dev_arrayf &, kernel_t, cudaStream_t);
+     * @param DeviceArray<T> current solution
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     */
+    template <typename T>
+    DeviceArray<T> gradient(DeviceArray<T> &, DeviceArray<T> &,
+        const NUFFT::Grid<T> &);
 
     /**
-     * Computes forward projection from voxels using NUFFT
-     *
-     * @param DeviceArray<cuComplex_t> Voxels
-     * @param DeviceArray<cuComplex_t> Computed sinograms
-     * @param float correction to the center of rotation
-     * @param DeviceArray<float> angles at the projections
-     * @param kernel_t convolution kernel (Kaiser window)
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void fwd_project(dev_arrayc &, dev_arrayc &, float, dev_arrayf &, kernel_t, cudaStream_t);
+     * Parital calculation of the gradient of the objective function
+     * \nabala f = R^*R\,x - R^*y + TV(f)
+     * this function calculates the term R^*R\,x - R^*y, and,
+     * (x R)^* R x - 2 R^*y.
+     * y^*y is calculated at the beginning of the optimization
+     */
 
-    /**
-     * Computes projections (sinograms) from voxels (Radon transform)
-     *
-     * @param DeviceArray<cuComplex_t> Partial voxel data on GPU memory
-     * @param DeviceArray<cuComplex_t> Rconstructed sinograms corresponding to input voxels
-     * @param int Padding for oversampling the FFT
-     * @param float Correction to the center of rotation (correction + padding/2)
-     * @param DeviceArray<float> Projection angles
-     * @param kernel_t Window function for convolution
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void stage_fwd_project(dev_arrayc &, dev_arrayc &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
-
-    /**
-     * Wrapper to launch CUDA kernel for computing covolutions (Cartesian -> Polar)
-     *
-     * @param DeviceArray<cuComplex_t> Oversampled FFT of voxles on a Cartesian grid
-     * @param DeviceArray<cuComplex_t> Output of covolution  on a polar-grid
-     * @param DeviceArray<float> Projection angles
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void polarsample(dev_arrayc &, dev_arrayc &, dev_arrayf &, kernel_t, cudaStream_t);
-
-    /**
-     * Calculates the gradients, in-place
-     *
-     * @param DeviceArray<cuComplex_t> Model
-     * @param DeviceArray<float> Data
-     * @param int Padding for oversampling the FFT
-     * @param float Center correction (+ padding/2)
-     * @param DeviceArray<float> Projection angles
-     * @param kernel_t Window function for convolution
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void calc_gradient(dev_arrayc &, dev_arrayf &, int, float, dev_arrayf &, kernel_t, cudaStream_t);
-
-    /**
-     * Calculates constrains on the objective function, and updates gradients in-place
-     *
-     * @param DeviceArray<float> Gradients of obj. function
-     * @param DeviceArray<float> Model
-     * @param float Surrogate model paramter
-     * @param float Surrogate model paramter
-     * @param cudaStream_t for concurrencny
-     */ 
-    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, cudaStream_t);
+    template <typename T>
+    DeviceArray<T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
+        const PointSpreadFunction<T> &);
 
 } // namespace tomocam
 

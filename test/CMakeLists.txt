@@ -1,29 +1,66 @@
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
+# JSON
+find_package(nlohmann_json 3.2.0 REQUIRED)
+
+add_executable(padding padding.cpp)
+target_link_libraries(padding PRIVATE tomocam)
+target_link_libraries(padding PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(padding PRIVATE nlohmann_json::nlohmann_json)
 
 
+add_executable(partition partition.cpp)
+target_link_libraries(partition PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(partition PRIVATE ${MPI_C_LIBRARIES})
 
-find_package(HDF5 REQUIRED COMPONENTS CXX)
-include_directories(${HDF5_INCLUDE_DIRS})
+# test dropcol
+add_executable(dropcol dropcol.cpp)
+target_link_libraries(dropcol PRIVATE tomocam)
+target_link_libraries(dropcol PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(dropcol PRIVATE nlohmann_json::nlohmann_json)
+
+find_package(nlohmann_json REQUIRED)
+
+add_executable(read reader.cpp)
+target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(read PRIVATE ${MPI_C_LIBRARIES})
+target_link_libraries(read PRIVATE nlohmann_json::nlohmann_json)
+
+# backproj
+add_executable(backproj backproj.cpp)
+target_link_libraries(backproj PRIVATE tomocam)
+target_link_libraries(backproj PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(backproj PRIVATE nlohmann_json::nlohmann_json)
+
+# gradient
+add_executable(gradient gradient.cpp)
+target_link_libraries(gradient PRIVATE tomocam)
+target_link_libraries(gradient PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(gradient PRIVATE nlohmann_json::nlohmann_json)
+
+add_executable(tv tvd.cpp)
+target_link_libraries(tv PRIVATE tomocam)
+target_link_libraries(tv PRIVATE ${HDF5_LIBRARIES})
+
+# test for the forward projection
+add_executable(forward forward.cpp)
+target_link_libraries(forward PRIVATE tomocam)
+target_link_libraries(forward PRIVATE ${HDF5_LIBRARIES})
 
 
-add_executable(tvd test_tvd.cpp)
-target_link_libraries(tvd tomocam)
-add_test(test_tvd tvd)
+# test for Toeplitz matrix
+add_executable(toeplitz toeplitz.cpp)
+target_link_libraries(toeplitz PRIVATE tomocam)
+target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
 
-add_executable(read test_reader.cpp)
-target_link_libraries(read ${HDF5_LIBRARIES})
-add_test(test_reader read)
+# test for error calculation
+add_executable(error error.cpp)
+target_link_libraries(error PRIVATE tomocam)
+target_link_libraries(error PRIVATE ${HDF5_LIBRARIES})
 
-add_executable(mbir test_mbir.cpp)
+# MBIR
+add_executable(mbir mbir.cpp)
 target_link_libraries(mbir tomocam)
 target_link_libraries(mbir ${HDF5_LIBRARIES})
-add_test(test_mbir mbir)
-
-add_executable(backward test_backward.cpp)
-target_link_libraries(backward tomocam ${HDF5_LIBRARIES})
-add_test(test_backward backward)
-
-add_executable(forward test_forward.cpp)
-target_link_libraries(forward tomocam)
-add_test(test_forward forward)
+target_link_libraries(mbir nlohmann_json::nlohmann_json)
+target_link_libraries(mbir ${MPI_C_LIBRARIES})

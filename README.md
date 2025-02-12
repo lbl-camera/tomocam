@@ -1,4 +1,4 @@
-Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
+tomoCAM: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
 
 **Dependencies**
 ----------------
@@ -6,7 +6,8 @@ Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using
 1. CUDA (with cufft and cublas)
 2. pybind11
 3. numpy
-4. camke
+4. cmake
+5. cufinufft (https://github.com/flatironinstitute/cufinufft)
 
 **Installation**
 -----------------
@@ -16,6 +17,8 @@ Make sure `CUDA`, `cmake`, and `pybind11` are installed.
 
 
 ```
+install cufinufft
+edit setup.cfg to reflect location of cufinufft
 pip install virtualenv
 virtualenv -p /usr/bin/python3 tomocam-venv
 source tomocam-venv/bin/activate
