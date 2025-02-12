@@ -6,7 +6,7 @@ set(finufft_SEARCH_PATHS
     /opt/local
     /usr
     /opt
-    ${finufft_PATH}
+    ${CMAKE_PREFIX_PATH}
 )
 
 find_path(finufft_INCLUDE_DIR

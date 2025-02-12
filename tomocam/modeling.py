@@ -41,7 +41,7 @@ def update_total_variation(model, gradients, smoothness=1.0E-03):
     cTomocam.total_variation(gradients, model, smoothness) 
 
 
-def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=1, relax=1):
+def MBIR(sinogram, angles, center, num_iters = 100, smoothness=0.01, tol=1.0E-04, xtol=1.0E-04):
     """Computes the Model-based Iterative reconstruction using nufft.
 
     Parameters
@@ -54,23 +54,26 @@ def MBIR(sinogram, angles, center, num_iters = 100, over_sample=1.5, smoothness=
        Center of rotation
     num_iters: int
         Number of iterations
-    over_sample: float
-        Zero padding to be added to signal for fft
     smoothness: float (>= 0)
         Controls smoothness of reconstruction
-    relax: float
-        Controls strength of the total-variation constriant
+    tol: float
+        Value of objective function at which to stop iteration
+    xtol: float
+        Value of change in solution at which to stop iteration 
 
     Returns
     --------
         numpy.ndarray
             Reconstructed tomographic volume
     """
-    if sinogram.dtype != np.float32 and angles.dtype != np.float32:
-        raise ValueError('input data-type must be single precision')
+    if sinogram.dtype != np.float32:
+        sinogram = sinogram.astype(np.float32)
+
+    if angles.dtype != np.float32:
+        angles = angles.astype(np.float32)
 
     if smoothness <= 0:
         raise ValueError('smoothness value must be greater than 0')
     sigma = 1./smoothness
 
-    return cTomocam.mbir(sinogram, angles, center, num_iters, over_sample, sigma, relax);
+    return cTomocam.mbir(sinogram, angles, center, num_iters, sigma, tol, xtol)

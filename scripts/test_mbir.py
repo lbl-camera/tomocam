@@ -1,20 +1,19 @@
 import numpy as np
-import os
-import h5py
-import tomocam
+from tomocam import MBIR
+import tomopy
+
 import matplotlib.pyplot as plt
 
+center = 200.
+shepp = tomopy.misc.phantom.shepp2d(size = 400, dtype=np.float32)
+angles = np.linspace(0, np.pi, 360, dtype=np.float32)
+tomo = tomopy.sim.project.project(shepp, angles, center = center, pad = False, sinogram_order=True)
 
-filename = '/home/dkumar/data/phantom_00017/phantom_00017.h5'
-h5fp = h5py.File(filename, 'r')
-data = np.copy(h5fp['/projs'][:,:128,:])
-angs = np.copy(h5fp['/angs'])
-h5fp.close()
+recon = MBIR(tomo.astype(np.float32), angles, center, num_iters = 300, smoothness = 0.01)
 
-print(data.shape)
-sino = np.transpose(data, [1, 0, 2])
-
-recon = tomocam.MBIR(sino, angs, 640, 10, over_sample=2, smoothness=1)
-
+plt.subplot(121)
+plt.imshow(shepp[0])
+plt.subplot(122)
 plt.imshow(recon[0])
 plt.show()
+

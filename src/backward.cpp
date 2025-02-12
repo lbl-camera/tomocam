@@ -18,42 +18,49 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <concepts>
 #include <iostream>
+#include <vector>
 
 #include "dev_array.h"
 #include "fft.h"
+#include "fftshift.h"
 #include "internals.h"
-#include "types.h"
 #include "nufft.h"
+#include "types.h"
 
-#include "debug.cuh"
+#include "debug.h"
+#include "gpu/padding.cuh"
 
 namespace tomocam {
 
-    void back_project(dev_arrayc &sino, dev_arrayc &image, float center, 
-                NUFFTGrid &grid) {
+    template <typename T>
+    DeviceArray<T> backproject(const DeviceArray<T> &sino,
+        const NUFFT::Grid<T> &grid, T center) {
 
-        // dims
-        dim3_t dims = image.dims();
-    
-        // fftshift
-        fftshift1D(sino, cudaStreamPerThread);
+        // cast to complex
+        auto in2 = complex(sino);
 
-        // 1-D fft
-        auto cufft_plan = fftPlan1D(sino.dims());
-        SAFE_CUFFT_CALL(cufftExecC2C(cufft_plan, sino.dev_ptr(), sino.dev_ptr(), CUFFT_FORWARD));
-        SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
-
-        // center shift
-        ifftshift_center(sino, center, cudaStreamPerThread);
-
-        // normalize after FFT
-        rescale(sino, 1./static_cast<float>(dims.z), cudaStreamPerThread);
+        /* back-project */
+        // shift 0-frequency to corner
+        in2 = ifftshift(in2);
+        // forward FFT in radial direction
+        in2 = fft1D(in2);
+        // shift 0-frequency  to center
+        in2 = fftshift(in2);
 
         // nufft type 1
-        cufinufftf_plan cufinufft_plan;
-        NUFFT_CALL(nufftPlan1(dims, grid, cufinufft_plan));
-        NUFFT_CALL(cufinufftf_execute(cufinufft_plan, sino.dev_ptr(), image.dev_ptr()));
-        NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
+        auto out = nufft2d1(in2, grid);
+        SAFE_CALL(cudaDeviceSynchronize());
+
+        // return real part
+        T scale =  static_cast<T>(sino.ncols() * sino.ncols());
+        return (real(out) / scale);
     }
+
+    // explicit instantiation
+    template DeviceArray<float> backproject(const DeviceArray<float> &,
+        NUFFT::Grid<float> const &, float);
+    template DeviceArray<double> backproject(const DeviceArray<double> &,
+        NUFFT::Grid<double> const &, double);
 } // namespace tomocam

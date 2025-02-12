@@ -28,106 +28,69 @@
 
 #include "dev_array.h"
 #include "dist_array.h"
-#include "types.h"
 #include "nufft.h"
+#include "toeplitz.h"
+#include "types.h"
 
 namespace tomocam {
 
     /**
-     * Calculates differene between model and data, and resets zero-padding in model
+     * Calculates the error between the model and the sinogram data
      *
-     *  @param DeviceArray<cuComplex_t> model as complex array on device
-     *  @param DeviceArray<float> sinogram data as array on device
-     *  @param int size of padding
-     *  @param cudaStream_t for concurrencny
-     */ 
-    void calc_error(dev_arrayc &, dev_arrayf &, int ipad, cudaStream_t);
-
-    /**
-     * Rescales output from cufft, by dividing by N^2
-     *
-     * @param DeviceArray<cuComplex_t> cufft output
-     * @param float scalar
-     * @param cudaStream_t for concurrencny
-     */ 
-    void rescale(dev_arrayc &, float, cudaStream_t);
-
+     *  @param DeviceArray<T> Output from the gradient function
+     *  @param DeviceArray<T> backprojection of the sinogram data
+     *  @return T error
+     */
+    template <typename T>
+    T calc_error(DeviceArray<T> &, DeviceArray<T> &);
 
     /**
      * Computes back projection from sinograms using NUFFT
      *
-     * @param DeviceArray<cuComplex_t> sinogram
-     * @param DeviceArray<cuComplex_t> image space
-     * @param float correction to the center of rotation
-     * @param NUFFTGrid non-unifrom grid on which NUFFT is computed
-     */ 
-    void back_project(dev_arrayc &, dev_arrayc &, float, NUFFTGrid &);
+     * @param DeviceArray<T> sinogram space
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
+     * @return DeviceArray<T> Image space
+     */
+    template <typename T>
+    DeviceArray<T> backproject(const DeviceArray<T> &, const NUFFT::Grid<T> &,
+        T);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
      *
-     * @param DeviceArray<cuComplex_t> Image stack
-     * @param DeviceArray<cuComplex_t> Computed sinograms
-     * @param float correction to the center of rotation
-     * @param NUFFTGrid non-unifrom grid on which NUFFT is computed
-     */ 
-    void project(dev_arrayc &, dev_arrayc &, float, NUFFTGrid &);
-
-
-    /**
-     * Calculates the gradients, in-place
-     *
-     * @param DeviceArray<cuComplex_t> Model
-     * @param DeviceArray<float> Data
-     * @param int Padding for oversampling the FFT
-     * @param float Center correction (+ padding/2)
-     * @param DeviceArray<float> Projection angles
-     * @param kernel_t Window function for convolution
-     * @param cudaStream_t CUDA stream for concurrencny
-     */ 
-    void calc_gradient(dev_arrayc &, dev_arrayf &, int, float, NUFFTGrid &);
-
-    /**
-     * Calculates gradient of constraint on the objective function, and updates gradients in-place
-     *
-     * @param DeviceArray<float> Model
-     * @param DeviceArray<float> Gradients of obj. function
-     * @param float Surrogate model paramter p
-     * @param float Surrogate model paramter sigma
-     * @param float Surrogate model paramter lambda
-     * @param cudaStream_t for concurrencny
-     */ 
-    void add_total_var(dev_arrayf &, dev_arrayf &, float, float, float, cudaStream_t);
-
-    /**
-     * Calculates constraint on the objective function, and adds to objective function
-     *
-     * @param DeviceArray<float> Model
-     * @param DeviceArray<float> Obj. function
-     * @param float Surrogate model paramter p
-     * @param float Surrogate model paramter sigma
-     * @param float Surrogate model paramter lambda
-     * @param cudaStream_t for concurrencny
+     * @param DeviceArray<T> Image space
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
+     * @param center center of rotation
+     * @return DeviceArray<T> sinogram space
      */
-    void add_tv_func(dev_arrayf &, dev_arrayf &, float, float, float, cudaStream_t);
+    template <typename T>
+    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, T);
 
     /**
-     * Adds zero padding and typecast from float to cuComplex_t
+     * Parital calculation of the gradient of the objective function
+     * \nabala f = R^*R\,x - R^*y + TV(f)
+     * this function calculates the term R^*R\,x
+     * the term R^*y is calculated at the beginning of the optimization
      *
-     * @param DeviceArray<float> input
-     * @param int3 padding
-     * @param cudaStream_t cuda stream for concurrencny
+     * @param DeviceArray<T> current solution
+     * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
      */
-    dev_arrayc add_paddingR2C(dev_arrayf &, int3, cudaStream_t);
+    template <typename T>
+    DeviceArray<T> gradient(DeviceArray<T> &, DeviceArray<T> &,
+        const NUFFT::Grid<T> &);
 
     /**
-     * Removes zero padding and typecast from cuComplex_t to float
-     *
-     * @param DeviceArray<cuComplex_t> input
-     * @param int3 padding
-     * @param cudaStream_t cuda stream for concurrencny
+     * Parital calculation of the gradient of the objective function
+     * \nabala f = R^*R\,x - R^*y + TV(f)
+     * this function calculates the term R^*R\,x - R^*y, and,
+     * (x R)^* R x - 2 R^*y.
+     * y^*y is calculated at the beginning of the optimization
      */
-    dev_arrayf remove_paddingC2R(dev_arrayc &, int3, cudaStream_t);
+
+    template <typename T>
+    DeviceArray<T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
+        const PointSpreadFunction<T> &);
 
 } // namespace tomocam
 

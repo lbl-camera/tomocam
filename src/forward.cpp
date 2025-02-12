@@ -22,39 +22,39 @@
 
 #include "dev_array.h"
 #include "fft.h"
-#include "tomocam.h"
+#include "fftshift.h"
+#include "gpu/padding.cuh"
 #include "internals.h"
-#include "types.h"
 #include "nufft.h"
-
+#include "tomocam.h"
+#include "types.h"
 
 namespace tomocam {
+    template <typename T>
+    DeviceArray<T> project(const DeviceArray<T> &input,
+        const NUFFT::Grid<T> &grid, T center) {
 
-    void project(dev_arrayc &image, dev_arrayc &sino, float center,
-                NUFFTGrid &grid) {
-
-        // dims
-        dim3_t dims = image.dims();
+        // cast to complex
+        auto in2 = complex(input);
 
         // nufft type 2
-        cufinufftf_plan cufinufft_plan;
-        NUFFT_CALL(nufftPlan2(dims, grid, cufinufft_plan));
-        NUFFT_CALL(cufinufftf_execute(cufinufft_plan, sino.dev_ptr(), image.dev_ptr()));
-        NUFFT_CALL(cufinufftf_destroy(cufinufft_plan));
+        auto out = nufft2d2(in2, grid);
+        SAFE_CALL(cudaDeviceSynchronize());
 
-        // normalize
-        rescale(sino, 1./static_cast<float>(dims.z * dims.z), cudaStreamPerThread);
+        //  1d inverse fft along columns
+        out = ifftshift(out);
+        out = ifft1D(out);
+        out = fftshift(out);
 
-        // the center shift
-        fftshift_center(sino, center, cudaStreamPerThread);
-
-        // 1-D ifft
-        // get a handle to cufft plan
-        auto cufft_plan = fftPlan1D(sino.dims());
-        SAFE_CUFFT_CALL(cufftExecC2C(cufft_plan, sino.dev_ptr(), sino.dev_ptr(), CUFFT_INVERSE));
-        SAFE_CUFFT_CALL(cufftDestroy(cufft_plan));
-   
-        // fftshift
-        fftshift1D(sino, cudaStreamPerThread);
+        T scale = static_cast<T>(input.ncols() * input.ncols());
+        // cast to real
+        return (real(out) / scale);
     }
+
+    // explicit instantiation
+    template DeviceArray<float> project<float>(const DeviceArray<float> &,
+        const NUFFT::Grid<float> &, float);
+    template DeviceArray<double> project<double>(const DeviceArray<double> &,
+        const NUFFT::Grid<double> &, double);
+
 } // namespace tomocam

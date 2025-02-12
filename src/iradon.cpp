@@ -21,108 +21,90 @@
 #include <iostream>
 #include <omp.h>
 
-#include "dev_array.h"
 #include "dist_array.h"
-#include "machine.h"
 #include "internals.h"
+#include "machine.h"
+#include "shipper.h"
 #include "types.h"
+
+#include "dev_array.h"
+#include "scheduler.h"
 
 namespace tomocam {
 
-    void iradon_(Partition<float> sino, Partition<float> output, float center, float over_sample,
-        float *angles, int device) {
+    template <typename T>
+    void backproject(Partition<T> sino, Partition<T> output,
+        const std::vector<T> &angles, T center, int device) {
 
         // select device
-        cudaSetDevice(device);
+        SAFE_CALL(cudaSetDevice(device));
 
-        // input and output dimensions
-        dim3_t idims  = sino.dims();
-        dim3_t odims  = output.dims();
-        
-        // padding for oversampling
-        int ipad = (int) ((over_sample-1) * idims.z / 2);
-        int3 pad1 = {0, 0, ipad};
-        int3 pad2 = {0, ipad, ipad};
-        center += ipad;
+        // create NUFFT Grid
+        int nproj = static_cast<int>(angles.size());
+        int ncols = sino.ncols();
+        auto grid = NUFFT::Grid<T>(nproj, ncols, angles.data(), device);
+
+        // create a data shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
+
+        // input dimensions
+        dim3_t idims = sino.dims();
 
         // subpartitions
-        int nslcs = MachineConfig::getInstance().slicesPerStream();
-        std::vector<Partition<float>> sub_sinos = sino.sub_partitions(nslcs);
-        std::vector<Partition<float>> sub_outputs = output.sub_partitions(nslcs);
-        int n_batch = sub_sinos.size();
+        int nparts =
+            Machine::config.num_of_partitions(output.dims(), output.bytes());
+        auto sub_sinos = create_partitions(sino, nparts);
+        auto sub_outputs = create_partitions(output, nparts);
 
-        // nufft grid
-        int ncols = idims.z + 2 * ipad;
-        int nproj = idims.y;
-        NUFFTGrid grid(ncols, nproj, angles, device);
+        // start a scheduler
+        Scheduler<Partition<T>, DeviceArray<T>> scheduler(sub_sinos);
+        while(scheduler.has_work()) {
+            auto task = scheduler.get_work();
+            if (task.has_value()) {
+                auto [i, d_sino] = task.value();
+                auto d_recn = backproject(d_sino, grid, center);
 
-        // create cudaStreams
-        cudaStream_t istream, ostream;
-        cudaStreamCreate(&istream);
-        cudaStreamCreate(&ostream);
-
-        for (int i = 0; i < n_batch; i++) {
-
-            // asynchronously copy data to device
-            auto t1 = DeviceArray_fromHost(sub_sinos[i], istream);
-            dev_arrayc d_sino = add_paddingR2C(t1, pad1, istream);
-
-            // allocate output array on device
-            dim3_t d = sub_outputs[i].dims();
-            dim3_t pad_odims = dim3_t(d.x, d.y + 2 * ipad, d.z + 2 * ipad);
-            auto d_recn = DeviceArray_fromDims<cuComplex_t>(pad_odims, istream);
-
-            // asynchronously launch kernels
-            cudaStreamSynchronize(istream);
-            back_project(d_sino, d_recn, center, grid);
-            cudaStreamSynchronize(cudaStreamPerThread);
-
-            // remove padding
-            dev_arrayf t2 = remove_paddingC2R(d_recn, pad2, ostream);
-
-            // asynchronously copy data back to host
-            copy_fromDeviceArray(sub_outputs[i], t2, ostream);
-            cudaStreamSynchronize(ostream);
-           
-            t1.free();
-            t2.free();
-            d_sino.free();
-            d_recn.free();
+                // copy the result to the output
+                shipper.push(sub_outputs[i], d_recn);
+            }
         }
-
-        cudaStreamDestroy(istream);
-        cudaStreamDestroy(ostream);
-        cudaDeviceSynchronize();
     }
 
-    // inverse radon (Multi-GPU call)
-    void iradon(DArray<float> &input, DArray<float> &output, float * angles,
-                float center, float over_sample) {
+    // back projection
+    template <typename T>
+    DArray<T> backproject(DArray<T> &input, const std::vector<T> &angles,
+        T center) {
 
-        // pin host memeory
-        cudaHostRegister(input.data(), input.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(output.data(), output.bytes(), cudaHostRegisterPortable);
+        int nDevice = Machine::config.num_of_gpus();
+        if (nDevice > input.nslices()) nDevice = input.nslices();
 
-        int nDevice = MachineConfig::getInstance().num_of_gpus();
-        if (nDevice > input.slices()) nDevice = input.slices();
+        // output dimensions
+        dim3_t dims = {input.nslices(), input.ncols(), input.ncols()};
+        DArray<T> output(dims);
 
-        std::vector<Partition<float>> p1 = input.create_partitions(nDevice);
-        std::vector<Partition<float>> p2 = output.create_partitions(nDevice);
+        // create partitions
+        auto p1 = create_partitions(input, nDevice);
+        auto p2 = create_partitions(output, nDevice);
 
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            iradon_(p1[i], p2[i], center, over_sample, angles, i);
-        }
-        
+        for (int i = 0; i < nDevice; i++)
+            backproject(p1[i], p2[i], angles, center, i);
+
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            cudaDeviceSynchronize();
+            SAFE_CALL(cudaSetDevice(i));
+            SAFE_CALL(cudaDeviceSynchronize());
         }
-        cudaHostUnregister(input.data());
-        cudaHostUnregister(output.data());
+
+        return output;
     }
+
+    // explicit instantiation
+    template DArray<float> backproject(DArray<float> &,
+        const std::vector<float> &, float);
+    template DArray<double> backproject(DArray<double> &,
+        const std::vector<double> &, double);
 
 } // namespace tomocam

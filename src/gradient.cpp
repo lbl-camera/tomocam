@@ -20,103 +20,94 @@
 
 #include <iostream>
 #include <omp.h>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
 #include "internals.h"
 #include "machine.h"
+#include "scheduler.h"
+#include "shipper.h"
 #include "types.h"
 
 namespace tomocam {
 
-    void gradient_(Partition<float> model, Partition<float> sino, float center,
-        float over_sample, float *angles, int device_id) {
+    template <typename T>
+    void gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
+        const NUFFT::Grid<T> &nugrid, T center, int device_id) {
 
         // set device
-        cudaSetDevice(device_id);
-
-        // input and output dimensions
-        dim3_t dims1 = model.dims();
-        dim3_t dims2 = sino.dims();
-
-        // padding on each end
-        int ipad = (int)((over_sample - 1) * dims2.z / 2);
-        int3 padding = {0, ipad, ipad};
-        center += ipad;
-
-        // create nufft grid
-        int ncols = dims2.z + 2 * ipad;
-        int nproj = dims2.y;
-        NUFFTGrid grid(ncols, nproj, angles, device_id);    
+        SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nslcs = MachineConfig::getInstance().slicesPerStream();
-        auto p1 = model.sub_partitions(nslcs);
-        auto p2 = sino.sub_partitions(nslcs);
-        int n_batch = p1.size();
-        
-        // create cudaStreams
-        cudaStream_t istream, ostream;
-        cudaStreamCreate(&istream);
-        cudaStreamCreate(&ostream);
+        int nparts = Machine::config.num_of_partitions(sinoT.nslices());
+        auto p1 = create_partitions(f, nparts);
+        auto p2 = create_partitions(sinoT, nparts);
+        auto p3 = create_partitions(df, nparts);
 
-        for (int i = 0; i < n_batch; i++) {
- 
-            auto t1 = DeviceArray_fromHost<float>(p1[i], istream);
-            dev_arrayc d_model = add_paddingR2C(t1, padding, istream);
+        // normalization factor
+        auto scale = static_cast<T>(std::pow(f.ncols(), 3));
 
-            // copy data to device
-            auto d_sino = DeviceArray_fromHost<float>(p2[i], istream);
+        // create a shipper
+        GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
-            // gradients are enqued in per-thread-stream
-            calc_gradient(d_model, d_sino, ipad, center, grid);
-            cudaStreamSynchronize(cudaStreamPerThread);
+        // creater a scheduler, and assign work
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
+        while (s.has_work()) {
+            auto work = s.get_work();
+            if (work.has_value()) {
+                auto[idx, d_f, d_sinoT] = work.value();
 
-            // copy data back to host
-            cudaStreamSynchronize(ostream);
-            dev_arrayf t2 = remove_paddingC2R(d_model, padding, ostream);
-            copy_fromDeviceArray(p1[i], t2, ostream);
+                auto t1 = complex(d_f);
+                auto t2 = nufft2d2(t1, nugrid);
+                auto t3 = nufft2d1(t2, nugrid);
+                auto t4 = real(t3) / scale;
+                auto d_g = t4 - d_sinoT;
 
-            // delete device_arrays
-            cudaStreamSynchronize(ostream);
-            t1.free();
-            t2.free();
-            d_model.free();
-            d_sino.free();
+                // copy gradient to host
+                shipper.push(p3[idx], d_g);
+            }
         }
-        cudaStreamDestroy(istream);
-        cudaStreamDestroy(ostream);
     }
 
     // Multi-GPU calll
-    void gradient(DArray<float> &model, DArray<float> &sinogram, float *angles,
-                  float center, float over_sample) {
+    template <typename T>
+    DArray<T> gradient(DArray<T> &solution, DArray<T> &sinoT,
+        const std::vector<NUFFT::Grid<T>> &nugrids, T center) {
 
-        // pin host memory
-        cudaHostRegister(model.data(), model.bytes(), cudaHostRegisterPortable);
-        cudaHostRegister(sinogram.data(), sinogram.bytes(), cudaHostRegisterPortable);
+        int nDevice = Machine::config.num_of_gpus();
+        if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
 
-        int nDevice = MachineConfig::getInstance().num_of_gpus();
-        if (nDevice > model.slices()) nDevice = model.slices();
+        // allocate memory for gradient
+        DArray<T> gradient(solution.dims());
 
-        std::vector<Partition<float>> p1 = model.create_partitions(nDevice);
-        std::vector<Partition<float>> p2 = sinogram.create_partitions(nDevice);
+        auto p1 = create_partitions(solution, nDevice);
+        auto p2 = create_partitions(sinoT, nDevice);
+        auto p3 = create_partitions(gradient, nDevice);
+
+        // vecor to store partial function values
+        std::vector<T> pfunc(nDevice, 0);
 
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            gradient_(p1[i], p2[i], center, over_sample, angles, i);
+            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], center, i);
         }
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            cudaSetDevice(i);
-            cudaDeviceSynchronize();
+            SAFE_CALL(cudaSetDevice(i));
+            SAFE_CALL(cudaDeviceSynchronize());
         }
-        cudaHostUnregister(model.data());
-        cudaHostUnregister(sinogram.data());
+
+        return gradient;
     }
+
+    // Explicit instantiation
+    template DArray<float> gradient(DArray<float> &, DArray<float> &,
+        const std::vector<NUFFT::Grid<float>> &, float);
+    template DArray<double> gradient(DArray<double> &, DArray<double> &,
+        const std::vector<NUFFT::Grid<double>> &, double);
 
 } // namespace tomocam

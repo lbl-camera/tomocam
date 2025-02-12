@@ -1,12 +1,14 @@
+
 include(FindPackageHandleStandardArgs)
 
-
 set(nlohmann_json_SEARCH_PATHS
+    ~/json
+    ~/nlohmann_json
     /usr/local
     /opt/local
     /usr
     /opt
-    ~/json
+    ${CMAKE_PREFIX_PATH}
 )
 
 find_path(nlohmann_json_INCLUDE_DIR
@@ -16,20 +18,14 @@ find_path(nlohmann_json_INCLUDE_DIR
     PATHS ${nlohmann_json_SEARCH_PATHS}
 )
 
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(nlohmann_json DEFAULT_MSG nlohmann_json_INCLUDE_DIR)
 
-if(nlohmann_json_INCLUDE_DIR) 
-    mark_as_advanced(nlohmann_json_FOUND YES)
+if(nlohmann_json_INCLUDE_DIR)
+    mark_as_advanced(nlohmann_json_INCLUDE_DIR)
+    mark_as_advanced(nlohmann_json_FOUND)
 endif()
-
-
-find_package_handle_standard_args(nlohmann_json
-    REQUIRED_VARS
-    nlohmann_json_INCLUDE_DIR  
-    HANDLE_COMPONENTS
-)
-
 
 if (nlohmann_json_FOUND AND NOT TARGET nlohmann_json::nlohmann_json)
     add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-    target_include_directories(nlohmann_json::nlohmann_json INTERFACE ${nlohmann_json_INCLUDE_DIR})
+    set_property(TARGET nlohmann_json::nlohmann_json PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_INCLUDE_DIR}")
 endif()

@@ -30,94 +30,142 @@ namespace tomocam {
 
     template <typename T>
     class Partition {
-      private:
-        dim3_t dims_;
-        uint64_t size_;
-        T *first_;
-        int halo_[2];
+        private:
+            dim3_t dims_;
+            uint64_t size_;
+            T *first_;
+            int halo_[2];
 
-      public:
-        Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
-            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
-            halo_[0] = 0;
-            halo_[1] = 0;
-        }
-
-        Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
-            size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x; 
-            halo_[0] = h[0];
-            halo_[1] = h[1];
-        }
-
-        dim3_t dims() const { return dims_; }
-        uint64_t size() const { return size_; }
-        size_t bytes() const { return size_ * sizeof(T); }
-        int  *halo() { return halo_; }
-
-        T *begin() { return first_; }
-        T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
-
-        // create sub-partions 
-        std::vector<Partition<T>> sub_partitions(int nmax) {
-            std::vector<Partition<T>> table;
-
-            int offset = 0;
-            int n_partitions = dims_.x / nmax;
-            dim3_t d(nmax, dims_.y, dims_.z);
-            for (int i = 0; i < n_partitions; i++) {
-                table.push_back(Partition<T>(d, slice(offset)));
-                offset += nmax;
-            }
-            int n_extra = dims_.x % nmax;
-            if (n_extra > 0) {
-                d.x = n_extra;
-                table.push_back(Partition<T>(d, slice(offset)));
-            }
-            return table;
-        }
-    
-        // and with halo, as well
-        std::vector<Partition<T>> sub_partitions(int partition_size, int halo) {
-            std::vector<Partition<T>> table;    
-
-            int sub_halo[2];
-            int slcs = dims_.x - halo_[0] - halo_[1];
-            int n_partitions = slcs / partition_size;
-            int n_extra = slcs % partition_size;
-            std::vector<int> locations;
-
-            for (int i = 0; i < n_partitions; i++)
-                locations.push_back(halo_[0] + i * partition_size);
-            locations.push_back(halo_[0] + n_partitions * partition_size);
-
-            // if they don't divide nicely
-            if (n_extra > 0) {
-                locations.push_back(dims_.x);
-                n_partitions += 1;
+        public:
+            Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
+                size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x;
+                halo_[0] = 0;
+                halo_[1] = 0;
             }
 
-            for (int i = 0; i < n_partitions; i++) {
-                int imin = std::max(locations[i] - halo, 0);
-                // check if it is an end
-                if ((i == 0) && (halo_[0] == 0)) 
-                    sub_halo[0] = 0;
-                else 
-                    sub_halo[0] = halo;
-
-                int imax = std::min(locations[i+1] + halo, dims_.x);
-                // check if it is an end
-                if ((i == n_partitions-1) && (halo_[1] == 0))
-                    sub_halo[1] = 0;
-                else 
-                    sub_halo[1] = halo;
-
-                dim3_t d(imax-imin, dims_.y, dims_.z);
-                table.push_back(Partition<T>(d, slice(imin), sub_halo));
+            Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
+                size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x;
+                halo_[0] = h[0];
+                halo_[1] = h[1];
             }
-            return table;
-        }
+
+            dim3_t dims() const {
+                return dims_;
+            }
+            int nslices() const {
+                return dims_.x;
+            }
+            int nrows() const {
+                return dims_.y;
+            }
+            int ncols() const {
+                return dims_.z;
+            }
+            uint64_t size() const {
+                return size_;
+            }
+            size_t bytes() const {
+                return size_ * sizeof(T);
+            }
+            int  *halo() {
+                return halo_;
+            }
+            const int  *halo() const {
+                return halo_;
+            }
+
+            T *begin() {
+                return first_;
+            }
+            const T *begin() const {
+                return first_;
+            }
+            T *slice(int i) {
+                return first_ + i * dims_.y * dims_.z;
+            }
+            const T *slice(int i) const {
+                return first_ + i * dims_.y * dims_.z;
+            }
+
+            T &operator()(int i, int j, int k) {
+                return first_[i * dims_.y * dims_.z + j * dims_.z + k];
+            }
+            T operator()(int i, int j, int k) const {
+                return first_[i * dims_.y * dims_.z + j * dims_.z + k];
+            }
     };
+
+    // partition an array into sub-partitions
+    template <typename T>
+    std::vector<Partition<T>> create_partitions(Partition<T> &a,
+        int npartitions) {
+
+        // create sub-partitions
+        std::vector<Partition<T>> table;
+        auto dims = a.dims();
+
+        int xparts = dims.x / npartitions;
+        int nextra = dims.x % npartitions;
+        int offset = 0;
+        for (int i = 0; i < npartitions; i++) {
+            dim3_t d(xparts, dims.y, dims.z);
+            if (i < nextra) d.x += 1;
+            table.push_back(Partition<T>(d, a.slice(offset)));
+            offset += d.x;
+        }
+        return table;
+    }
+
+    // partition an array into sub-partitions with halo in x-direction
+    template <typename T>
+    std::vector<Partition<T>> create_partitions(Partition<T> &a,
+        int npartitions, int halo) {
+
+        // sanity check
+        if (npartitions < 0) {
+            throw std::runtime_error("Number of partitions must be at least 1");
+        }
+
+        // partition the array into sub-partitions with halo in x-direction
+        std::vector<Partition<T>> table;
+        auto dims = a.dims();
+
+        // if there is only one partition, return the whole array
+        if (npartitions == 1) {
+            table.push_back(Partition<T>(dims, a.begin(), a.halo()));
+            return table;
+        }
+
+        // actual number of slices
+        int offset = a.halo()[0];
+        int nslcs = dims.x - a.halo()[0] - a.halo()[1];
+        int work = nslcs / npartitions;
+        int extra = nslcs % npartitions;
+
+        if (work == 0) {
+            throw std::runtime_error(
+                "Number of partitions is too large for the array");
+        }
+
+        // set pointers as if  there is no halo
+        std::vector<int> shares(npartitions, work);
+        for (int i = 0; i < extra; i++) {
+            shares[i] += 1;
+        }
+
+        // create the sub-partitions
+        int h[2];
+        for (int i = 0; i < npartitions; i++) {
+            if (i == 0) h[0] = a.halo()[0];
+            else h[0] = halo;
+            if (i == npartitions - 1) h[1] = a.halo()[1];
+            else h[1] = halo;
+            dim3_t d(shares[i] + h[0] + h[1], dims.y, dims.z);
+            table.push_back(Partition<T>(d, a.slice(offset - h[0]), h));
+            offset += shares[i];
+        }
+        return table;
+    }
 } // namespace tomocam
 
 #endif // TOMOCAM_PARTITION__H
-
