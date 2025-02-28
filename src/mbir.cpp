@@ -29,6 +29,7 @@
 #include "nufft.h"
 #include "optimize.h"
 #include "tomocam.h"
+#include "utils.h"
 
 #ifdef MULTIPROC
 #include "multiproc.h"
@@ -47,11 +48,14 @@ namespace tomocam {
         #endif
         sino /= maxv;
 
-        // preprocess
+        // pad and center
         int nrays = sino.ncols();
         sino = preproc(sino, center);
         int npad = (sino.ncols() - x0.ncols());
         x0 = pad2d(x0, npad, PadType::SYMMETRIC);
+
+        // backproject sinogram
+        auto sinoT = backproject(sino, angles, center);
 
         // recon dimensions
         int nslcs = sino.nslices();
@@ -72,9 +76,6 @@ namespace tomocam {
             grids[dev_id] = NUFFT::Grid<T>(nproj, ncols, angles.data(), dev_id);
         }
         SAFE_CALL(cudaSetDevice(current_dev));
-
-        // backproject sinogram
-        auto sinoT = backproject(sino, angles, center);
 
         // compute Lipschitz constant
         DArray<T> xtmp(dim3_t(1, ncols, ncols));
@@ -100,8 +101,10 @@ namespace tomocam {
 
         auto calc_error = [&sino, &grids, center](DArray<T> &x) -> T {
             T e = function_value(x, sino, grids, center);
+            double size = static_cast<double>(x.size());
             #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
+            size = multiproc::mp.SumReduce(size);
             #endif
             return e;
         };
