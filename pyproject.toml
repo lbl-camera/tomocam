@@ -1,20 +1,17 @@
-[tool.poetry]
-name = "tomocam"
-version = "0.1.0"
-description = "tomography reconstruction with tomocam"
-authors = ["Tomocam Developers"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.6"
 
 [build-system]
-requires = ["poetry-core>=1.0.0",
-            "setuptools>=42.0.0",
-            "wheel>=0.32.0",
-            "setuptools_cpp>=0.0.11"]
-build-backend = "poetry.core.masonry.api"
+requires = [ "setuptools>=42.0.0", "wheel>=0.32.0", "setuptools_cpp>=0.0.11" ]
+build-backend = "setuptools.build_meta"
 
-[tool.poetry.build]
-script = "build.py"
-generate-setup-file = true
+[project]
+name = "tomocam"
+version = "3.0.1"
+description = "tomocam: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs."
+readme = "README.md"
+authors = [ {name = "Dinesh Kumar", email = "dkumar@lbl.gov"} ]
+dependencies = [ "numpy" ]
+requires-python = ">=3.6"
+
+
+
+
