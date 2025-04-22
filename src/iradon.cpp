@@ -97,7 +97,6 @@ namespace tomocam {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
         }
-
         return output;
     }
 
