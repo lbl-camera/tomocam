@@ -3,7 +3,8 @@
 #include <iostream>
 #include <random>
 
-#ifndef TIMEIT_H
+#ifndef UTILS__H
+#define UTILS__H
 
 class Timer {
     private:
@@ -52,4 +53,5 @@ class NPRandom {
             return static_cast<T>((a * 67108864.0 + b) / 9007199254740992.0);
         }
 };
-#endif // TIMEIT_H
+
+#endif // UTILS__H
