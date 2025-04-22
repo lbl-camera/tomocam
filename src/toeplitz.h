@@ -24,6 +24,7 @@
 #include "types.h"
 
 #include "gpu/padding.cuh"
+#include "gpu/fftshift.cuh"
 
 #ifndef TOEPLITZ__H
 #define TOEPLITZ__H
@@ -34,7 +35,18 @@ namespace tomocam {
     class PointSpreadFunction {
         private:
             int device_;
+            bool initialized_ = false;
+            cufftHandle r2c_;
+            cufftHandle c2r_;
             DeviceArray<gpu::complex_t<T>> psf_;
+            
+            void create_plans(const dim3_t &dims) {
+                // create plans
+                r2c_ = fftPlan2D(dims, CUFFT_R2C);
+                c2r_ = fftPlan2D(dims, CUFFT_C2R);
+                // set the initialized flag
+                initialized_ = true;
+            }
 
         public:
             PointSpreadFunction() = default;
@@ -61,8 +73,8 @@ namespace tomocam {
                 // get the real part
                 auto psf = real(temp);
 
-                // zero pad for convolution (N1 + ncols - 1)
-                psf = gpu::pad2d<T>(psf, ncols - 1, PadType::RIGHT);
+                // shift 0 to the beginning
+                psf = gpu::ifftshift2(psf);
 
                 // compute FFT(psf)
                 psf_ = rfft2D(psf);
@@ -74,8 +86,7 @@ namespace tomocam {
                 int dev;
                 SAFE_CALL(cudaGetDevice(&dev));
                 if (dev != device_) {
-                    std::cerr
-                            << "Error: device mismatch in PointSpreadFunction::convolve"
+                    std::cerr << "Error: device mismatch in PointSpreadFunction::convolve"
                         << std::endl;
                 }
 
@@ -84,9 +95,12 @@ namespace tomocam {
 
                 // pad x to match the size of the psf
                 int padding = psf_.nrows() - x.nrows();
-
+        
                 // zero pad
-                auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT);
+                auto xpad = gpu::pad2d<T>(x, padding, PadType::SYMMETRIC);
+             
+                // shift 0 to the beginning
+                xpad = gpu::ifftshift2(xpad);
 
                 // fft(x) Real -> complex
                 auto xft = rfft2D<T>(xpad);
@@ -99,6 +113,56 @@ namespace tomocam {
 
                 // ifft(g * x) complex -> real
                 auto tmp2 = irfft2D<T>(xft_psf);
+              
+                // shift 0 to the center
+                tmp2 = gpu::fftshift2(tmp2);
+
+
+                // remove padding
+                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::SYMMETRIC);
+
+                return g / scale;
+            }
+
+            DeviceArray<T> convolve2(const DeviceArray<T> &x) {
+
+                // set the device
+                int dev;
+                SAFE_CALL(cudaGetDevice(&dev));
+                if (dev != device_) {
+                    std::cerr << "Error: device mismatch in PointSpreadFunction::convolve"
+                        << std::endl;
+                }
+
+                // scale for normalization
+                T scale = std::pow(x.nrows(), 3);
+
+                // pad x to match the size of the psf
+                int padding = psf_.nrows() - x.nrows();
+        
+                // zero pad
+                auto xpad = gpu::pad2d<T>(x, padding, PadType::SYMMETRIC);
+
+                // create plans if not already created
+                if (!initialized_) this->create_plans(xpad.dims());
+             
+                // shift 0 to the beginning
+                xpad = gpu::ifftshift2(xpad);
+
+                // fft(x) Real -> complex
+                auto xft = rfft2D<T>(r2c_, xpad);
+
+                // broadcast-multiply
+                auto xft_psf = xft.multiply(psf_);
+
+                // scale by the size of the image
+                xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
+
+                // ifft(g * x) complex -> real
+                auto tmp2 = irfft2D<T>(c2r_, xft_psf);
+              
+                // shift 0 to the center
+                tmp2 = gpu::fftshift2(tmp2);
 
                 // remove padding
                 auto g = gpu::unpad2d<T>(tmp2, padding, PadType::SYMMETRIC);
