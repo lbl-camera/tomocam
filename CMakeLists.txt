@@ -23,8 +23,17 @@ set(tomocam_VERSION_MAJOR 3)
 set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
-set(CMAKE_CXX_STANDARD 20) 
+set(CMAKE_CXX_STANDARD 23) 
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
+
+# set flag for gprof
+option(ENABLE_GPROF "Enable gprof" OFF)
+message("-- -DENABLE_GPROF:BOOL=ON to enable gprof")
+if (ENABLE_GPROF)
+    message("-- gprof is enabled")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+endif(ENABLE_GPROF)
 
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)
@@ -133,10 +142,11 @@ target_include_directories(tomocam PUBLIC ${CMAKE_BINARY_DIR}/finufft/include)
 target_link_libraries(tomocam PUBLIC ${CMAKE_BINARY_DIR}/finufft/lib/libcufinufft.so)
 target_link_libraries(tomocam PUBLIC CUDA::cufft)
 target_link_libraries(tomocam PUBLIC CUDA::cudart)
+target_link_libraries(tomocam PUBLIC -lstdc++exp)
 target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
 target_link_libraries(tomocam PUBLIC ${HDF5_LIBRARIES})
 target_link_libraries(tomocam PUBLIC ${MPI_C_LIBRARIES})
-target_compile_features(tomocam PUBLIC cxx_std_20)
+target_compile_features(tomocam PUBLIC cxx_std_23)
 
 
 # build python module
@@ -148,7 +158,7 @@ set_target_properties(cTomocam PROPERTIES
 target_link_libraries(cTomocam PUBLIC tomocam)
 target_link_libraries(tomocam PUBLIC pybind11::module)
 target_link_libraries(tomocam PUBLIC ${Python_LIBRARIES})
-target_compile_features(cTomocam PUBLIC cxx_std_20)
+target_compile_features(cTomocam PUBLIC cxx_std_23)
 
 
 option(ENABLE_TESTS "Enable tests" OFF)
