@@ -30,6 +30,10 @@ class Timer {
             return duration_.count();
         }
 
+        double seconds() {
+            return static_cast<double>(duration_.count()) / 1000.0;
+        }
+
 };
 
 class NPRandom {
