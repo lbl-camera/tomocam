@@ -47,8 +47,7 @@ namespace tomocam {
         T sum = 0;
 
         // create a scheduler
-        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1,
-            p2);
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1, p2);
 
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
@@ -75,12 +74,13 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nDevice);
 
         std::vector<T> retval(nDevice);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
             retval[i] = funcval2(p1[i], p2[i], psf[i], i);
 
         // wait for devices to finish
         T fval = sino_sq;
+        #pragma omp parallel for reduction(+:fval) num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());

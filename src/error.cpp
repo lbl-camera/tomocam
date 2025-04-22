@@ -73,12 +73,13 @@ namespace tomocam {
         auto p2 = create_partitions(sino, nDevice);
 
         std::vector<T> retval(nDevice);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
             retval[i] = funcval(p1[i], p2[i], nugrids[i], center, i);
 
         // wait for devices to finish
         T fval = 0;
+        #pragma omp parallel for reduction(+:fval) num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
