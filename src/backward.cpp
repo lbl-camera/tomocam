@@ -43,11 +43,12 @@ namespace tomocam {
 
         /* back-project */
         // shift 0-frequency to corner
-        in2 = ifftshift(in2);
+        in2 = gpu::ifftshift(in2);
+
         // forward FFT in radial direction
         in2 = fft1D(in2);
         // shift 0-frequency  to center
-        in2 = fftshift(in2);
+        in2 = gpu::fftshift(in2);
 
         // nufft type 1
         auto out = nufft2d1(in2, grid);
