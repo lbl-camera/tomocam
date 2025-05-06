@@ -1,13 +1,13 @@
 #!/bin/bash
 header="/* -------------------------------------------------------------------------------
- * Tomocam Copyright \(c\) 2018
+ * Tomocam Copyright (c) 2018
  *
  * The Regents of the University of California, through Lawrence Berkeley
- * National Laboratory \(subject to receipt of any required approvals from the
- * U.S. Dept. of Energy\). All rights reserved.
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
  *
  * If you have questions about your rights to use or distribute this software,
- * please contact Berkeley Lab\'s Innovation & Partnerships Office at
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
  * IPO@lbl.gov.
  *
  * NOTICE. This Software was developed under funding from the U.S. Department of
@@ -24,7 +24,9 @@ files=$(find ./src -type f)
 for file in $files; do
     if ! grep -q "$copyright" $file; then
         echo "Adding license to file $file"
-        cat LIC_HEADER $file > $file.tmp && mv $file.tmp $file
+        echo "$header" > $file.new
+        cat $file >> $file.new
+        mv $file.new $file
     fi
 
 done
