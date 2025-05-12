@@ -22,7 +22,6 @@
 #include <iostream>
 #include <utility>
 #include <functional>
-#include <pybind11/pybind11.h>
 
 #include "dist_array.h"
 #include "machine.h"
