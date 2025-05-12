@@ -26,7 +26,11 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
-                    "value": "OFF"
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
                 }
             }
         },
@@ -43,6 +47,10 @@
                 "MULTI_PROC": {
                     "type": "BOOL",
                     "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
                 }
             }
         } 
@@ -50,11 +58,13 @@
     "buildPresets": [
         {
             "name": "debug",
-            "configurePreset": "debug"
+            "configurePreset": "debug",
+            "jobs": 8
         },
         {
             "name": "release",
-            "configurePreset": "release"
+            "configurePreset": "release",
+            "jobs": 8
         },
         {
             "name": "multiproc",
