@@ -35,12 +35,18 @@ namespace tomocam {
         Timer() = default;
 
         void start() {
+            elapsed_time_ = std::chrono::duration<double>(0);
             start_time_ = std::chrono::high_resolution_clock::now();
         }
 
         void stop() {
             end_time_ = std::chrono::high_resolution_clock::now();
             elapsed_time_ += end_time_ - start_time_;
+        }
+
+        uint64_t elapsed() {
+            elapsed_time_ = std::chrono::high_resolution_clock::now() - start_time_;
+            return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_).count();
         }
 
         double ms() const {
@@ -58,6 +64,12 @@ namespace tomocam {
         double seconds() const {
             return std::chrono::duration_cast<std::chrono::seconds>(
                 elapsed_time_)
+                .count();
+        }
+
+        uint64_t now() const {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now().time_since_epoch())
                 .count();
         }
 
