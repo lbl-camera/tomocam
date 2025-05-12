@@ -29,7 +29,9 @@
 #include "toeplitz.h"
 #include "types.h"
 
+#ifdef DEBUG
 #include "debug.h"
+#endif
 
 namespace tomocam {
 
@@ -41,7 +43,7 @@ namespace tomocam {
         cudaSetDevice(device_id);
 
         // sub-partitions
-        int nslcs = Machine::config.num_of_partitions(recon.nslices());
+        int nslcs = Machine::config.num_of_partitions(recon.dims(), recon.bytes());
         auto p1 = create_partitions(recon, nslcs);
         auto p2 = create_partitions(sinoT, nslcs);
         T sum = 0;
@@ -53,7 +55,7 @@ namespace tomocam {
             auto work = scheduler.get_work();
             if (work.has_value()) {
                 auto[idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve(d_recon);
+                auto t1 = psf.convolve2(d_recon);
                 auto t2 = d_recon.dot(t1);
                 auto t3 = d_recon.dot(d_sinoT);
                 sum += (t2 - 2 * t3);
