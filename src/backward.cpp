@@ -29,8 +29,12 @@
 #include "nufft.h"
 #include "types.h"
 
-#include "debug.h"
 #include "gpu/padding.cuh"
+
+#ifdef DEBUG
+#include "debug.h"
+#endif
+
 
 namespace tomocam {
 
