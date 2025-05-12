@@ -57,7 +57,6 @@ namespace tomocam {
 
         /**
          * @brief pads a 2D array.
-         * data is equally padded on both sides of the array.
          *
          * @tparam T
          * @param arr
@@ -68,6 +67,20 @@ namespace tomocam {
          */
         template <typename T>
         DeviceArray<T> pad2d(const DeviceArray<T> &, int, PadType);
+
+
+        /**
+         * @brief pads a 2D array.
+         * data is equally padded on both sides of the array.
+         *
+         * @tparam T
+         * @param arr destination array
+         * @param arr source array
+         * @param pad_size
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
+         */
+        template <typename T>
+        void pad2d(DeviceArray<T> &, const DeviceArray<T> &, int, PadType);
 
         /**
          * @brief Unpads a 2D array.
@@ -82,6 +95,18 @@ namespace tomocam {
         template <typename T>
         DeviceArray<T> unpad2d(const DeviceArray<T> &, int, PadType);
 
+        /**
+         * @brief Unpads a 2D array.
+         * data is equally cropped from both sides of the array.
+         *
+         * @tparam T
+         * @param arr destination array
+         * @param arr source array
+         * @param pad_size
+         * @param PadType (LEFT, RIGHT, SYMMETRIC)
+         */
+        template <typename T>
+        void unpad2d(DeviceArray<T> &, const DeviceArray<T> &, int, PadType);
     } // namespace gpu
 } // namespace tomocam
 
