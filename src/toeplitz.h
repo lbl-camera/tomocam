@@ -24,7 +24,6 @@
 #include "types.h"
 
 #include "gpu/padding.cuh"
-#include "gpu/fftshift.cuh"
 
 #ifndef TOEPLITZ__H
 #define TOEPLITZ__H
@@ -35,20 +34,15 @@ namespace tomocam {
     class PointSpreadFunction {
         private:
             int device_;
+            int batch_size_;
             bool initialized_ = false;
             cufftHandle r2c_;
             cufftHandle c2r_;
             DeviceArray<gpu::complex_t<T>> psf_;
+            mutable DeviceArray<T> xpad_;
             
-            void create_plans(const dim3_t &dims) {
-                // create plans
-                r2c_ = fftPlan2D(dims, CUFFT_R2C);
-                c2r_ = fftPlan2D(dims, CUFFT_C2R);
-                // set the initialized flag
-                initialized_ = true;
-            }
-
         public:
+
             PointSpreadFunction() = default;
 
             PointSpreadFunction(const NUFFT::Grid<T> &grid) {
@@ -73,101 +67,88 @@ namespace tomocam {
                 // get the real part
                 auto psf = real(temp);
 
-                // shift 0 to the beginning
-                psf = gpu::ifftshift2(psf);
-
                 // compute FFT(psf)
                 psf_ = rfft2D(psf);
             }
 
+            ~PointSpreadFunction() {
+                // destroy plans
+                if (initialized_) {
+                    SAFE_CALL(cufftDestroy(r2c_));
+                    SAFE_CALL(cufftDestroy(c2r_));
+                }
+            }
+
+            void create_plans(int batch_size) {
+                // create plans
+                auto dims = dim3_t(batch_size, psf_.nrows(), psf_.nrows());
+                batch_size_ = batch_size;
+                r2c_ = fftPlan2D(dims, CUFFT_R2C);
+                c2r_ = fftPlan2D(dims, CUFFT_C2R);
+                xpad_ = DeviceArray<T>(dims);
+                // set the initialized flag
+                initialized_ = true;
+            }
+
+            int batch_size() const { return batch_size_; }
+
             DeviceArray<T> convolve(const DeviceArray<T> &x) const {
 
-                // set the device
-                int dev;
-                SAFE_CALL(cudaGetDevice(&dev));
-                if (dev != device_) {
-                    std::cerr << "Error: device mismatch in PointSpreadFunction::convolve"
-                        << std::endl;
-                }
-
                 // scale for normalization
-                T scale = std::pow(x.nrows(), 3);
+                T scale1 = std::pow(x.nrows(), 3);
 
                 // pad x to match the size of the psf
                 int padding = psf_.nrows() - x.nrows();
         
                 // zero pad
-                auto xpad = gpu::pad2d<T>(x, padding, PadType::SYMMETRIC);
+                auto xpad = gpu::pad2d<T>(x, padding, PadType::RIGHT);
+                T scale2 = static_cast<T>(xpad.nrows() * xpad.ncols());
              
-                // shift 0 to the beginning
-                xpad = gpu::ifftshift2(xpad);
-
                 // fft(x) Real -> complex
                 auto xft = rfft2D<T>(xpad);
 
                 // broadcast-multiply
                 auto xft_psf = xft.multiply(psf_);
 
-                // scale by the size of the image
-                xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
-
                 // ifft(g * x) complex -> real
                 auto tmp2 = irfft2D<T>(xft_psf);
               
-                // shift 0 to the center
-                tmp2 = gpu::fftshift2(tmp2);
-
-
                 // remove padding
-                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::SYMMETRIC);
+                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::LEFT);
 
-                return g / scale;
+                return g / (scale1 * scale2);
             }
 
-            DeviceArray<T> convolve2(const DeviceArray<T> &x) {
-
-                // set the device
-                int dev;
-                SAFE_CALL(cudaGetDevice(&dev));
-                if (dev != device_) {
-                    std::cerr << "Error: device mismatch in PointSpreadFunction::convolve"
-                        << std::endl;
-                }
+            DeviceArray<T> convolve2(const DeviceArray<T> &x) const {
 
                 // scale for normalization
-                T scale = std::pow(x.nrows(), 3);
+                T scale1 = std::pow(x.nrows(), 3);
 
                 // pad x to match the size of the psf
                 int padding = psf_.nrows() - x.nrows();
         
                 // zero pad
-                auto xpad = gpu::pad2d<T>(x, padding, PadType::SYMMETRIC);
+                gpu::pad2d<T>(xpad_, x, padding, PadType::RIGHT);
+                T scale2 = static_cast<T>(xpad_.nrows() * xpad_.ncols());
 
                 // create plans if not already created
-                if (!initialized_) this->create_plans(xpad.dims());
+                if (!initialized_) {
+                    std::runtime_error("Error: plans not created in PointSpreadFunction::convolve");
+                }
              
-                // shift 0 to the beginning
-                xpad = gpu::ifftshift2(xpad);
-
                 // fft(x) Real -> complex
-                auto xft = rfft2D<T>(r2c_, xpad);
+                auto xft = rfft2D<T>(r2c_, xpad_);
 
                 // broadcast-multiply
                 auto xft_psf = xft.multiply(psf_);
 
-                // scale by the size of the image
-                xft_psf /= static_cast<T>(xpad.nrows() * xpad.ncols());
-
                 // ifft(g * x) complex -> real
                 auto tmp2 = irfft2D<T>(c2r_, xft_psf);
               
-                // shift 0 to the center
-                tmp2 = gpu::fftshift2(tmp2);
-
                 // remove padding
-                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::SYMMETRIC);
+                auto g = gpu::unpad2d<T>(tmp2, padding, PadType::LEFT);
 
-                return g / scale;
+                return g / (scale1 * scale2);
             }
     };
 }
