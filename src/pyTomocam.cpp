@@ -130,11 +130,7 @@ PYBIND11_MODULE(cTomocam, m) {
 
     // set gpu paramters
     m.def("set_num_of_gpus", [](int num) {
-        tomocam::Machine::config.setNumOfGPUs(num);
-        });
-
-    m.def("set_slices_per_stream", [](int num) {
-        tomocam::Machine::config.setSlicesPerStream(num);
+        tomocam::Machine::config.num_of_gpus(num);
         });
 
     // radon transform
