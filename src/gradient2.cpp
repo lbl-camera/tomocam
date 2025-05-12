@@ -19,7 +19,7 @@
  */
 
 #include <iostream>
-#include <omp.h>
+#include <thread>
 #include <vector>
 
 #include "dev_array.h"
@@ -35,13 +35,13 @@ namespace tomocam {
 
     template <typename T>
     void gradient2_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        PointSpreadFunction<T> &psf, int device_id) {
+        const PointSpreadFunction<T> &psf, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.nslices());
+        int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
@@ -51,14 +51,21 @@ namespace tomocam {
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
+
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_f, d_sinoT] = work.value();
 
                 // compute gradient
-                auto tmp = psf.convolve2(d_f);
-                auto d_g = tmp - d_sinoT;
+                auto d_g = DeviceArray<T>();
+                if (d_f.nslices() == psf.batch_size()) {
+                    // partition size matches the batch size
+                    d_g = psf.convolve2(d_f) - d_sinoT;
+                } else {
+                    // otherwise, use the slow method
+                    d_g = psf.convolve(d_f) - d_sinoT;
+                }
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
@@ -69,7 +76,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient2(DArray<T> &solution, DArray<T> &sinoT,
-        std::vector<PointSpreadFunction<T>> &psfs) {
+        const std::vector<PointSpreadFunction<T>> &psfs) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -82,16 +89,14 @@ namespace tomocam {
         auto p3 = create_partitions(gradient, nDevice);
 
         // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            gradient2_<T>(p1[i], p2[i], p3[i], psfs[i], i);
+            threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i], std::cref(psfs[i]), i);
         }
 
         // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
+            threads[i].join();
         }
         return gradient;
     }
@@ -99,10 +104,10 @@ namespace tomocam {
     // specialization for float
     template DArray<float> gradient2<float>(DArray<float> &solution,
         DArray<float> &sinoT,
-        std::vector<PointSpreadFunction<float>> &psfs);
+        const std::vector<PointSpreadFunction<float>> &psfs);
     // specialization for double
     template DArray<double> gradient2<double>(DArray<double> &solution,
         DArray<double> &sinoT,
-        std::vector<PointSpreadFunction<double>> &psfs);
+        const std::vector<PointSpreadFunction<double>> &psfs);
 
 } // namespace tomocam
