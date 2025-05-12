@@ -26,7 +26,9 @@
 #include "tomocam.h"
 #include "machine.h"
 
+#ifdef DEBUG
 #include "debug.h"
+#endif
 
 #ifndef TOMOCAM_OPTIMIZE__H
 #define TOMOCAM_OPTIMIZE__H
