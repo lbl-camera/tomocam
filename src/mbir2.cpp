@@ -22,7 +22,6 @@
 #include <iostream>
 #include <utility>
 #include <functional>
-#include <pybind11/pybind11.h>
 
 #include "dist_array.h"
 #include "optimize.h"
@@ -97,16 +96,23 @@ namespace tomocam {
         if (step_size > 1) step_size = 1;
         T p = 1.2;
 
+        // create fft plans
+        int nbatch = Machine::config.slicesPerStream();
+        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
+            SAFE_CALL(cudaSetDevice(dev_id));
+            psfs[dev_id].create_plans(nbatch);
+        }
+
         // create callable functions for optimization
         auto calc_gradient = [&sinoT, &psfs, sigma, p](DArray<T> &x) -> DArray<T> {
             auto g = gradient2(x, sinoT, psfs);
-            add_total_var(x, g, sigma, p);
+            add_total_var2(x, g, sigma, p);
             return g;
         };
 
-        auto calc_error = [&sino2, &grids, center](DArray<T> &x) -> T {
+        auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
             //auto e = function_value2(x, sinoT, psfs, sino_norm);
-            auto e = function_value(x, sino2, grids, center);
+            auto e = function_value2(x, sinoT, psfs, sino_norm);
             #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
             #endif
