@@ -81,7 +81,7 @@ namespace tomocam {
 
     template <typename T>
     DArray<T> gradient2(DArray<T> &, DArray<T> &,
-        std::vector<PointSpreadFunction<T>> &);
+        const std::vector<PointSpreadFunction<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -121,6 +121,8 @@ namespace tomocam {
      */
     template <typename T>
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
+    template <typename T>
+    void add_total_var2(DArray<T> &, DArray<T> &, T, T);
 
     /** 
      * @brief Compute the MBIR reconstruction using Toeplitz matrix.
