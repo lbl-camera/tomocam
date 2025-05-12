@@ -16,14 +16,15 @@
 
 int main(int argc, char **argv) {
 
+    const int nslices = 64;
     const int nprojs = 360;
-    const int npixel = 511;
+    const int npixel = 2047;
     const float center = static_cast<float>(npixel - 1) / 2;
 
     auto rng = NPRandom();
 
     // create data
-    tomocam::DArray<float> sino(tomocam::dim3_t{1, nprojs, npixel});
+    tomocam::DArray<float> sino(tomocam::dim3_t{nslices, nprojs, npixel});
     for (int i = 0; i < sino.size(); i++) {
         sino[i] = rng.rand<float>();
     }
@@ -35,17 +36,20 @@ int main(int argc, char **argv) {
     }
 
     // allocate solution array
-    tomocam::dim3_t dims = {1, npixel, npixel};
+    tomocam::dim3_t dims = {nslices, npixel, npixel};
     tomocam::DArray<float> x1(dims);
     x1.init(1.f);
     auto x2 = x1;
 
     // backproject sinogram
+    Timer t1;
+    t1.start();
     auto yT = tomocam::backproject(sino, angs, center);
 
     // gradient 1
-    auto t1 = tomocam::project(x1, angs, center) - sino;
-    auto g1 = tomocam::backproject(t1, angs, center);
+    auto tmp = tomocam::project(x1, angs, center) - sino;
+    auto g1 = tomocam::backproject(tmp, angs, center);
+    t1.stop();
 
     // gradient 2
     // create NUFFT grids
@@ -59,7 +63,13 @@ int main(int argc, char **argv) {
 
     // compute gradient
     float c = 0;
+    Timer t2;
+    t2.start();
     auto g2 = tomocam::gradient2(x2, yT, psfs);
+    t2.stop();
+
+    // report time
+    fprintf(stdout,  "g1(ms): %d, g2(ms): %d\n", t1.ms(), t2.ms());
 
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");
