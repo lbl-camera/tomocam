@@ -32,6 +32,13 @@ cd tomocam
 pip install .
 ```
 
+**Citation**
+------------
+If you use this code in your research, please cite the following paper:
+
+Kumar, D., Parkinson, D. Y. and Donatelli, J. J. (2024). *tomoCAM: fast model-based iterative reconstruction via GPU acceleration and non-uniform fast Fourier transforms*. **J. Synchrotron Rad**. 31, 85-94. https://doi.org/10.1107/S1600577523008962
+
+
 
 **Copyright Notice**
 ---------------------
