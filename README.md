@@ -3,11 +3,10 @@ tomoCAM: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography d
 **Dependencies**
 ----------------
 
-1. CUDA (with cufft and cublas)
+1. CUDA
 2. pybind11
 3. numpy
 4. cmake
-5. cufinufft (https://github.com/flatironinstitute/cufinufft)
 
 **Installation**
 -----------------
@@ -17,8 +16,6 @@ Make sure `CUDA`, `cmake`, and `pybind11` are installed.
 
 
 ```
-install cufinufft
-edit setup.cfg to reflect location of cufinufft
 pip install virtualenv
 virtualenv -p /usr/bin/python3 tomocam-venv
 source tomocam-venv/bin/activate
@@ -27,10 +24,17 @@ source tomocam-venv/bin/activate
 with or without virtualenv
 
 ```
-pip install numpy
+git clone https://github.com/lbl-camera/tomocam.git
 cd tomocam
 pip install .
 ```
+
+**Citation**
+------------
+If you use this code in your research, please cite the following paper:
+
+Kumar, D., Parkinson, D. Y. and Donatelli, J. J. (2024). *tomoCAM: fast model-based iterative reconstruction via GPU acceleration and non-uniform fast Fourier transforms*. **J. Synchrotron Rad**. 31, 85-94. https://doi.org/10.1107/S1600577523008962
+
 
 
 **Copyright Notice**
