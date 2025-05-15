@@ -29,7 +29,9 @@
 #include "toeplitz.h"
 #include "types.h"
 
+#ifdef DEBUG
 #include "debug.h"
+#endif
 
 namespace tomocam {
 
@@ -41,20 +43,19 @@ namespace tomocam {
         cudaSetDevice(device_id);
 
         // sub-partitions
-        int nslcs = Machine::config.num_of_partitions(recon.nslices());
+        int nslcs = Machine::config.num_of_partitions(recon.dims(), recon.bytes());
         auto p1 = create_partitions(recon, nslcs);
         auto p2 = create_partitions(sinoT, nslcs);
         T sum = 0;
 
         // create a scheduler
-        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1,
-            p2);
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1, p2);
 
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
                 auto[idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve(d_recon);
+                auto t1 = psf.convolve2(d_recon);
                 auto t2 = d_recon.dot(t1);
                 auto t3 = d_recon.dot(d_sinoT);
                 sum += (t2 - 2 * t3);
@@ -75,12 +76,13 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nDevice);
 
         std::vector<T> retval(nDevice);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
             retval[i] = funcval2(p1[i], p2[i], psf[i], i);
 
         // wait for devices to finish
         T fval = sino_sq;
+        #pragma omp parallel for reduction(+:fval) num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());

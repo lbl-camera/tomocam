@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     // if number of columns is even, drop one column
     if (sino.ncols() % 2 == 0) {
         sino.dropcol();
-        center -= 1;
+        //center -= 1;
     }
 
     float cen = static_cast<float>(center);
@@ -108,15 +108,23 @@ int main(int argc, char **argv) {
     x0.init(1.f);
 
     // run MBIR
-    Timer t;
-    t.start();
-    auto recon = tomocam::mbir<float>(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
-    t.stop();
+    Timer t1, t2;
+    //t1.start();
+    //auto recon = tomocam::mbir(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
+    //t1.stop();
+    t2.start();
+    auto recon2 = tomocam::mbir2(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
+    t2.stop();
+   
+    // print time taken 
+    //fprintf(stdout, "MBIR time(s): %f\n", t1.seconds());
+    //fprintf(stdout, "MBIR2 time(s): %f\n", t2.seconds());
 
     #ifdef MULTIPROC
     if (myrank == 0)
     #endif
-        std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
+        std::cout << "time taken(s): " << t2.seconds() << std::endl;
+    exit(0);
 
     // save reconstruction
     #ifdef MULTIPROC
@@ -130,7 +138,7 @@ int main(int argc, char **argv) {
     auto outf = cfg["output"].get<std::string>();
     #endif
     tomocam::h5::Writer writer(outf.c_str());
-    writer.write("recon", recon);
+    writer.write("recon", recon2);
 
     #ifdef MULTIPROC
     tomocam::multiproc::mp.finalize();

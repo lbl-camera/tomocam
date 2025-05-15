@@ -45,7 +45,7 @@ namespace tomocam {
             auto dims = arr.dims();
             DeviceArray<T> out(dims);
             Grid grid(dims);
-            roll_kernel<T> <<< grid.blocks(), grid.threads()>>>(arr, out, delta);
+            roll_kernel<T> <<<grid.blocks(), grid.threads()>>>(arr, out, delta);
             return out;
         }
         // explicit instantiation
@@ -56,38 +56,40 @@ namespace tomocam {
         template DeviceArray<complex_t<double>> roll(
             const DeviceArray<complex_t<double>> &, int);
 
-        /* --------------------------------------------------------------------
-         */
-        // fftshift
-        template <typename T>
-        __global__ void phase_shift_kernel(const DeviceMemory<complex_t<T>> in,
-            DeviceMemory<complex_t<T>> out, T delta) {
+        /* -------------------------------------------------------------------- */
 
+        template <typename T>
+        __global__ void roll2(const DeviceMemory<T> in, DeviceMemory<T> out, int delta_y, int delta_z) {
+
+            // indices
             dim3_t dims = in.dims();
             int3 idx = Index3D();
             if (idx < dims) {
-                T q = 2 * M_PI * idx.z / dims.z * delta;
-                out[idx] = complex_t<T>(cuda::std::cos(q), cuda::std::sin(q)) *
-                    in[idx];
+                int3 idx2 = idx;
+                idx2.y = (idx.y + delta_y + dims.y) % dims.y;
+                idx2.z = (idx.z + delta_z + dims.z) % dims.z;
+                out[idx] = in[idx2];
             }
         }
 
         template <typename T>
-        DeviceArray<complex_t<T>> phase_shift(
-            const DeviceArray<complex_t<T>> &in, T delta) {
+        DeviceArray<T> roll2(const DeviceArray<T> &arr, int delta_y, int delta_z) {
 
-            DeviceArray<complex_t<T>> out(in.dims());
-            Grid grid(in.dims());
-            phase_shift_kernel<T>
-            <<< grid.blocks(), grid.threads()>>>(in, out, delta);
+            // indices
+            auto dims = arr.dims();
+            DeviceArray<T> out(dims);
+            Grid grid(dims);
+            roll2<T> <<<grid.blocks(), grid.threads()>>>(arr, out, delta_y, delta_z);
             return out;
         }
 
         // explicit instantiation
-        template DeviceArray<complex_t<float>> phase_shift(
-            const DeviceArray<complex_t<float>> &, float);
-        template DeviceArray<complex_t<double>> phase_shift(
-            const DeviceArray<complex_t<double>> &, double);
+        template DeviceArray<float> roll2(const DeviceArray<float> &, int, int);
+        template DeviceArray<double> roll2(const DeviceArray<double> &, int, int);
+        template DeviceArray<complex_t<float>> roll2(
+            const DeviceArray<complex_t<float>> &, int, int);
+        template DeviceArray<complex_t<double>> roll2(
+            const DeviceArray<complex_t<double>> &, int, int);
 
     } // namespace gpu
 } // namespace tomocam

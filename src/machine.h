@@ -37,6 +37,9 @@ namespace tomocam {
         MachineConfig() {
 
             cudaGetDeviceCount(&ndevice_);
+            #ifdef DEBUG
+            ndevice_ = 1; // for debugging
+            #endif
 
             //check avilable GPU for managed memory access
             std::vector<int> devices;
@@ -48,40 +51,25 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-            slcsPerStream_ = 16; // slices
+            slcsPerStream_ = 4; // slices
         }
 
         MachineConfig(const MachineConfig &) = delete;
         MachineConfig &operator=(const MachineConfig &) = delete;
 
-        // sync all devices
-        void synchronize() {
-            int curr_dev = -1;
-            cudaGetDevice(&curr_dev);
-
-            for (int i = 0; i < ndevice_; i++) {
-                cudaSetDevice(i);
-                cudaDeviceSynchronize();
-            }
-            // reset original device
-            cudaSetDevice(curr_dev);
-        }
-
         // setters
-        void setNumOfGPUs(int ndev) { ndevice_ = ndev; }
-        void setSlicesPerStream(int slc) { slcsPerStream_ = slc; }
+        void num_of_gpus(int ndev)  {
+            if ((ndev > 0) && (ndev <= ndevice_)) {
+                ndevice_ = ndev;
+            } else {
+                std::cerr << "Invalid number of GPUs. Using default: " << ndevice_ << std::endl;
+            }
+        }
 
         // getters
         int num_of_gpus() const { return ndevice_; }
         int is_unified() const { return unified_; }
         int slicesPerStream() const { return slcsPerStream_; }
-
-        /* calculate number of sub-partitions */
-        int num_of_partitions(int slices) const {
-            int n_partitions = slices / slcsPerStream_;
-            if (slices % slcsPerStream_ > 0) n_partitions++;
-            return n_partitions;
-        }
 
         /* calculate number of sub-partitions, based on free memory */
         int num_of_partitions(dim3_t dims, size_t bytes) {
@@ -93,7 +81,7 @@ namespace tomocam {
 
             size_t bytes_per_slice = bytes / dims.x;
             int slcs_per_partition = max_allowed / bytes_per_slice;
-            int slcs = std::max(slcsPerStream_, slcs_per_partition);
+            int slcs = std::min(slcsPerStream_, slcs_per_partition);
 
             // number of partions
             int n_partitions = dims.x / slcs;

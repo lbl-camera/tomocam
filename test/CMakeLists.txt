@@ -10,6 +10,7 @@ target_link_libraries(padding PRIVATE nlohmann_json::nlohmann_json)
 
 
 add_executable(partition partition.cpp)
+target_link_libraries(partition PRIVATE tomocam)
 target_link_libraries(partition PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(partition PRIVATE ${MPI_C_LIBRARIES})
 
@@ -22,6 +23,7 @@ target_link_libraries(dropcol PRIVATE nlohmann_json::nlohmann_json)
 find_package(nlohmann_json REQUIRED)
 
 add_executable(read reader.cpp)
+target_link_libraries(read PRIVATE tomocam)
 target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(read PRIVATE ${MPI_C_LIBRARIES})
 target_link_libraries(read PRIVATE nlohmann_json::nlohmann_json)
@@ -40,7 +42,6 @@ target_link_libraries(gradient PRIVATE nlohmann_json::nlohmann_json)
 
 add_executable(tv tvd.cpp)
 target_link_libraries(tv PRIVATE tomocam)
-target_link_libraries(tv PRIVATE ${HDF5_LIBRARIES})
 
 # test for the forward projection
 add_executable(forward forward.cpp)

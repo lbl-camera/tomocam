@@ -18,11 +18,19 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+#include <fstream>
+#include <mutex>
+#include <map>
+#include <string>
+
 #include "dist_array.h"
 #include "dev_array.h"
 #include "hdf5/writer.h"
+#include "timer.h"
 
-#pragma once
+#ifndef CAM_DEBUG__H
+#define CAM_DEBUG__H
 
 namespace tomocam {
 
@@ -101,4 +109,35 @@ namespace tomocam {
         }
     }
 
+    namespace log {
+        inline std::string dims2str(const dim3_t &dims) {
+            return ("size: " + std::to_string(dims.x) + "x" + std::to_string(dims.y) +
+                "x" + std::to_string(dims.z));
+        }
+
+        class Timelog {
+            private:
+                std::ofstream log_file_;
+                std::mutex mtx_;
+            public:
+                Timelog() {
+                    log_file_.open("timelogs.txt", std::ios::out);
+                    if (!log_file_) {
+                        std::cerr << "Error opening log file: " << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                ~Timelog() { log_file_.close(); }
+
+                template <typename... Args>
+                void log(Args... args) {
+                    std::lock_guard<std::mutex> lock(mtx_);
+                    ((log_file_ << args << ", "), ...);
+                    log_file_ << std::endl;
+                }
+        };  
+
+        namespace data { inline Timelog timelog; }
+    } // namespace log
 } // namespace tomocam
+#endif // CAM_DEBUG__H

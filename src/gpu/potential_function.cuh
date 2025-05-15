@@ -35,7 +35,8 @@ namespace tomocam {
         const float MRF_C = 0.001f;
 
         // clang-format off
-        __device__ const float FILTER[3][3][3] = {{{0.0302, 0.0370, 0.0302},
+        __device__ const float FILTER[3][3][3] = {{
+                {0.0302, 0.0370, 0.0302},
                 {0.0370, 0.0523, 0.0370},
                 {0.0302, 0.0370, 0.0302}
             },

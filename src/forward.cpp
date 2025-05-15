@@ -42,9 +42,9 @@ namespace tomocam {
         SAFE_CALL(cudaDeviceSynchronize());
 
         //  1d inverse fft along columns
-        out = ifftshift(out);
+        out = gpu::ifftshift(out);
         out = ifft1D(out);
-        out = fftshift(out);
+        out = gpu::fftshift(out);
 
         T scale = static_cast<T>(input.ncols() * input.ncols());
         // cast to real

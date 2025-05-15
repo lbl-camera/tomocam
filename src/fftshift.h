@@ -30,29 +30,31 @@
 namespace tomocam {
 
     template <typename T>
-    DeviceArray<T> fftshift(const DeviceArray<T> &arr) {
+    DeviceArray<T> fftshift(const DeviceArray<T> &arr, int axis) {
 
         // calculate shift
         auto dims = arr.dims();
-        int delta = dims.z / 2;
-        if (dims.z % 2) delta = (dims.z + 1) / 2;
-        return gpu::roll(arr, delta);
+        int3 shift = {0, 0, 0};
+
+        auto calc_shift = [](int N) { return (N % 2 == 0) ? N / 2 : (N + 1) / 2; };
+
+        if (axis & 4) shift.x = calc_shift(dims.x);
+        if (axis & 2) shift.y = calc_shift(dims.y);
+        if (axis & 1) shift.z = calc_shift(dims.z);
+        return gpu::roll(arr, shift);
     }
 
     template <typename T>
-    DeviceArray<T> ifftshift(const DeviceArray<T> &arr) {
+    DeviceArray<T> ifftshift(const DeviceArray<T> &arr, int axis) {
 
         // calculate shift
         auto dims = arr.dims();
-        int delta = dims.z / 2;
-        return gpu::roll(arr, delta);
-    }
+        int3 shift = {0, 0, 0};
 
-    template <typename T>
-    DeviceArray<gpu::complex_t<T>> phase_shift(
-        const DeviceArray<gpu::complex_t<T>> &arr, T delta) {
-
-        return gpu::phase_shift(arr, delta);
+        if (axis & 4) shift.x = dims.x / 2;
+        if (axis & 2) shift.y = dims.y / 2;
+        if (axis & 1) shift.z = dims.z / 2;
+        return gpu::roll(arr, shift);
     }
 } // namespace tomocam
 

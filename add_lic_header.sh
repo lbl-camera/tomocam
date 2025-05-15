@@ -1,6 +1,5 @@
 #!/bin/bash
-
-LICENSE_HEADER="/* -------------------------------------------------------------------------------
+header="/* -------------------------------------------------------------------------------
  * Tomocam Copyright (c) 2018
  *
  * The Regents of the University of California, through Lawrence Berkeley
@@ -27,8 +26,8 @@ files=$(find ./src -type f -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name 
 for file in $files; do
     if ! grep -q "$copyright" $file; then
         echo "Adding license to file $file"
-        echo "$LICENSE_HEADER" > $file.tmp
-        cat $file >> $file.tmp
-        mv $file.tmp $file
+        echo "$header" > $file.new
+        cat $file >> $file.new
+        mv $file.new $file
     fi
 done

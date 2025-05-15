@@ -86,11 +86,11 @@ namespace tomocam {
         void enqueue(std::vector<Host_t> h_arr) {
             std::thread([this, h_arr]() {
                 for (int i = 0; i < h_arr.size(); i++) {
+                    Device_t d_arr(h_arr[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
                     cv_.wait(lock, [this]() {
                         return this->pending_work_.size() < MAX_QUEUE_SIZE;
                     });
-                    Device_t d_arr(h_arr[i]);
                     this->pending_work_.push(std::make_tuple(i, d_arr));
                 }
                 this->all_done_ = true;
@@ -101,12 +101,12 @@ namespace tomocam {
         void enqueue(std::vector<Host_t> h_arr1, std::vector<Host_t> h_arr2) {
             std::thread([this, h_arr1, h_arr2]() {
                 for (int i = 0; i < h_arr1.size(); i++) {
+                    Device_t d_arr1(h_arr1[i]);
+                    Device_t d_arr2(h_arr2[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
                     cv_.wait(lock, [this]() {
                         return this->pending_work_.size() < MAX_QUEUE_SIZE;
                     });
-                    Device_t d_arr1(h_arr1[i]);
-                    Device_t d_arr2(h_arr2[i]);
                     this->pending_work_.push(
                         std::make_tuple(i, d_arr1, d_arr2));
                 }
