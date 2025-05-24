@@ -32,7 +32,7 @@
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid, T center) {
+        const NUFFT::Grid<T> &grid) {
 
         // cast to complex
         auto in2 = complex(input);
@@ -53,8 +53,8 @@ namespace tomocam {
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &, float);
+        const NUFFT::Grid<float> &); 
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &, double);
+        const NUFFT::Grid<double> &); 
 
 } // namespace tomocam
