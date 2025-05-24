@@ -57,13 +57,13 @@ int main(int argc, char **argv) {
         psfs[i] = tomocam::PointSpreadFunction<real_t>(nugrids[i]);
 
     // calculate backprojection of data
-    auto yT = tomocam::backproject(y, theta, center);
+    auto yT = tomocam::backproject(y, theta, false);
 
     Timer t1;
     t1.start();
 
     // calculate classical gradient
-    auto g1 = tomocam::gradient(f, yT, nugrids, center);
+    auto g1 = tomocam::gradient(f, yT, nugrids);
 
     t1.stop();
 
