@@ -33,7 +33,6 @@ namespace tomocam {
     template <typename T>
     class PointSpreadFunction {
         private:
-            int device_;
             int batch_size_;
             bool initialized_ = false;
             cufftHandle r2c_;
@@ -43,14 +42,16 @@ namespace tomocam {
             
         public:
 
-            PointSpreadFunction() = default;
+            PointSpreadFunction():
+                batch_size_(0),
+                r2c_(0),
+                c2r_(0),
+                initialized_(false) {}
 
-            PointSpreadFunction(const NUFFT::Grid<T> &grid) {
+            PointSpreadFunction(const NUFFT::Grid<T> &grid): batch_size_(0),
+                r2c_(0), c2r_(0), initialized_(false) {
 
-                // set the device
-                device_ = grid.dev_id();
-                SAFE_CALL(cudaSetDevice(device_));
-
+                // compute the size of the psf
                 int nproj = grid.nprojs();
                 int ncols = grid.npixels();
                 int N1 = 2 * ncols - 1;
@@ -90,9 +91,20 @@ namespace tomocam {
                 initialized_ = true;
             }
 
+            // single entry point for convolution1 and convolution2
+            DeviceArray<T> convolve(const DeviceArray<T> &x) const {
+                if ((initialized_) && (x.nslices() == batch_size_)) {
+                    return convolve2(x);
+                } else {
+                    return convolve1(x);
+                }
+            }
+
+
             int batch_size() const { return batch_size_; }
 
-            DeviceArray<T> convolve(const DeviceArray<T> &x) const {
+        private:
+            DeviceArray<T> convolve1(const DeviceArray<T> &x) const {
 
                 // scale for normalization
                 T scale1 = std::pow(x.nrows(), 3);
@@ -130,11 +142,6 @@ namespace tomocam {
                 // zero pad
                 gpu::pad2d<T>(xpad_, x, padding, PadType::RIGHT);
                 T scale2 = static_cast<T>(xpad_.nrows() * xpad_.ncols());
-
-                // create plans if not already created
-                if (!initialized_) {
-                    std::runtime_error("Error: plans not created in PointSpreadFunction::convolve");
-                }
              
                 // fft(x) Real -> complex
                 auto xft = rfft2D<T>(r2c_, xpad_);
