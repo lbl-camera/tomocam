@@ -49,23 +49,22 @@ namespace tomocam {
      *
      * @param DeviceArray<T> sinogram space
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
-     * @param center center of rotation
+     * @param boolean flag to indicate whether to apply the filter
      * @return DeviceArray<T> Image space
      */
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &, const NUFFT::Grid<T> &,
-        T);
+        bool);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
      *
      * @param DeviceArray<T> Image space
      * @param NUFFT::Grid non-unifrom grid on which NUFFT is computed
-     * @param center center of rotation
      * @return DeviceArray<T> sinogram space
      */
     template <typename T>
-    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &, T);
+    DeviceArray<T> project(const DeviceArray<T> &, const NUFFT::Grid<T> &);
 
     /**
      * Parital calculation of the gradient of the objective function
