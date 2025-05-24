@@ -58,14 +58,7 @@ namespace tomocam {
                 auto [idx, d_f, d_sinoT] = work.value();
 
                 // compute gradient
-                auto d_g = DeviceArray<T>();
-                if (d_f.nslices() == psf.batch_size()) {
-                    // partition size matches the batch size
-                    d_g = psf.convolve2(d_f) - d_sinoT;
-                } else {
-                    // otherwise, use the slow method
-                    d_g = psf.convolve(d_f) - d_sinoT;
-                }
+                auto d_g = psf.convolve(d_f) - d_sinoT;
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
