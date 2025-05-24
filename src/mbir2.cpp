@@ -42,10 +42,16 @@ namespace tomocam {
 
         // normalize
         auto maxv = sino.max();
+        auto minv = sino.min();
         #ifdef MULTIPROC
         maxv = multiproc::mp.MaxReduce(maxv);
+        minv = multiproc::mp.MinReduce(minv);
         #endif
-        auto sino2 = sino / maxv;
+        if (maxv == minv) {
+            std::cerr << "Error: sinogram has no variation" << std::endl;
+            return x0;
+        }
+        auto sino2 = (sino - minv) / (maxv - minv);
 
         // preprocess
         int nrays = sino.ncols();
@@ -59,15 +65,18 @@ namespace tomocam {
         int ncols = sino2.ncols();
 
         // backproject sinogram
-        DArray<T> sinoT = backproject(sino2, angles, center);
+        auto sinoT = backproject(sino2, angles);
 
         // sinogram dot sinogram
-        T sino_norm = sino.norm();
+        T sino_norm = sino2.norm();
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
         if (ndevice > nslcs) { ndevice = nslcs; }
 
+        // calculate non-uniform grid for each device
+        int current_dev = 0;
+        SAFE_CALL(cudaGetDevice(&current_dev));
         std::vector<NUFFT::Grid<T>> grids(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
             SAFE_CALL(cudaSetDevice(dev_id));
@@ -80,13 +89,14 @@ namespace tomocam {
             SAFE_CALL(cudaSetDevice(dev_id));
             psfs[dev_id] = PointSpreadFunction(grids[dev_id]);
         }
+        SAFE_CALL(cudaSetDevice(current_dev));
 
         // compute Lipschitz constant
         DArray<T> xtmp(dim3_t(1, ncols, ncols));
         DArray<T> ytmp(dim3_t(1, ncols, ncols));
         xtmp.init(1);
         ytmp.init(0);
-        auto g = gradient(xtmp, ytmp, grids, center);
+        auto g = gradient(xtmp, ytmp, grids);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
         #ifdef MULTIPROC
@@ -111,12 +121,11 @@ namespace tomocam {
         };
 
         auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
-            //auto e = function_value2(x, sinoT, psfs, sino_norm);
             auto e = function_value2(x, sinoT, psfs, sino_norm);
             #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
             #endif
-            return e;
+            return std::sqrt(e);
         };
 
         // create optimizer
