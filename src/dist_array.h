@@ -116,6 +116,16 @@ namespace tomocam {
                 std::fill(exe::par_unseq, this->begin(), this->end(), v);
             }
 
+            // normalize
+            void normalize() {
+                T min = this->min();
+                T max = this->max();
+                T denom = max - min;
+                if (denom == 0) { std::runtime_error("Error: Division by zero"); }
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [min, denom](T a) { return (a - min) / denom; });
+            }
+
             // norm2
             T norm() const {
                 return std::transform_reduce(exe::par_unseq, this->begin(), this->end(),
@@ -142,50 +152,107 @@ namespace tomocam {
             }
 
             // subtract
-            DArray<T> operator-(const DArray<T> &rhs) {
+            DArray<T> & operator-=(const DArray<T> &rhs) {
                 match_dims(rhs.dims_);
-                DArray<T> out(dims_);
                 std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), out.begin(),
-                    [](T a, T b) { return a - b; });
+                    rhs.begin(), this->begin(), std::minus<T>());
+                return *this;
+            }
+            DArray<T> operator-(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out -= rhs; 
+                return out;
+            }
+
+            // add
+            DArray<T> operator+=(const DArray<T> &rhs) {
+                match_dims(rhs.dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::plus<T>());
+                return *this;
+            }
+            DArray<T> operator+(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out += rhs; 
+                return out;
+            }
+
+            // multiply
+            DArray<T> operator*=(const DArray<T> &rhs) {
+                match_dims(dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::multiplies<T>());
+                return *this;
+            }
+            DArray<T> operator*(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out *= rhs; 
+                return out;
+            }
+
+            // divide 
+            DArray<T> operator/=(const DArray<T> &rhs) {
+                match_dims(rhs.dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::divides<T>());
+                return *this;
+            }
+            DArray<T> operator/(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out /= rhs; 
+                return out;
+            }
+
+            // subtract a scalar
+            DArray<T> & operator-=(const T &rhs) {
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [rhs](T a) { return a - rhs; });
+                return *this;
+            }
+            // right subtract a scalar
+            DArray<T> operator-(const T &rhs) const {
+                DArray<T> out = *this;
+                out -= rhs; 
                 return out;
             }
 
 
-            // add
-            DArray<T> operator+(const DArray<T> &rhs) {
-                match_dims(rhs.dims_);
-                DArray<T> out(dims_);
+            DArray<T> & operator+=(const T &rhs) {
                 std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), out.begin(),
-                    [](T a, T b) { return a + b; });
+                    this->begin(), [rhs](T a) { return a + rhs; });
+                return *this;
+            }
+            // right add a scalar
+            DArray<T> operator+(const T &rhs) const {
+                DArray<T> out = *this;
+                out += rhs; 
                 return out;
             }
 
             // multiply by a scalar
-            DArray<T> operator*(T v) {
-                match_dims(dims_);
-                DArray<T> out(dims_);
+            DArray<T> & operator*=(const T &rhs) {
                 std::transform(exe::par_unseq, this->begin(), this->end(),
-                    out.begin(), [v](T a) { return a * v; });
+                    this->begin(), [rhs](T a) { return a * rhs; });
+                return *this;
+            }
+            // right multiply by a scalar
+            DArray<T> operator*(const T &rhs) const {
+                DArray<T> out = *this;
+                out *= rhs; 
                 return out;
             }
 
             // divide by a scalar
-            DArray<T> operator/(T v) const {
-                if (v == 0) { std::runtime_error("Error: Division by zero"); }
-                DArray<T> out(dims_);
+            DArray<T> & operator/=(const T &rhs) {
                 std::transform(exe::par_unseq, this->begin(), this->end(),
-                    out.begin(), [v](T a) { return a / v; });
-                return out;
-            }
-
-            // in-place division
-            DArray<T> &operator/=(T v) {
-                if (v == 0) { std::runtime_error("Error: Division by zero"); }
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [v](T a) { return a / v; });
+                    this->begin(), [rhs](T a) { return a / rhs; });
                 return *this;
+            }
+            // right divide by a scalar
+            DArray<T> operator/(const T &rhs) const {
+                DArray<T> out = *this;
+                out /= rhs; 
+                return out;
             }
 
             // drop a column
@@ -307,12 +374,33 @@ namespace tomocam {
             #endif // MULTIPROC
     };
 
-    // operator overloads
+    // left subscript a scalar
     template <typename T>
-    DArray<T> operator*(T v, const DArray<T> &rhs) {
-        return rhs * v;
+    DArray<T> operator-(const T &lhs, DArray<T> rhs) {
+        rhs -= lhs;
+        return rhs;
     }
 
+    // left add a scalar
+    template <typename T>
+    DArray<T> operator+(const T &lhs, DArray<T> rhs) {
+        rhs += lhs;
+        return rhs;
+    }
+
+    // left multiply a scalar
+    template <typename T>
+    DArray<T> operator*(const T &lhs, DArray<T> rhs) {
+        rhs *= lhs;
+        return rhs;
+    }
+
+    // left divide a scalar
+    template <typename T>
+    DArray<T> operator/(const T &lhs, DArray<T> rhs) {
+        rhs /= lhs;
+        return rhs;
+    }
 
     /* subdivide array into N partitions */
     template <typename T>
