@@ -55,7 +55,7 @@ namespace tomocam {
             auto work = scheduler.get_work();
             if (work.has_value()) {
                 auto[idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve2(d_recon);
+                auto t1 = psf.convolve(d_recon);
                 auto t2 = d_recon.dot(t1);
                 auto t3 = d_recon.dot(d_sinoT);
                 sum += (t2 - 2 * t3);
