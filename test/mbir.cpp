@@ -17,6 +17,25 @@
 
 using json = nlohmann::json;
 
+
+
+// filtered backprojection
+template<typename T>
+tomocam::DArray<T> fbp(tomocam::DArray<T> &sino, std::vector<T> &angs, int center) {
+
+    // save the original sino size
+    int nrays = sino.ncols();
+
+    // center and padding
+    auto sino2 = tomocam::preproc(sino, (T) center);
+
+    // do the filtered backprojection
+    auto recon = tomocam::backproject(sino2, angs, true);
+
+    // remove padding and return
+    return tomocam::postproc(recon, nrays);
+}
+
 int main(int argc, char **argv) {
 
     if (argc < 2) {
@@ -107,24 +126,22 @@ int main(int argc, char **argv) {
     auto x0 = tomocam::DArray<float>({sino.nslices(), sino.ncols(), sino.ncols()});
     x0.init(1.f);
 
+    // run FBP
+    auto x1 = fbp(sino, angs, center);
+    // normalize
+    x1.normalize();
+
     // run MBIR
-    Timer t1, t2;
-    //t1.start();
-    //auto recon = tomocam::mbir(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
-    //t1.stop();
+    Timer t2;
     t2.start();
-    auto recon2 = tomocam::mbir2(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon2 = tomocam::mbir(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
     t2.stop();
    
-    // print time taken 
-    //fprintf(stdout, "MBIR time(s): %f\n", t1.seconds());
-    //fprintf(stdout, "MBIR2 time(s): %f\n", t2.seconds());
 
     #ifdef MULTIPROC
     if (myrank == 0)
     #endif
         std::cout << "time taken(s): " << t2.seconds() << std::endl;
-    exit(0);
 
     // save reconstruction
     #ifdef MULTIPROC
