@@ -57,6 +57,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/fftshift.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/nufft_utils.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/ramlak.cu
    )
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
