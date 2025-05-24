@@ -34,7 +34,7 @@ namespace tomocam {
 
     template <typename T>
     void gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const NUFFT::Grid<T> &nugrid, T center, int device_id) {
+        const NUFFT::Grid<T> &nugrid, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
@@ -73,7 +73,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<NUFFT::Grid<T>> &nugrids, T center) {
+        const std::vector<NUFFT::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -91,7 +91,7 @@ namespace tomocam {
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], center, i);
+            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], i);
         }
 
         // wait for devices to finish
@@ -105,9 +105,9 @@ namespace tomocam {
     }
 
     // Explicit instantiation
-    template DArray<float> gradient(DArray<float> &, DArray<float> &,
-        const std::vector<NUFFT::Grid<float>> &, float);
-    template DArray<double> gradient(DArray<double> &, DArray<double> &,
-        const std::vector<NUFFT::Grid<double>> &, double);
+    template DArray<float> gradient(DArray<float> &, DArray<float> &, 
+            const std::vector<NUFFT::Grid<float>> &);
+    template DArray<double> gradient(DArray<double> &, DArray<double> &, 
+            const std::vector<NUFFT::Grid<double>> &);
 
 } // namespace tomocam
