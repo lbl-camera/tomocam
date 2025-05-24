@@ -32,7 +32,7 @@ namespace tomocam {
 
     template <typename T>
     void project(Partition<T> input, Partition<T> sino,
-        const std::vector<T> &angles, T center, int device) {
+        const std::vector<T> &angles, int device) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device));
@@ -57,7 +57,7 @@ namespace tomocam {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_input] = work.value();
-                auto d_sino = project(d_input, nugrid, center);
+                auto d_sino = project(d_input, nugrid);
 
                 // copy the result to the output
                 shipper.push(sub_outs[idx], d_sino);
@@ -67,8 +67,7 @@ namespace tomocam {
 
     // radon (Multi-GPU call)
     template <typename T>
-    DArray<T> project(DArray<T> &input, const std::vector<T> &angles,
-        T center) {
+    DArray<T> project(DArray<T> &input, const std::vector<T> &angles) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > input.nslices()) nDevice = 1;
@@ -85,7 +84,7 @@ namespace tomocam {
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
-            project(p1[i], p2[i], angles, center, i);
+            project(p1[i], p2[i], angles, i);
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
@@ -97,9 +96,7 @@ namespace tomocam {
     }
 
     // specializations for float and double
-    template DArray<float> project(DArray<float> &, const std::vector<float> &,
-        float);
-    template DArray<double> project(DArray<double> &,
-        const std::vector<double> &, double);
+    template DArray<float> project(DArray<float> &, const std::vector<float> &);
+    template DArray<double> project(DArray<double> &, const std::vector<double> &);
 
 } // namespace tomocam
