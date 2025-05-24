@@ -1,10 +1,8 @@
 
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <string>
 
 #include "dist_array.h"
 #include "hdf5/reader.h"
@@ -55,12 +53,14 @@ int main(int argc, char **argv) {
 
     // if number of columns is even, drop one column
     sino.dropcol();
-    center -= 1;
     float cen = static_cast<float>(center);
 
+    // normalize sinogram
+    auto sino2 = (sino - sino.min()) / (sino.max() - sino.min());
+
     auto start = std::chrono::high_resolution_clock::now();
-    auto sino2 = tomocam::preproc(sino, cen);
-    auto recn2 = tomocam::backproject(sino2, angs, cen);
+    sino2 = tomocam::preproc(sino2, cen);
+    auto recn2 = tomocam::backproject(sino2, angs, false);
     auto recn = tomocam::postproc(recn2, sino.ncols());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -69,6 +69,6 @@ int main(int argc, char **argv) {
         << std::endl;
 
     tomocam::h5::Writer w("backproj.h5");
-    w.write("backproj", recn);
+    w.write("recon", recn);
     return 0;
 }
