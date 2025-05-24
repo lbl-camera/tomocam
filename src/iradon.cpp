@@ -34,7 +34,7 @@ namespace tomocam {
 
     template <typename T>
     void backproject(Partition<T> sino, Partition<T> output,
-        const std::vector<T> &angles, T center, int device) {
+        const std::vector<T> &angles, bool fbp, int device) {
 
         // select device
         SAFE_CALL(cudaSetDevice(device));
@@ -62,7 +62,7 @@ namespace tomocam {
             auto task = scheduler.get_work();
             if (task.has_value()) {
                 auto [i, d_sino] = task.value();
-                auto d_recn = backproject(d_sino, grid, center);
+                auto d_recn = backproject(d_sino, grid, fbp);
 
                 // copy the result to the output
                 shipper.push(sub_outputs[i], d_recn);
@@ -73,7 +73,7 @@ namespace tomocam {
     // back projection
     template <typename T>
     DArray<T> backproject(DArray<T> &input, const std::vector<T> &angles,
-        T center) {
+        bool fbp) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > input.nslices()) nDevice = input.nslices();
@@ -89,7 +89,7 @@ namespace tomocam {
         // launch all the available devices
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
-            backproject(p1[i], p2[i], angles, center, i);
+            backproject(p1[i], p2[i], angles, fbp, i);
 
         // wait for devices to finish
         #pragma omp parallel for num_threads(nDevice)
@@ -102,8 +102,8 @@ namespace tomocam {
 
     // explicit instantiation
     template DArray<float> backproject(DArray<float> &,
-        const std::vector<float> &, float);
+        const std::vector<float> &, bool);
     template DArray<double> backproject(DArray<double> &,
-        const std::vector<double> &, double);
+        const std::vector<double> &, bool);
 
 } // namespace tomocam
