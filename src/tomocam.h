@@ -27,6 +27,7 @@
 #include "dist_array.h"
 #include "nufft.h"
 #include "toeplitz.h"
+#include "timer.h"
 
 namespace tomocam {
 
@@ -35,24 +36,23 @@ namespace tomocam {
      *
      * @param sinogram The sinogram to backproject.
      * @param angles The angles of the sinogram.
-     * @param center The center of rotation.
+     * @param boolean flag to indicate whether to apply the ramp filter.
      *
      * @return The backprojected image.
      */
     template <typename T>
-    DArray<T> backproject(DArray<T> &, const std::vector<T> &, T);
+    DArray<T> backproject(DArray<T> &, const std::vector<T> &, bool flag = false);
 
     /**
      * @brief Compute the forward projection of an image.
      *
      * @param image The image to project.
      * @param angles The angles of the sinogram.
-     * @param center The center of rotation.
      *
      * @return The forward projected sinogram.
      */
     template <typename T>
-    DArray<T> project(DArray<T> &, const std::vector<T> &, T);
+    DArray<T> project(DArray<T> &, const std::vector<T> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -66,7 +66,7 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, T);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -89,13 +89,11 @@ namespace tomocam {
      *
      * @param current solution.
      * @param std::vector of NUFFT::Grid types per device
-     * @param center of rotation
      *
      * @return the value of the objective function
      */
     template <typename T>
-    T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, T);
+    T function_value(DArray<T> &, DArray<T> &, const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -162,19 +160,6 @@ namespace tomocam {
         void add_tv_hessian(DArray<T> &, float);
     }
 
-    /**
-     * @brief classical gradeint calculation
-     *
-     *  @param current solution.
-     *  @param sinogram
-     *  @param NUFFT object for each GPU device
-     *  @param center of rotation
-     *
-     *  @return the gradient
-     */
-    template <typename T>
-    DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -183,13 +168,12 @@ namespace tomocam {
      * @param current solution.
      * @param sinogram
      * @param vector of NUFFT objects for each GPU device
-     * @param center of rotation
      *
      * @return the value of the objective function
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Zero pad the sinogram by a factor of \sqrt{2}
