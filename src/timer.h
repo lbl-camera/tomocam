@@ -27,21 +27,22 @@
 namespace tomocam {
     class Timer {
       private:
-        std::chrono::duration<double> elapsed_time_;
         std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
-        std::chrono::time_point<std::chrono::high_resolution_clock> end_time_;
+        std::chrono::duration<double> elapsed_time_;
 
       public:
-        Timer() = default;
+        Timer() {
+            start_time_ = std::chrono::high_resolution_clock::now();
+            elapsed_time_ = std::chrono::duration<double>(0);
+        }
 
         void start() {
-            elapsed_time_ = std::chrono::duration<double>(0);
             start_time_ = std::chrono::high_resolution_clock::now();
         }
 
         void stop() {
-            end_time_ = std::chrono::high_resolution_clock::now();
-            elapsed_time_ += end_time_ - start_time_;
+            auto tnow = std::chrono::high_resolution_clock::now();
+            elapsed_time_ += tnow - start_time_;
         }
 
         uint64_t elapsed() {
