@@ -97,7 +97,7 @@ namespace tomocam {
         // create callable functions for optimization
         auto calc_gradient = [&sinoT, &grids, sigma, p](DArray<T> &x) -> DArray<T> {
             auto g = gradient(x, sinoT, grids);
-            add_total_var(x, g, sigma, p);
+            add_total_var2(x, g, sigma, p);
             return g;
         };
 
