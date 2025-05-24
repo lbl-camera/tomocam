@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     auto sino2 = tomocam::preproc(sino, center);
     fp.write("padded", sino2);
 
-    auto recon = tomocam::backproject(sino2, angles, center);
+    auto recon = tomocam::backproject(sino2, angles);
     fp.write("backproj", recon);
 
     auto recon2 = tomocam::postproc(recon, sino.ncols());
