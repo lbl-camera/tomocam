@@ -77,13 +77,14 @@ inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
 }
 
 np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
-    np_array_t<float> angs, float cen) {
+    np_array_t<float> angs) {
 
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(imgstack));
 
     // radon call
-    auto arg2 = tomocam::project(arg1, getVec<float>(angs), cen);
+    auto arg2 = tomocam::project(arg1, getVec<float>(angs));
+
 
     // return numpy array
     return to_numpy<float>(arg2);
@@ -95,11 +96,20 @@ np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(sino));
 
+    // save the original dimension
+    int nrays = arg1.ncols();
+
+    // pad and center the sinogram
+    auto sino2 = tomocam::preproc(arg1, cen);
+
     // backproject call
-    auto arg2 = tomocam::backproject(arg1, getVec<float>(angs), cen);
+    auto tmp = tomocam::backproject(sino2, getVec<float>(angs));
+
+    // undo the padding
+    auto bproj = tomocam::postproc(tmp, nrays);
 
     // return recon as numpy array
-    return to_numpy<float>(arg2);
+    return to_numpy<float>(bproj);
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
