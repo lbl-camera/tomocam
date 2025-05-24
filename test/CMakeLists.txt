@@ -65,3 +65,10 @@ target_link_libraries(mbir tomocam)
 target_link_libraries(mbir ${HDF5_LIBRARIES})
 target_link_libraries(mbir nlohmann_json::nlohmann_json)
 target_link_libraries(mbir ${MPI_C_LIBRARIES})
+
+# MBIR2
+add_executable(mbir2 mbir2.cpp)
+target_link_libraries(mbir2 tomocam)
+target_link_libraries(mbir2 ${HDF5_LIBRARIES})
+target_link_libraries(mbir2 nlohmann_json::nlohmann_json)
+target_link_libraries(mbir2 ${MPI_C_LIBRARIES})
