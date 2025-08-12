@@ -87,10 +87,13 @@ namespace tomocam {
             threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i], std::cref(psfs[i]), i);
         }
 
+        // wait for all devices to finish
+        Machine::config.barrier();
+
         // wait for devices to finish
-        for (int i = 0; i < nDevice; i++) {
-            threads[i].join();
-        }
+        for (auto &t : threads) { t.join(); }
+
+        //return the gradient
         return gradient;
     }
 
