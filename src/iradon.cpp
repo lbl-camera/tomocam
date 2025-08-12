@@ -33,7 +33,7 @@
 namespace tomocam {
 
     template <typename T>
-    void backproject(Partition<T> sino, Partition<T> output,
+    void backproject_(Partition<T> sino, Partition<T> output,
         const std::vector<T> &angles, bool fbp, int device) {
 
         // select device
@@ -86,17 +86,18 @@ namespace tomocam {
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++)
-            backproject(p1[i], p2[i], angles, fbp, i);
-
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
+        // launch threads for each device
         for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
+            threads[i] = std::thread(backproject_<T>, 
+                    p1[i], p2[i], std::cref(angles), fbp, i);
         }
+
+        // wait for all devices to finish
+        Machine::config.barrier();
+
+        // join threads
+        for (auto &t : threads) { t.join(); }
         return output;
     }
 
