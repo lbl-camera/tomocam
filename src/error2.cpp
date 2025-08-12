@@ -19,7 +19,9 @@
  */
 
 #include <iostream>
-#include <omp.h>
+#include <vector>
+#include <future>
+#include <thread>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -75,19 +77,19 @@ namespace tomocam {
         auto p1 = create_partitions(recon, nDevice);
         auto p2 = create_partitions(sinoT, nDevice);
 
-        std::vector<T> retval(nDevice);
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++)
-            retval[i] = funcval2(p1[i], p2[i], psf[i], i);
 
-        // wait for devices to finish
-        T fval = sino_sq;
-        #pragma omp parallel for reduction(+:fval) num_threads(nDevice)
+        std::vector<std::future<T>> results(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-            fval += retval[i];
+            results[i] = std::async(std::launch::async, funcval2<T>, 
+                    p1[i], p2[i], std::cref(psf[i]), i);
         }
+
+        // wait for all the devices to finish
+        Machine::config.barrier();
+
+        // sum up the results
+        T fval = sino_sq;
+       for (auto &f: results) { fval += f.get(); }
         return fval;
     }
 
