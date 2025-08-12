@@ -19,7 +19,7 @@
  */
 
 #include <iostream>
-#include <omp.h>
+#include <thread>
 #include <vector>
 
 #include "dev_array.h"
@@ -85,22 +85,20 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nDevice);
         auto p3 = create_partitions(gradient, nDevice);
 
-        // vecor to store partial function values
-        std::vector<T> pfunc(nDevice, 0);
-
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+        // create a vector std::threads to launch the gradient function
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], i);
+            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i], 
+                    std::cref(nugrids[i]), i);
         }
 
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
+       // wait for all the GPUs
+        Machine::config.barrier();
+        
+        // waht for all threads to join
+        for (auto &t : threads) { t.join(); }
 
+        // return the gradient
         return gradient;
     }
 
