@@ -64,19 +64,19 @@ namespace tomocam {
             dim3 blocks_;
 
             Grid(size_t nx) {
-                threads_ = {256, 1, 1};
+                threads_ = {512, 1, 1};
                 blocks_ = {idiv(nx, threads_.x), 1, 1};
             }
 
             Grid(int3 d) {
-                threads_ = {16, 16, 1};
+                threads_ = {32, 32, 1};
                 blocks_ = {idiv(d.z, threads_.x),
                     idiv(d.y, threads_.y),
                     idiv(d.x, threads_.z)};
             }
 
             Grid(dim3_t d) {
-                threads_ = {16, 16, 1};
+                threads_ = {32, 32, 1};
                 blocks_ = {idiv(d.z, threads_.x),
                     idiv(d.y, threads_.y),
                     idiv(d.x, threads_.z)};
