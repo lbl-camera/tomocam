@@ -22,6 +22,12 @@ project(tomocam LANGUAGES C CXX CUDA)
 set(tomocam_VERSION_MAJOR 3) 
 set(tomocam_VERSION_MINOR 0)
 
+# external modules
+include(ExternalProject)
+include(FetchContent)
+# local modules
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
 #C++ Stuff
 set(CMAKE_CXX_STANDARD 23) 
 set(CMAKE_CXX_FLAGS_DEBUG "-DTOMOCAM_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
@@ -41,10 +47,7 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
-include(ExternalProject)
 
-#  local CMake modules
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 # Set option to use MPI
 option(MULTI_PROC "Enable MPI" OFF)
@@ -76,14 +79,18 @@ set(SRC
    )
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
+## Serch dependencies
+
 #python
 set(Python_FIND_VIRTUALENV FIRST)
 find_package(Python COMPONENTS Interpreter Development REQUIRED) 
 include_directories(${Python_INCLUDE_DIRS})
 
 #pybind11
-find_package(pybind11 REQUIRED) 
-include_directories(${pybind11_INCLUDE_DIR})
+#find_package(pybind11 REQUIRED) 
+#include_directories(${pybind11_INCLUDE_DIR})
+
+# check if compiling using setup.py 
 option(USING_SETUP_PY "building through setup.py" OFF)
 if (USING_SETUP_PY)
     add_compile_definitions(USING_SETUP_PY)
@@ -94,7 +101,6 @@ find_package(OpenMP)
 if (OpenMP_FOUND) 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") 
 endif(OpenMP_FOUND)
-
 
 # MPI
 if (MULTI_PROC)
@@ -108,6 +114,21 @@ if (MULTI_PROC)
     endif(MPI_FOUND)
 endif(MULTI_PROC)
 
+# pybind11
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.11.1
+)
+FetchContent_MakeAvailable(pybind11)
+
+# nlohmann json
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.12.0
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # finufft
 ExternalProject_Add(
@@ -119,7 +140,8 @@ ExternalProject_Add(
         -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/finufft/lib
         -DCMAKE_BUILD_TYPE=Release
         -DBUILD_TESTING=OFF 
-        -DFINUFFT_USE_CPU=ON 
+        -DFINUFFT_USE_CPU=ON
+        -DFINUFFT_BUILD_PYTHON=OFF
         -DFINUFFT_USE_CUDA=ON 
         -DFINUFFT_STATIC_LINKING=OFF
     )
