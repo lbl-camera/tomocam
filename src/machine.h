@@ -48,7 +48,7 @@ namespace tomocam {
             if (devices.empty()) unified_ = true;
             else
                 unified_ = false;
-            slcsPerStream_ = 16; // slices
+            slcsPerStream_ = 4; // slices
         }
 
         MachineConfig(const MachineConfig &) = delete;
