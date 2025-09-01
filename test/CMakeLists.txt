@@ -1,7 +1,7 @@
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 # JSON
-find_package(nlohmann_json 3.2.0 REQUIRED)
+#find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(padding padding.cpp)
 target_link_libraries(padding PRIVATE tomocam)

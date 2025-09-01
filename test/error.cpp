@@ -14,14 +14,15 @@
 
 int main(int argc, char **argv) {
 
-    const int nprojs = 5;
-    const int npixel = 9;
+    const int nslices = 256;
+    const int nprojs = 360;
+    const int npixel = 2047;
     const int center = npixel / 2;
 
     auto rng = NPRandom();
 
     // create data
-    tomocam::DArray<double> sino(tomocam::dim3_t{1, nprojs, npixel});
+    tomocam::DArray<double> sino(tomocam::dim3_t{nslices, nprojs, npixel});
     for (int i = 0; i < sino.size(); i++) {
         sino[i] = rng.rand<double>();
     }
@@ -35,15 +36,18 @@ int main(int argc, char **argv) {
     }
 
     // allocate solution array
-    tomocam::dim3_t dims = {1, npixel, npixel};
+    tomocam::dim3_t dims = {nslices, npixel, npixel};
     tomocam::DArray<double> x1(dims);
     x1.init(1.f);
     auto x2 = x1;
 
     // error 1
+    Timer timer01;
+    timer01.start();
     auto t1 = tomocam::project<double>(x1, angs, center);
     auto t2 = t1 - sino;
     auto err1 = t2.norm();
+    timer01.stop();
 
     // error 2
     // create NUFFT grids
@@ -56,11 +60,16 @@ int main(int argc, char **argv) {
 
     // compute error
     auto y = tomocam::backproject<double>(sino, angs, center);
+    Timer timer02;
+    timer02.start();
     auto err2 = tomocam::function_value2(x2, y, psfs, sino_norm);
+    timer02.stop();
 
     // compare
     std::cout << "Error 1: " << err1 << std::endl;
     std::cout << "Error 2: " << err2 << std::endl;
     std::cout << "Error2/Error1: " << err2 / err1 << std::endl;
+    std::cout << "Time 1(ms): " << timer01.ms() << std::endl;
+    std::cout << "Time 2(ms): " << timer02.ms() << std::endl;
     return 0;
 }

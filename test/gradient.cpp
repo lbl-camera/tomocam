@@ -16,14 +16,16 @@
 
 int main(int argc, char **argv) {
 
+    int nslices = 256;
+    if (argc > 1) nslices = atoi(argv[1]);
     const int nprojs = 360;
-    const int npixel = 511;
+    const int npixel = 2047;
     const float center = static_cast<float>(npixel - 1) / 2;
 
     auto rng = NPRandom();
 
     // create data
-    tomocam::DArray<float> sino(tomocam::dim3_t{1, nprojs, npixel});
+    tomocam::DArray<float> sino(tomocam::dim3_t{nslices, nprojs, npixel});
     for (int i = 0; i < sino.size(); i++) {
         sino[i] = rng.rand<float>();
     }
@@ -35,7 +37,7 @@ int main(int argc, char **argv) {
     }
 
     // allocate solution array
-    tomocam::dim3_t dims = {1, npixel, npixel};
+    tomocam::dim3_t dims = {nslices, npixel, npixel};
     tomocam::DArray<float> x1(dims);
     x1.init(1.f);
     auto x2 = x1;
@@ -44,8 +46,14 @@ int main(int argc, char **argv) {
     auto yT = tomocam::backproject(sino, angs, center);
 
     // gradient 1
-    auto t1 = tomocam::project(x1, angs, center) - sino;
-    auto g1 = tomocam::backproject(t1, angs, center);
+    Timer timer01;
+    timer01.start();
+    tomocam::DArray<float> g1(x1.dims());
+    for (int i = 0; i < 16; i++) {
+        auto t1 = tomocam::project(x1, angs, center) - sino;
+        g1 = tomocam::backproject(t1, angs, center);
+    }
+    timer01.stop();
 
     // gradient 2
     // create NUFFT grids
@@ -59,15 +67,24 @@ int main(int argc, char **argv) {
 
     // compute gradient
     float c = 0;
-    auto g2 = tomocam::gradient2(x2, yT, psfs);
+    Timer timer02;
+    timer02.start();
+    tomocam::DArray<float> g2(x2.dims());
+    for (int i = 0; i < 16; i++)
+        g2 = tomocam::gradient2(x2, yT, psfs);
+    timer02.stop();
 
     // write to HDF5
+    /*
     tomocam::h5::Writer h5fw("gradient.h5");
     h5fw.write("g1", g1);
     h5fw.write("g2", g2);
+    */
 
     // compare
     auto e = g1 - g2;
     std::cout << "Error: " << e.norm() / g1.norm() << std::endl;
+    std::cout << "Timer1(ms): " << timer01.ms() / 16.0 << std::endl;
+    std::cout << "Timer2(ms): " << timer02.ms() / 16.0 << std::endl;
     return 0;
 }
