@@ -41,6 +41,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/radon.cpp
     ${PROJECT_SOURCE_DIR}/src/error.cpp
     ${PROJECT_SOURCE_DIR}/src/error2.cpp
+    ${PROJECT_SOURCE_DIR}/src/xerror.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
