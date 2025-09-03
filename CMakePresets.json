@@ -1,6 +1,6 @@
 
 {
-    "version": 10,
+    "version": 6,
     "configurePresets": [
         {
             "name": "debug",
@@ -21,9 +21,9 @@
         {
             "name": "release",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Release",
+            "binaryDir": "${sourceDir}/Release"
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -39,7 +39,7 @@
             "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/Multiproc",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
