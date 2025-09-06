@@ -1,11 +1,8 @@
-from setuptools import Extension, setup
-from setuptools_cpp import CMakeExtension, ExtensionBuilder
+from skbuild import setup as skbuild_setup
 
-extensions = [ CMakeExtension(name="tomocam.cTomocam", sourcedir=".") ]
-
-setup(
-    ext_modules=extensions,
-    cmdclass=dict(build_ext=ExtensionBuilder),
-    zip_safe=False,
-    )
-
+skbuild_setup(
+    name="tomocam",
+    ext_modules=[],
+    packages=["tomocam"],
+    include_package_data=True
+)
