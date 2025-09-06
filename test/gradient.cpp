@@ -1,51 +1,46 @@
 
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <string>
-#include <thread>
+#include <nlohmann/json.hpp>
 
 #include "dist_array.h"
-#include "hdf5/reader.h"
 #include "hdf5/writer.h"
 #include "toeplitz.h"
 #include "tomocam.h"
+//#include "timer.h"
 
-#include "timer.h"
-
+using json = nlohmann::json;
 int main(int argc, char **argv) {
 
-    const int nprojs = 360;
-    const int npixel = 511;
-    const float center = static_cast<float>(npixel - 1) / 2;
 
-    auto rng = NPRandom();
+    // define size of the reconstruction
+    int nslices = 16;
+    int nrows = 2047;
+    int ncols = 2047;
 
-    // create data
-    tomocam::DArray<float> sino(tomocam::dim3_t{1, nprojs, npixel});
-    for (int i = 0; i < sino.size(); i++) {
-        sino[i] = rng.rand<float>();
-    }
+    // allocate solution array
+    int nprojs = 220;
+    int npixel = ncols;
 
-    // create angles
+    tomocam::dim3_t dims = {nslices, nrows, ncols};
+    tomocam::DArray<float> x1(dims);
+    x1.init(1.f);
+    tomocam::DArray<float> yT(dims);
+    yT.init(0.f);
+    auto x2 = x1;
+
     std::vector<float> angs(nprojs);
     for (int i = 0; i < nprojs; i++) {
         angs[i] = i * M_PI / nprojs;
     }
 
-    // allocate solution array
-    tomocam::dim3_t dims = {1, npixel, npixel};
-    tomocam::DArray<float> x1(dims);
-    x1.init(1.f);
-    auto x2 = x1;
-
-    // backproject sinogram
-    auto yT = tomocam::backproject(sino, angs, center);
-
     // gradient 1
-    auto t1 = tomocam::project(x1, angs, center) - sino;
-    auto g1 = tomocam::backproject(t1, angs, center);
+    tomocam::Timer t1;
+    t1.start();
+    auto tmp = tomocam::project(x1, angs);
+    auto g1 = tomocam::backproject(tmp, angs, false);
+    auto dt1 = t1.elapsed();
 
     // gradient 2
     // create NUFFT grids
@@ -55,11 +50,23 @@ int main(int argc, char **argv) {
         tomocam::NUFFT::Grid<float> grid(nprojs, npixel, angs.data(), i);
         nugrids[i] = grid;
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
+        psfs[i].create_plans(4);
     }
 
     // compute gradient
-    float c = 0;
-    auto g2 = tomocam::gradient2(x2, yT, psfs);
+    tomocam::Timer t2;
+    t2.start();
+    auto g2 = tomocam::gradient(x2, yT, nugrids);
+    auto dt2 = t2.elapsed();
+
+
+    tomocam::Timer t3;
+    t3.start();
+    auto g3 = tomocam::gradient2(x1, yT, psfs);
+    auto dt3 = t3.elapsed();
+
+    // report time
+    fprintf(stdout,  "g1(ms): %d, g2(ms): %d, g3(ms): %d\n", dt1, dt2, dt3);
 
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");
@@ -68,6 +75,11 @@ int main(int argc, char **argv) {
 
     // compare
     auto e = g1 - g2;
-    std::cout << "Error: " << e.norm() / g1.norm() << std::endl;
+    auto e2 = g1 - g3;
+    std::cout << "g1: " << g1.norm() << std::endl;
+    std::cout << "g2: " << g2.norm() << std::endl;
+    std::cout << "g3: " << g3.norm() << std::endl;
+    std::cout << "Error1: " << e.norm() / g1.norm() << std::endl;
+    std::cout << "Error2: " << e2.norm() / g1.norm() << std::endl;
     return 0;
 }

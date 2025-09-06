@@ -32,7 +32,7 @@
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid, T center) {
+        const NUFFT::Grid<T> &grid) {
 
         // cast to complex
         auto in2 = complex(input);
@@ -42,9 +42,9 @@ namespace tomocam {
         SAFE_CALL(cudaDeviceSynchronize());
 
         //  1d inverse fft along columns
-        out = ifftshift(out);
+        out = gpu::ifftshift(out);
         out = ifft1D(out);
-        out = fftshift(out);
+        out = gpu::fftshift(out);
 
         T scale = static_cast<T>(input.ncols() * input.ncols());
         // cast to real
@@ -53,8 +53,8 @@ namespace tomocam {
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &, float);
+        const NUFFT::Grid<float> &); 
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &, double);
+        const NUFFT::Grid<double> &); 
 
 } // namespace tomocam

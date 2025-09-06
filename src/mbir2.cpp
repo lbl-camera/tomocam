@@ -19,73 +19,120 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
-#include <utility>
 #include <functional>
-#include <pybind11/pybind11.h>
+#include <iostream>
+#include <optional>
+#include <utility>
 
 #include "dist_array.h"
-#include "optimize.h"
-#include "tomocam.h"
+#include "internals.h"
 #include "machine.h"
 #include "nufft.h"
+#include "optimize.h"
+#include "tomocam.h"
+
+#ifdef MULTIPROC
+#include "multiproc.h"
+#endif
 
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir2(DArray<T> &sino, std::vector<T> angles, T center, T sigma,
-        T p, int num_iters, T step_size, T tol, T penalty) {
+    DArray<T> mbir2(std::optional<DArray<T>> guess, const DArray<T> &sino,
+        std::vector<T> angles, T center, int num_iters, T sigma, T tol,
+        T xtol) {
 
-        // pad and shift sinogram
+        // normalize
+        auto maxv = sino.max();
+#ifdef MULTIPROC
+        maxv = multiproc::mp.MaxReduce(maxv);
+#endif
+        if (maxv == 0) {
+            std::cerr << "Error: sinogram has ZERO max value" << std::endl;
+            return guess.value();
+        }
+        auto sino2 = sino / maxv;
+
+        DArray<T> x0({0, 0, 0});
+        // check for initial guess
+        if (guess.has_value()) x0 = guess.value();
+        else
+            x0 = backproject(sino2, angles, true);
+
+        // preprocess
         int nrays = sino.ncols();
-        sino = preproc(sino, center);
+        sino2 = preproc(sino2, center);
+        int npad = (sino2.ncols() - x0.ncols());
+        x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
         // recon dimensions
-        int nslcs = sino.nslices();
-        int nproj = sino.nrows();
-        int ncols = sino.ncols();
+        int nslcs = sino2.nslices();
+        int nproj = sino2.nrows();
+        int ncols = sino2.ncols();
 
-        dim3_t dims(nslcs, ncols, ncols);
-        DArray<T> sinoT = backproject(sino, angles, center);
+        // backproject sinogram
+        auto sinoT = backproject(sino2, angles);
 
         // sinogram dot sinogram
-        T sino_norm = sino.norm();
-
-        // initialize x0
-        DArray<T> x0(dims);
-        x0.init(1);
+        T sino_norm = sino2.norm();
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
-        if (ndevice > nslcs) { ndevice = 1; }
+        if (ndevice > nslcs) { ndevice = nslcs; }
+
+        // calculate non-uniform grid for each device
+        int current_dev = 0;
+        SAFE_CALL(cudaGetDevice(&current_dev));
+        std::vector<NUFFT::Grid<T>> grids(ndevice);
+        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
+            SAFE_CALL(cudaSetDevice(dev_id));
+            grids[dev_id] = NUFFT::Grid<T>(nproj, ncols, angles.data(), dev_id);
+        }
 
         // calculate point-spread function for each device
         std::vector<PointSpreadFunction<T>> psfs(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
             SAFE_CALL(cudaSetDevice(dev_id));
-            auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), dev_id);
-            psfs[dev_id] = PointSpreadFunction(nugrid);
+            psfs[dev_id] = PointSpreadFunction(grids[dev_id]);
         }
+        SAFE_CALL(cudaSetDevice(current_dev));
 
         // compute Lipschitz constant
         DArray<T> xtmp(dim3_t(1, ncols, ncols));
         DArray<T> ytmp(dim3_t(1, ncols, ncols));
         xtmp.init(1);
         ytmp.init(0);
-        auto g = gradient2(xtmp, ytmp, psfs);
+        auto g = gradient(xtmp, ytmp, grids);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
-        step_size = step_size / L;
+#ifdef MULTIPROC
+        L = multiproc::mp.MaxReduce(L);
+#endif
+        T step_size = 1 / L;
+        if (step_size > 1) step_size = 1;
+        T p = 1.2;
+
+        // create fft plans
+        int nbatch = Machine::config.slicesPerStream();
+        for (int dev_id = 0; dev_id < ndevice; dev_id++) {
+            SAFE_CALL(cudaSetDevice(dev_id));
+            psfs[dev_id].create_plans(nbatch);
+        }
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &psfs, p, sigma](DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &psfs, sigma, p](
+                                 DArray<T> &x) -> DArray<T> {
             auto g = gradient2(x, sinoT, psfs);
-            add_total_var(x, g, p, sigma);
+            add_total_var2(x, g, sigma, p);
             return g;
         };
 
         auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
-            return function_value2(x, sinoT, psfs, sino_norm);
+            auto e = function_value2(x, sinoT, psfs, sino_norm);
+#ifdef MULTIPROC
+            e = multiproc::mp.SumReduce(e);
+#endif
+            return std::sqrt(e);
         };
 
         // create optimizer
@@ -93,13 +140,29 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        auto rec = opt.run2(x0, num_iters, step_size, tol, tol);
+        auto rec = opt.run2(x0, num_iters, step_size, tol, xtol);
         return postproc(rec, nrays);
     }
 
     // explicit instantiation
-    template DArray<float> mbir2(DArray<float> &, std::vector<float>, float,
-        float, float, int, float, float, float);
-    template DArray<double> mbir2(DArray<double> &, std::vector<double>, double,
-        double, double, int, double, double, double);
+    template DArray<float> mbir2(std::optional<DArray<float>>, // initial guess
+        const DArray<float> &,                                 // sinogram
+        std::vector<float>, // projection angles
+        float,              // center of rotation
+        int,                // number of iterations
+        float,              // sigma
+        float,              // tol
+        float               // xtol
+    );
+
+    template DArray<double> mbir2(
+        std::optional<DArray<double>>, // initial guess
+        const DArray<double> &,        // sinogram
+        std::vector<double>,           // projection angles
+        double,                        // center of rotation
+        int,                           // number of iterations
+        double,                        // sigma
+        double,                        // tol
+        double                         // xtol
+    );
 } // namespace tomocam

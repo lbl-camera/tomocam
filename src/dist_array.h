@@ -24,6 +24,8 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
+#include <execution>
 
 #include "types.h"
 #include "common.h"
@@ -34,6 +36,8 @@
 #endif
 
 namespace tomocam {
+
+    namespace exe = std::execution;
 
     template <typename T>
     class DArray {
@@ -100,109 +104,155 @@ namespace tomocam {
                 return *this;
             }
 
+            void match_dims(const dim3_t &d) {
+                if (dims_.x != d.x || dims_.y != d.y || dims_.z != d.z) {
+                    std::runtime_error("Error: DArray dimensions do not match");
+                }
+            }
+
+
             // init
-            void init(T v) {
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] = v;
+            void init(T v) { 
+                std::fill(exe::par_unseq, this->begin(), this->end(), v);
+            }
+
+            // normalize
+            void normalize() {
+                T min = this->min();
+                T max = this->max();
+                T denom = max - min;
+                if (denom == 0) { std::runtime_error("Error: Division by zero"); }
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [min, denom](T a) { return (a - min) / denom; });
             }
 
             // norm2
             T norm() const {
-                T v = 0;
-                #pragma omp parallel for reduction( + : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    v += buffer_[i] * buffer_[i];
-                return v;
+                return std::transform_reduce(exe::par_unseq, this->begin(), this->end(),
+                    T(0), std::plus<T>(), [](T x) { return x * x; });
             }
 
             // sum
             T sum() const {
-                T v = 0;
-                #pragma omp parallel for reduction( + : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    v += buffer_[i];
-                return v;
+                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(0), 
+                    std::plus<T>());
             }
 
             // max
             T max() const {
-                T v = 1.0e-20;
-                #pragma omp parallel for reduction(max : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    if (buffer_[i] > v)
-                        v = buffer_[i];
-                return v;
+                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(-1.0e20),
+                    [](T a, T b) { return std::max(a, b); });
+                
             }
 
             // min
             T min() const {
-                T v = 1.0e20;
-                #pragma omp parallel for reduction(min : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    if (buffer_[i] < v)
-                        v = buffer_[i];
-                return v;
+                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(1.0e20),
+                    [](T a, T b) { return std::min(a, b); });
             }
 
             // subtract
+            DArray<T> & operator-=(const DArray<T> &rhs) {
+                match_dims(rhs.dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::minus<T>());
+                return *this;
+            }
             DArray<T> operator-(const DArray<T> &rhs) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] - rhs.buffer_[i];
+                DArray<T> out = *this;
+                out -= rhs; 
                 return out;
             }
 
             // add
+            DArray<T> operator+=(const DArray<T> &rhs) {
+                match_dims(rhs.dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::plus<T>());
+                return *this;
+            }
             DArray<T> operator+(const DArray<T> &rhs) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] + rhs.buffer_[i];
+                DArray<T> out = *this;
+                out += rhs; 
                 return out;
             }
 
             // multiply
-            DArray<T> operator*(T v) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] * v;
+            DArray<T> operator*=(const DArray<T> &rhs) {
+                match_dims(dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::multiplies<T>());
+                return *this;
+            }
+            DArray<T> operator*(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out *= rhs; 
                 return out;
             }
 
-            // in-place multiply
-            DArray<T> &operator*=(T v) {
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] *= v;
+            // divide 
+            DArray<T> operator/=(const DArray<T> &rhs) {
+                match_dims(rhs.dims_);
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    rhs.begin(), this->begin(), std::divides<T>());
                 return *this;
             }
-
-            // divide
-            DArray<T> operator/(T v) const {
-                if (v == 0) {
-                    std::cerr << "Error: division by zero" << std::endl;
-                    exit(1);
-                }
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] / v;
+            DArray<T> operator/(const DArray<T> &rhs) const {
+                DArray<T> out = *this;
+                out /= rhs; 
                 return out;
             }
 
-            // in-place divide
-            DArray<T> &operator/=(T v) {
-                if (v == 0) {
-                    std::cerr << "Error: division by zero" << std::endl;
-                    exit(1);
-                }
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] /= v;
+            // subtract a scalar
+            DArray<T> & operator-=(const T &rhs) {
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [rhs](T a) { return a - rhs; });
                 return *this;
+            }
+            // right subtract a scalar
+            DArray<T> operator-(const T &rhs) const {
+                DArray<T> out = *this;
+                out -= rhs; 
+                return out;
+            }
+
+
+            DArray<T> & operator+=(const T &rhs) {
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [rhs](T a) { return a + rhs; });
+                return *this;
+            }
+            // right add a scalar
+            DArray<T> operator+(const T &rhs) const {
+                DArray<T> out = *this;
+                out += rhs; 
+                return out;
+            }
+
+            // multiply by a scalar
+            DArray<T> & operator*=(const T &rhs) {
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [rhs](T a) { return a * rhs; });
+                return *this;
+            }
+            // right multiply by a scalar
+            DArray<T> operator*(const T &rhs) const {
+                DArray<T> out = *this;
+                out *= rhs; 
+                return out;
+            }
+
+            // divide by a scalar
+            DArray<T> & operator/=(const T &rhs) {
+                std::transform(exe::par_unseq, this->begin(), this->end(),
+                    this->begin(), [rhs](T a) { return a / rhs; });
+                return *this;
+            }
+            // right divide by a scalar
+            DArray<T> operator/(const T &rhs) const {
+                DArray<T> out = *this;
+                out /= rhs; 
+                return out;
             }
 
             // drop a column
@@ -324,9 +374,32 @@ namespace tomocam {
             #endif // MULTIPROC
     };
 
+    // left subscript a scalar
     template <typename T>
-    DArray<T> operator*(T v, const DArray<T> &rhs) {
-        return rhs * v;
+    DArray<T> operator-(const T &lhs, DArray<T> rhs) {
+        rhs -= lhs;
+        return rhs;
+    }
+
+    // left add a scalar
+    template <typename T>
+    DArray<T> operator+(const T &lhs, DArray<T> rhs) {
+        rhs += lhs;
+        return rhs;
+    }
+
+    // left multiply a scalar
+    template <typename T>
+    DArray<T> operator*(const T &lhs, DArray<T> rhs) {
+        rhs *= lhs;
+        return rhs;
+    }
+
+    // left divide a scalar
+    template <typename T>
+    DArray<T> operator/(const T &lhs, DArray<T> rhs) {
+        rhs /= lhs;
+        return rhs;
     }
 
     /* subdivide array into N partitions */

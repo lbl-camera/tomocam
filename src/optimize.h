@@ -26,7 +26,9 @@
 #include "tomocam.h"
 #include "machine.h"
 
+#ifdef DEBUG
 #include "debug.h"
+#endif
 
 #ifndef TOMOCAM_OPTIMIZE__H
 #define TOMOCAM_OPTIMIZE__H
@@ -110,26 +112,32 @@ namespace tomocam {
                             + 4 * std::pow(t, 2))
                             - std::pow(t, 2));
 
-                        // update y
-                        y = sol + (sol - x) * beta;
+                        // update y 
+                        y = sol + (sol - x) * beta;  // NOT_ON_GPU
                         auto g = gradient_(y);
 
-                        // update x
-                        sol = y - g * step_size;
+                        // update x 
+                        sol = y - g * step_size; // NOT_ON_GPU
 
                         // check if step size is small enough
                         T fx = error_(sol);
                         T fy = error_(y);
                         T gy = 0.5 * step_size * g.norm();
+
                         if (fx > (fy + gy))
                             step_size *= 0.9;
                         else {
+
+                            // reset step size 
                             step_size = step0;
                             t = tnew;
-                            xerr = (sol - x).norm();
+
+                            // compute norm of the change
+                            xerr = (sol - x).norm(); // NOT_ON_GPU
                             #ifdef MULTIPROC
                             xerr = multiproc::mp.SumReduce(xerr);
                             #endif
+
                             x = sol;
                             break;
                         }

@@ -18,6 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <thread>
+#include <vector>
+
 #include "common.h"
 #include "dev_array.h"
 #include "dist_array.h"
@@ -33,7 +36,7 @@
 namespace tomocam {
 
     template <typename T>
-    void preproc(Partition<T> sino, Partition<T> sino2, int npad, int offset,
+    void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int offset,
         int device) {
 
         // set the device
@@ -71,11 +74,11 @@ namespace tomocam {
     DArray<T> preproc(DArray<T> &sino, T center) {
 
         int ndevices = Machine::config.num_of_gpus();
-        if (sino.nslices() < ndevices) { ndevices = 1; }
+        if (sino.nslices() < ndevices) { ndevices = sino.nslices(); }
 
         // center shift
         int cen = static_cast<int>(std::round(center));
-        int cen_offset = sino.ncols() / 2 - cen;
+        int cen_offset = (sino.ncols() + 1) / 2 - cen;
 
         // calculate the number of padding pixels ( ≥ √2  * sino.ncols())
         int npad = static_cast<int>(0.42 * sino.ncols()) / 2;
@@ -93,17 +96,14 @@ namespace tomocam {
         auto p1 = create_partitions<T>(sino, ndevices);
         auto p2 = create_partitions<T>(sino2, ndevices);
 
-        #pragma omp parallel for
-        for (int dev = 0; dev < ndevices; dev++) {
-            preproc(p1[dev], p2[dev], npad, cen_offset, dev);
+        std::vector<std::thread> threads(ndevices);
+        for (int i = 0; i < ndevices; i++) {
+            threads[i] =
+                std::thread(preproc_<T>, p1[i], p2[i], npad, cen_offset, i);
         }
+        Machine::config.barrier();
+        for (auto &t : threads) { t.join(); }
 
-        // synchronize all devices
-        #pragma omp parallel for
-        for (int dev = 0; dev < ndevices; dev++) {
-            SAFE_CALL(cudaSetDevice(dev));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
         return sino2;
     }
 

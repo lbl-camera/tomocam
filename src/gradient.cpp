@@ -19,7 +19,7 @@
  */
 
 #include <iostream>
-#include <omp.h>
+#include <thread>
 #include <vector>
 
 #include "dev_array.h"
@@ -34,13 +34,13 @@ namespace tomocam {
 
     template <typename T>
     void gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const NUFFT::Grid<T> &nugrid, T center, int device_id) {
+        const NUFFT::Grid<T> &nugrid, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.nslices());
+        int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
@@ -73,7 +73,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<NUFFT::Grid<T>> &nugrids, T center) {
+        const std::vector<NUFFT::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -85,29 +85,27 @@ namespace tomocam {
         auto p2 = create_partitions(sinoT, nDevice);
         auto p3 = create_partitions(gradient, nDevice);
 
-        // vecor to store partial function values
-        std::vector<T> pfunc(nDevice, 0);
-
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+        // create a vector std::threads to launch the gradient function
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], center, i);
+            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i], 
+                    std::cref(nugrids[i]), i);
         }
 
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
+       // wait for all the GPUs
+        Machine::config.barrier();
+        
+        // waht for all threads to join
+        for (auto &t : threads) { t.join(); }
 
+        // return the gradient
         return gradient;
     }
 
     // Explicit instantiation
-    template DArray<float> gradient(DArray<float> &, DArray<float> &,
-        const std::vector<NUFFT::Grid<float>> &, float);
-    template DArray<double> gradient(DArray<double> &, DArray<double> &,
-        const std::vector<NUFFT::Grid<double>> &, double);
+    template DArray<float> gradient(DArray<float> &, DArray<float> &, 
+            const std::vector<NUFFT::Grid<float>> &);
+    template DArray<double> gradient(DArray<double> &, DArray<double> &, 
+            const std::vector<NUFFT::Grid<double>> &);
 
 } // namespace tomocam

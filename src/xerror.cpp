@@ -18,36 +18,32 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
-#include <vector>
+
 #include <future>
-#include <thread>
+#include <vector>
+
+#include <cuda_runtime.h>
 
 #include "dev_array.h"
 #include "dist_array.h"
-#include "internals.h"
+#include "partition.h"
 #include "machine.h"
 #include "scheduler.h"
-#include "toeplitz.h"
-#include "types.h"
 
-#ifdef DEBUG
-#include "debug.h"
-#endif
+#include "timer.h"
 
 namespace tomocam {
 
     template <typename T>
-    T funcval2(Partition<T> recon, Partition<T> sinoT,
-        const PointSpreadFunction<T> &psf, int device_id) {
+    T xerror_(Partition<T> curr, Partition<T> prev, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
 
         // sub-partitions
-        int nslcs = Machine::config.num_of_partitions(recon.dims(), recon.bytes());
-        auto p1 = create_partitions(recon, nslcs);
-        auto p2 = create_partitions(sinoT, nslcs);
+        int nslcs = Machine::config.num_of_partitions(curr.dims(), curr.bytes());
+        auto p1 = create_partitions(curr, nslcs);
+        auto p2 = create_partitions(prev, nslcs);
         T sum = 0;
 
         // create a scheduler
@@ -56,11 +52,9 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto[idx, d_recon, d_sinoT] = work.value();
-                auto t1 = psf.convolve(d_recon);
-                auto t2 = d_recon.dot(t1);
-                auto t3 = d_recon.dot(d_sinoT);
-                sum += (t2 - 2 * t3);
+                auto[idx, d_curr, d_prev] = work.value();
+                auto diff = d_curr - d_prev;
+                sum += diff.norm();
             }
         }
         return sum;
@@ -68,34 +62,29 @@ namespace tomocam {
 
     // Multi-GPU calll
     template <typename T>
-    T function_value2(DArray<T> &recon, DArray<T> &sinoT,
-        const std::vector<PointSpreadFunction<T>> &psf, T sino_sq) {
+    T xerror(DArray<T> &xcurr, DArray<T> &xprev) {
 
         int nDevice = Machine::config.num_of_gpus();
-        if (nDevice > recon.nslices()) nDevice = recon.nslices();
+        if (nDevice > xcurr.nslices()) nDevice = xcurr.nslices();
 
-        auto p1 = create_partitions(recon, nDevice);
-        auto p2 = create_partitions(sinoT, nDevice);
-
+        // create one partition per device
+        auto p1 = create_partitions(xcurr, nDevice);
+        auto p2 = create_partitions(xprev, nDevice);
 
         std::vector<std::future<T>> results(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            results[i] = std::async(std::launch::async, funcval2<T>, 
-                    p1[i], p2[i], std::cref(psf[i]), i);
+            results[i] = std::async(std::launch::async, xerror_<T>, p1[i], p2[i], i);
         }
 
-        // wait for all the devices to finish
         Machine::config.barrier();
-
-        // sum up the results
-        T fval = sino_sq;
-       for (auto &f: results) { fval += f.get(); }
-        return fval;
+        T xerr = 0;
+        for (int i = 0; i < nDevice; i++) {
+            xerr += results[i].get();
+        }
+        return xerr;
     }
 
-    // explicit instantiation
-    template float function_value2(DArray<float> &, DArray<float> &,
-        const std::vector<PointSpreadFunction<float>> &, float);
-    template double function_value2(DArray<double> &, DArray<double> &,
-        const std::vector<PointSpreadFunction<double>> &, double);
+    // Explicit instantiation
+    template float xerror(DArray<float> &, DArray<float> &);
+    template double xerror(DArray<double> &, DArray<double> &);
 } // namespace tomocam

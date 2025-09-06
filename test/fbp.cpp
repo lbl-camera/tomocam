@@ -1,8 +1,10 @@
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "dist_array.h"
 #include "hdf5/reader.h"
@@ -31,7 +33,6 @@ int main(int argc, char **argv) {
     std::string filename = cfg["filename"];
     std::string dataset = cfg["dataset"];
     std::string angles = cfg["angles"];
-    std::string outfile = cfg["output"];
     int center = cfg["axis"];
     int ibeg = 0, iend = -1;
     // chcek for "slices" key
@@ -54,22 +55,20 @@ int main(int argc, char **argv) {
 
     // if number of columns is even, drop one column
     sino.dropcol();
+    center -= 1;
     float cen = static_cast<float>(center);
 
-    // normalize sinogram
-    auto sino2 = (sino - sino.min()) / (sino.max() - sino.min());
-
     auto start = std::chrono::high_resolution_clock::now();
-    sino2 = tomocam::preproc(sino2, cen);
-    auto recn = tomocam::backproject(sino2, angs, true);
-    recn = tomocam::postproc(recn, sino.ncols());
+    auto sino2 = tomocam::preproc(sino, cen);
+    auto recn2 = tomocam::backproject(sino2, angs, cen);
+    auto recn = tomocam::postproc(recn2, sino.ncols());
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Backprojection time: " << elapsed.count() << " s"
         << std::endl;
 
-    tomocam::h5::Writer w(outfile.c_str());
-    w.write("recon", recn);
+    tomocam::h5::Writer w("backproj.h5");
+    w.write("backproj", recn);
     return 0;
 }

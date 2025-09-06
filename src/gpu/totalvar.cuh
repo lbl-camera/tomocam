@@ -41,6 +41,9 @@ namespace tomocam {
         template <typename T>
         void add_total_var(const DeviceArray<T> &, DeviceArray<T> &, T, T);
 
+        template <typename T>
+        void add_total_var2(const DeviceArray<T> &, DeviceArray<T> &, T, T);
+
     } // namespace gpu
 } // namespace tomocam
 #endif // TOTALVAR__CUH

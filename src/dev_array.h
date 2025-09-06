@@ -253,7 +253,7 @@ namespace tomocam {
             }
 
             // norm2
-            T norm2() const { return gpu::dot<T>(dev_ptr_, dev_ptr_, size_); }
+            T norm() const { return gpu::dot<T>(dev_ptr_, dev_ptr_, size_); }
     };
 
     typedef DeviceArray<float> DeviceArrayf;

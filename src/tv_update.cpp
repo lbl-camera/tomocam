@@ -39,23 +39,15 @@
 namespace tomocam {
 
     template <typename T>
-    void total_var(Partition<T> sol, Partition<T> grad, float sigma, float p,
-        int device) {
+    void total_var2(Partition<T> sol, Partition<T> grad, T sigma, T p, int device) {
 
         // initalize the device
         SAFE_CALL(cudaSetDevice(device));
 
         // create sub-partitions with halo
-        int nslcs = Machine::config.slicesPerStream();
-        int nparts = sol.nslices() / nslcs;
-        if (sol.nslices() % nslcs != 0) nparts++;
+        auto nparts =Machine::config.num_of_partitions(grad.dims(), grad.bytes());
         auto sub_sols = create_partitions(sol, nparts, 1);
         auto sub_grads = create_partitions(grad, nparts);
-
-        if (sub_sols.size() != sub_grads.size()) {
-            throw std::runtime_error(
-                "Error: sub_sols and sub_grads have different sizes");
-        }
 
         // create a shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
@@ -71,7 +63,8 @@ namespace tomocam {
                 auto[idx, d_s, d_g] = work.value();
 
                 // update the total variation
-                gpu::add_total_var<T>(d_s, d_g, sigma, p);
+                gpu::add_total_var2<T>(d_s, d_g, sigma, p);
+
                 // d_g.copy_to(sub_grads[idx], out_s);
                 shipper.push(sub_grads[idx], d_g);
             }
@@ -80,7 +73,7 @@ namespace tomocam {
 
     // multi-GPU call
     template <typename T>
-    void add_total_var(DArray<T> &sol, DArray<T> &grad, float sigma, float p) {
+    void add_total_var2(DArray<T> &sol, DArray<T> &grad, T sigma, T p) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sol.nslices()) nDevice = sol.nslices();
@@ -104,22 +97,16 @@ namespace tomocam {
 
         auto p2 = create_partitions(grad, nDevice);
 
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            total_var<T>(p1[i], p2[i], sigma, p, i);
+            threads[i] = std::thread(total_var2<T>, p1[i], p2[i], sigma, p, i);
         }
-
-        //#pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
+        Machine::config.barrier();
+        for (auto &t: threads) { t.join(); }
     }
 
     // explicit instantiation
-    template void add_total_var<float>(DArray<float> &, DArray<float> &, float,
-        float);
-    template void add_total_var<double>(DArray<double> &, DArray<double> &,
-        float, float);
+    template void add_total_var2<float>(DArray<float> &, DArray<float> &, float, float);
+    template void add_total_var2<double>(DArray<double> &, DArray<double> &, double, double);
 
 } // namespace tomocam

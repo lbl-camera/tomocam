@@ -21,11 +21,13 @@
 #ifndef TOMOCAM__H
 #define TOMOCAM__H
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
 #include "dist_array.h"
 #include "nufft.h"
+#include "timer.h"
 #include "toeplitz.h"
 
 namespace tomocam {
@@ -35,24 +37,24 @@ namespace tomocam {
      *
      * @param sinogram The sinogram to backproject.
      * @param angles The angles of the sinogram.
-     * @param center The center of rotation.
+     * @param boolean flag to indicate whether to apply the ramp filter.
      *
      * @return The backprojected image.
      */
     template <typename T>
-    DArray<T> backproject(DArray<T> &, const std::vector<T> &, T);
+    DArray<T> backproject(DArray<T> &, const std::vector<T> &,
+        bool flag = false);
 
     /**
      * @brief Compute the forward projection of an image.
      *
      * @param image The image to project.
      * @param angles The angles of the sinogram.
-     * @param center The center of rotation.
      *
      * @return The forward projected sinogram.
      */
     template <typename T>
-    DArray<T> project(DArray<T> &, const std::vector<T> &, T);
+    DArray<T> project(DArray<T> &, const std::vector<T> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -66,7 +68,7 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, T);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -89,13 +91,12 @@ namespace tomocam {
      *
      * @param current solution.
      * @param std::vector of NUFFT::Grid types per device
-     * @param center of rotation
      *
      * @return the value of the objective function
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, T);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -121,9 +122,24 @@ namespace tomocam {
      */
     template <typename T>
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
-
     template <typename T>
-    DArray<T> mbir2(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
+    void add_total_var2(DArray<T> &, DArray<T> &, T, T);
+
+    /**
+     * @brief Compute the MBIR reconstruction using Toeplitz matrix.
+     *
+     * @param initial guess
+     * @param sinogram The sinogram to reconstruct.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
+     * @param num_iter The number of iterations.
+     * @param sigma The regularization parameter.
+     * @param tolerance The stopping criterion.
+     * @param xtol The tolerance for the solution.
+     */
+    template <typename T>
+    DArray<T> mbir2(std::optional<DArray<T>>, const DArray<T> &, std::vector<T>,
+        T, int, T, T, T);
 
     /**
      * @brief Compute the MBIR reconstruction.
@@ -149,33 +165,18 @@ namespace tomocam {
     }
 
     /**
-     * @brief classical gradeint calculation
-     *
-     *  @param current solution.
-     *  @param sinogram
-     *  @param NUFFT object for each GPU device
-     *  @param center of rotation
-     *
-     *  @return the gradient
-     */
-    template <typename T>
-    DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
-
-    /**
      * @brief Compute the value of the objective function, given current
      * solution
      *
      * @param current solution.
      * @param sinogram
      * @param vector of NUFFT objects for each GPU device
-     * @param center of rotation
      *
      * @return the value of the objective function
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Zero pad the sinogram by a factor of \sqrt{2}
@@ -196,9 +197,24 @@ namespace tomocam {
     DArray<T> postproc(DArray<T> &, int);
 
     /**
+     * @brief Pad a 2D array to the next power of two in each dimension.
+     * @param array The 2D array to pad.
+     * @param pad_size The size by which to pad the array.
+     * @param pad_type Direction of padding (PadType::LEFT, PadType::RIGHT,
+     * PadType::SYMMETRIC).
      */
     template <typename T>
     DArray<T> pad2d(DArray<T> &, int, PadType);
+
+    /**
+     * @brief compute the norm of the difference between two reconstructions
+     * @param x1 first reconstruction
+     * @param x2 second reconstruction
+     *
+     * @return the norm of the difference
+     */
+    template <typename T>
+    T xerror(DArray<T> &, DArray<T> &);
 
 } // namespace tomocam
 

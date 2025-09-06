@@ -1,0 +1,14 @@
+{
+    "filename": "/home/dkumar/data/phantom_00016/phantom_00016.h5",
+    "dataset": "projs",
+    "angles": "angs",
+    "axis": 640,
+    "slices": [0, 32],
+    "MBIR": {
+        "num_iters": 2,
+        "tol": 1e-6,
+        "xtol": 1e-6,
+        "sigma": 200.0
+    },
+    "output": "foam.h5"
+}
