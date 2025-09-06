@@ -97,11 +97,12 @@ namespace tomocam {
 
         auto p2 = create_partitions(grad, nDevice);
 
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            total_var2<T>(p1[i], p2[i], sigma, p, i);
+            threads[i] = std::thread(total_var2<T>, p1[i], p2[i], sigma, p, i);
         }
-
+        Machine::config.barrier();
+        for (auto &t: threads) { t.join(); }
     }
 
     // explicit instantiation
