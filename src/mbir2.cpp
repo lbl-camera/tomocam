@@ -19,15 +19,17 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
-#include <utility>
 #include <functional>
+#include <iostream>
+#include <optional>
+#include <utility>
 
 #include "dist_array.h"
-#include "optimize.h"
-#include "tomocam.h"
+#include "internals.h"
 #include "machine.h"
 #include "nufft.h"
+#include "optimize.h"
+#include "tomocam.h"
 
 #ifdef MULTIPROC
 #include "multiproc.h"
@@ -36,22 +38,26 @@
 namespace tomocam {
 
     template <typename T>
-    DArray<T> mbir2(DArray<T> &x0, const DArray<T> &sino, std::vector<T> angles, T center, 
-            int num_iters, T sigma, T tol, T xtol) {
-
+    DArray<T> mbir2(std::optional<DArray<T>> guess, const DArray<T> &sino,
+        std::vector<T> angles, T center, int num_iters, T sigma, T tol,
+        T xtol) {
 
         // normalize
         auto maxv = sino.max();
-        auto minv = sino.min();
-        #ifdef MULTIPROC
+#ifdef MULTIPROC
         maxv = multiproc::mp.MaxReduce(maxv);
-        minv = multiproc::mp.MinReduce(minv);
-        #endif
-        if (maxv == minv) {
-            std::cerr << "Error: sinogram has no variation" << std::endl;
-            return x0;
+#endif
+        if (maxv == 0) {
+            std::cerr << "Error: sinogram has ZERO max value" << std::endl;
+            return guess.value();
         }
-        auto sino2 = (sino - minv) / (maxv - minv);
+        auto sino2 = sino / maxv;
+
+        DArray<T> x0({0, 0, 0});
+        // check for initial guess
+        if (guess.has_value()) x0 = guess.value();
+        else
+            x0 = backproject(sino2, angles, true);
 
         // preprocess
         int nrays = sino.ncols();
@@ -99,9 +105,9 @@ namespace tomocam {
         auto g = gradient(xtmp, ytmp, grids);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
-        #ifdef MULTIPROC
+#ifdef MULTIPROC
         L = multiproc::mp.MaxReduce(L);
-        #endif
+#endif
         T step_size = 1 / L;
         if (step_size > 1) step_size = 1;
         T p = 1.2;
@@ -114,7 +120,8 @@ namespace tomocam {
         }
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &psfs, sigma, p](DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &psfs, sigma, p](
+                                 DArray<T> &x) -> DArray<T> {
             auto g = gradient2(x, sinoT, psfs);
             add_total_var2(x, g, sigma, p);
             return g;
@@ -122,9 +129,9 @@ namespace tomocam {
 
         auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
             auto e = function_value2(x, sinoT, psfs, sino_norm);
-            #ifdef MULTIPROC
+#ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
-            #endif
+#endif
             return std::sqrt(e);
         };
 
@@ -133,30 +140,29 @@ namespace tomocam {
             calc_gradient, calc_error);
 
         // run optimization
-        auto rec = opt.run2(x0, num_iters, step_size, tol, tol);
+        auto rec = opt.run2(x0, num_iters, step_size, tol, xtol);
         return postproc(rec, nrays);
     }
 
     // explicit instantiation
-    template DArray<float> mbir2(
-            DArray<float> &,  // initial guess
-            const DArray<float> &, // sinogram
-            std::vector<float>,  // projection angles
-            float, // center of rotation
-            int,   // number of iterations
-            float, // sigma
-            float, // tol
-            float  // xtol
-            );
+    template DArray<float> mbir2(std::optional<DArray<float>>, // initial guess
+        const DArray<float> &,                                 // sinogram
+        std::vector<float>, // projection angles
+        float,              // center of rotation
+        int,                // number of iterations
+        float,              // sigma
+        float,              // tol
+        float               // xtol
+    );
 
     template DArray<double> mbir2(
-            DArray<double> &,  // initial guess
-            const DArray<double> &, // sinogram
-            std::vector<double>,  // projection angles
-            double, // center of rotation
-            int,  // number of iterations
-            double, // sigma
-            double, // tol 
-            double  // xtol
-            );
+        std::optional<DArray<double>>, // initial guess
+        const DArray<double> &,        // sinogram
+        std::vector<double>,           // projection angles
+        double,                        // center of rotation
+        int,                           // number of iterations
+        double,                        // sigma
+        double,                        // tol
+        double                         // xtol
+    );
 } // namespace tomocam
