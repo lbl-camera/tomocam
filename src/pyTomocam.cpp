@@ -20,9 +20,10 @@
 
 #include <iostream>
 
+#include <optional>
+#include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
 
 #include "dist_array.h"
 #include "machine.h"
@@ -48,7 +49,7 @@ inline std::vector<T> getVec(np_array_t<T> array) {
         (T *)buffer_info.ptr + buffer_info.size);
 }
 
-template<typename T>
+template <typename T>
 inline tomocam::DArray<T> from_numpy(const np_array_t<T> &np_arr) {
     auto buffer_info = np_arr.request();
     tomocam::dim3_t dims(1, 1, 1);
@@ -66,12 +67,13 @@ inline tomocam::DArray<T> from_numpy(const np_array_t<T> &np_arr) {
     return rv;
 }
 
-template<typename T>
+template <typename T>
 inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
     auto dims = arr.dims();
-    std::vector<ssize_t> shape{(ssize_t) dims.x, (ssize_t)dims.y, (ssize_t)dims.z};
+    std::vector<ssize_t> shape{(ssize_t)dims.x, (ssize_t)dims.y,
+        (ssize_t)dims.z};
     size_t N = arr.size();
-    T * buf = new T[N];
+    T *buf = new T[N];
     std::copy(arr.begin(), arr.end(), buf);
     return np_array_t<T>(shape, buf);
 }
@@ -84,7 +86,6 @@ np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
 
     // radon call
     auto arg2 = tomocam::project(arg1, getVec<float>(angs));
-
 
     // return numpy array
     return to_numpy<float>(arg2);
@@ -121,14 +122,12 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     tomocam::dim3_t dims = sino.dims();
 
     // initial guess
-    tomocam::dim3_t dims2 = {sino.nslices(), sino.ncols(), sino.ncols()};
-    tomocam::DArray<float> x0(dims2);
-    x0.init(1.0f);
+    std::optional<tomocam::DArray<float>> x0;
 
     // get data pointer to angles
     auto angles = getVec<float>(np_angles);
     tomocam::DArray<float> recon =
-        tomocam::mbir(x0, sino, angles, center, num_iters, sigma, tol, xtol);
+        tomocam::mbir2(x0, sino, angles, center, num_iters, sigma, tol, xtol);
 
     // return numpy array
     return to_numpy<float>(recon);
@@ -139,9 +138,8 @@ PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
 
     // set gpu paramters
-    m.def("set_num_of_gpus", [](int num) {
-        tomocam::Machine::config.num_of_gpus(num);
-        });
+    m.def("set_num_of_gpus",
+        [](int num) { tomocam::Machine::config.num_of_gpus(num); });
 
     // radon transform
     m.def("radon", &radon_wrapper);
