@@ -21,9 +21,9 @@
         {
             "name": "release",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Release"
+            "binaryDir": "${sourceDir}/Release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
