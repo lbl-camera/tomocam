@@ -18,7 +18,7 @@
 #---------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.20)
-project(tomocam LANGUAGES C CXX CUDA)
+project(tomocam LANGUAGES CXX CUDA)
 set(tomocam_VERSION_MAJOR 3) 
 set(tomocam_VERSION_MINOR 0)
 
@@ -146,8 +146,8 @@ if (ENABLE_PYTHON)
 
     # find python
     set(Python_FIND_VIRTUALENV FIRST)
+    set(PYTHON_EXECUTABLE /usr/bin/python3)
     find_package(Python COMPONENTS Interpreter Development REQUIRED)
-    find_package(Python COMPONENTS NumPy REQUIRED)
     include_directories(${Python_INCLUDE_DIRS})
 
     # find pybind11
@@ -163,6 +163,7 @@ if (ENABLE_PYTHON)
                           SUFFIX "${PYTHON_MODULE_EXTENSION}")
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
     target_compile_features(cTomocam PUBLIC cxx_std_23)
+    install(TARGETS cTomocam DESTINATION tomocam)
 
 else()
     message("-- Python module is disabled")
