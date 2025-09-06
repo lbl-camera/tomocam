@@ -20,7 +20,7 @@ class Timer {
 
         void stop() {
             auto end = std::chrono::high_resolution_clock::now();
-            duration_ += std::chrono::duration_cast<std::chrono::milliseconds>(
+            duration_ = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end - start_);
         }
 
