@@ -3,9 +3,9 @@
     "dataset": "proj",
     "angles": "theta",
     "axis": 1227,
-    "slices": [0, 16],
+    "slices": [0, 128],
     "MBIR": {
-        "num_iters": 20,
+        "num_iters": 100,
         "tol": 1e-6,
         "xtol": 1e-6,
         "sigma": 200.0
