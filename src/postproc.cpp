@@ -18,6 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <thread>
+#include <vector>
+
 #include "common.h"
 #include "dev_array.h"
 #include "dist_array.h"
@@ -32,7 +35,7 @@
 namespace tomocam {
 
     template <typename T>
-    void postproc(Partition<T> soln, Partition<T> soln2, int npad, int device) {
+    void postproc_(Partition<T> soln, Partition<T> soln2, int npad, int device) {
 
         // set the device
         SAFE_CALL(cudaSetDevice(device));
@@ -86,17 +89,15 @@ namespace tomocam {
         auto p1 = create_partitions<T>(soln, ndevices);
         auto p2 = create_partitions<T>(soln2, ndevices);
 
-        #pragma omp parallel for
-        for (int dev = 0; dev < ndevices; dev++) {
-            postproc(p1[dev], p2[dev], npad, dev);
+        std::vector<std::thread> threads(ndevices);
+        for (int i = 0; i < ndevices; i++) {
+            threads[i] = std::thread(postproc_<T>, p1[i], p2[i], npad, i);
         }
 
         // synchronize all devices
-        #pragma omp parallel for
-        for (int dev = 0; dev < ndevices; dev++) {
-            SAFE_CALL(cudaSetDevice(dev));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
+        Machine::config.barrier();
+        for (auto &t : threads) { t.join(); }
+
         return soln2;
     }
 
