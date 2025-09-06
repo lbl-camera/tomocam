@@ -66,6 +66,13 @@ target_link_libraries(error PRIVATE tomocam)
 target_link_libraries(error PRIVATE ${HDF5_LIBRARIES})
 add_test(NAME error_test COMMAND error)
 
+
+# test for the xerror calculation
+add_executable(xerror xerror.cpp)
+target_link_libraries(xerror PRIVATE tomocam)
+add_test(NAME xerror_test COMMAND xerror)
+
+
 # MBIR
 add_executable(mbir mbir.cpp)
 target_link_libraries(mbir tomocam)
