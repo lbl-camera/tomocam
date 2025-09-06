@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
     // run MBIR
     Timer t2;
     t2.start();
-    auto recon2 = tomocam::mbir(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon2 = tomocam::mbir(x1, sino, angs, cen, max_iters, sigma, tol, xtol);
     t2.stop();
    
 
