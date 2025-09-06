@@ -18,7 +18,8 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
+#include <thread>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -31,7 +32,7 @@
 namespace tomocam {
 
     template <typename T>
-    void project(Partition<T> input, Partition<T> sino,
+    void project_(Partition<T> input, Partition<T> sino,
         const std::vector<T> &angles, int device) {
 
         // set device
@@ -81,17 +82,16 @@ namespace tomocam {
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++)
-            project(p1[i], p2[i], angles, i);
-
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
+            threads[i] = std::thread(project_<T>, 
+                    p1[i], p2[i], std::cref(angles), i);
         }
+
+        Machine::config.barrier();
+        // wait for threads to finish 
+        for (auto &t: threads) { t.join(); }
+ 
         return output;
     }
 
