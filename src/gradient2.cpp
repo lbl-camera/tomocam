@@ -41,7 +41,8 @@ namespace tomocam {
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
+        int nparts =
+            Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
@@ -84,7 +85,8 @@ namespace tomocam {
         // launch all the available devices
         std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i], std::cref(psfs[i]), i);
+            threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i],
+                std::cref(psfs[i]), i);
         }
 
         // wait for all devices to finish
@@ -93,7 +95,7 @@ namespace tomocam {
         // wait for devices to finish
         for (auto &t : threads) { t.join(); }
 
-        //return the gradient
+        // return the gradient
         return gradient;
     }
 
