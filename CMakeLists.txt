@@ -146,7 +146,7 @@ if (ENABLE_PYTHON)
 
     # find python
     set(Python_FIND_VIRTUALENV FIRST)
-    set(PYTHON_EXECUTABLE /usr/bin/python3)
+    set(PYTHON_EXECUTABLE python)
     find_package(Python COMPONENTS Interpreter Development REQUIRED)
     include_directories(${Python_INCLUDE_DIRS})
 
