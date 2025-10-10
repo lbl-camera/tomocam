@@ -39,7 +39,7 @@
 namespace tomocam {
 
     template <typename T>
-    void total_var(Partition<T> sol, Partition<T> grad, float p, float sigma,
+    void total_var(Partition<T> sol, Partition<T> grad, float sigma, float p,
         int device) {
 
         // initalize the device
@@ -66,7 +66,7 @@ namespace tomocam {
                 auto[idx, d_s, d_g] = work.value();
 
                 // update the total variation
-                gpu::add_total_var<T>(d_s, d_g, p, sigma);
+                gpu::add_total_var<T>(d_s, d_g, sigma, p);
                 
                 // push to outgoing queue
                 shipper.push(sub_grads[idx], d_g);
@@ -76,7 +76,7 @@ namespace tomocam {
 
     // multi-GPU call
     template <typename T>
-    void add_total_var(DArray<T> &sol, DArray<T> &grad, float p, float sigma) {
+    void add_total_var(DArray<T> &sol, DArray<T> &grad, float sigma, float p) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sol.nslices()) nDevice = sol.nslices();
@@ -102,7 +102,7 @@ namespace tomocam {
 
         #pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
-            total_var<T>(p1[i], p2[i], p, sigma, i);
+            total_var<T>(p1[i], p2[i], sigma, p, i);
         }
 
         // #pragma omp parallel for num_threads(nDevice)
