@@ -122,8 +122,11 @@ namespace tomocam {
     template <typename T>
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
+    /**
+      * @brief MBIR Reconstruction via Toeplitz martix
+      */
     template <typename T>
-    DArray<T> mbir2(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
+    DArray<T> mbir2(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
 
     /**
      * @brief Compute the MBIR reconstruction.
