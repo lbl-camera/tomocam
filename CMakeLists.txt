@@ -23,8 +23,8 @@ set(tomocam_VERSION_MAJOR 3)
 set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
-set(CMAKE_CXX_STANDARD 23) 
-set(CMAKE_CUDA_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20) 
+set(CMAKE_CUDA_STANDARD 20)
 
 # debug flags
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
@@ -129,7 +129,7 @@ target_link_libraries(tomocam::deps INTERFACE TBB::tbb)
 add_library(tomocam_objs OBJECT ${SRC})
 set_target_properties(tomocam_objs PROPERTIES 
                       POSITION_INDEPENDENT_CODE ON)
-target_compile_features(tomocam_objs PUBLIC cxx_std_23)
+target_compile_features(tomocam_objs PUBLIC cxx_std_20)
 target_link_libraries(tomocam_objs PUBLIC tomocam::deps)
 
 # build shared library
@@ -138,7 +138,7 @@ set_target_properties(tomocam PROPERTIES
                       VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR} 
                       SOVERSION ${tomocam_VERSION_MAJOR})
 target_link_libraries(tomocam PUBLIC tomocam::deps)
-target_compile_features(tomocam PUBLIC cxx_std_23)
+target_compile_features(tomocam PUBLIC cxx_std_20)
 
 option(ENABLE_PYTHON "Enable python module" OFF)
 if (ENABLE_PYTHON)
@@ -162,7 +162,7 @@ if (ENABLE_PYTHON)
                           PREFIX "${PYTHON_MODULE_PREFIX}" 
                           SUFFIX "${PYTHON_MODULE_EXTENSION}")
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
-    target_compile_features(cTomocam PUBLIC cxx_std_23)
+    target_compile_features(cTomocam PUBLIC cxx_std_20)
     install(TARGETS cTomocam DESTINATION tomocam)
 
 else()
