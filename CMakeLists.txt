@@ -31,8 +31,7 @@ find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_DEBUG "-G -DTOMOCAM_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
-set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
-include(ExternalProject)
+set(CMAKE_CUDA_ARCHITECTURES "75;80;86")
 
 #  local CMake modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
@@ -40,7 +39,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 # Set option to use MPI
 option(MULTI_PROC "Enable MPI" OFF)
 message("-- MPI is ${MULTI_PROC}")
-message("-- To enable MPI, run cmake with -DMULTI_PROC:BOOL=ON")
+if (NOT ${MULTI_PROC})
+    message("-- To enable MPI, run cmake with -DMULTI_PROC:BOOL=ON")
+endif()
 
 # Source files
 set(SRC 
@@ -56,6 +57,8 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/recon.cpp
+    ${PROJECT_SOURCE_DIR}/src/resample.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
     ${PROJECT_SOURCE_DIR}/src/padding.cpp
@@ -64,6 +67,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/fftshift.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/nufft_utils.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/lanczos.cu
    )
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -101,19 +105,7 @@ endif(MULTI_PROC)
 
 
 # finufft
-ExternalProject_Add(
-    finufft
-    GIT_REPOSITORY https://github.com/flatironinstitute/finufft.git
-    GIT_TAG v2.3.1
-    CMAKE_ARGS 
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/finufft
-        -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/finufft/lib
-        -DCMAKE_BUILD_TYPE=Release
-        -DBUILD_TESTING=OFF 
-        -DFINUFFT_USE_CPU=ON 
-        -DFINUFFT_USE_CUDA=ON 
-        -DFINUFFT_STATIC_LINKING=OFF
-    )
+find_package(finufft REQUIRED)
 
 # hdf5
 # TRY the official package
@@ -128,9 +120,7 @@ include_directories(${HDF5_INCLUDE_DIRS})
 
 # build shared library
 add_library(tomocam SHARED ${SRC})
-add_dependencies(tomocam finufft)
-target_include_directories(tomocam PUBLIC ${CMAKE_BINARY_DIR}/finufft/include)
-target_link_libraries(tomocam PUBLIC ${CMAKE_BINARY_DIR}/finufft/lib/libcufinufft.so)
+target_link_libraries(tomocam PUBLIC finufft::finufft)
 target_link_libraries(tomocam PUBLIC CUDA::cufft)
 target_link_libraries(tomocam PUBLIC CUDA::cudart)
 target_link_libraries(tomocam PUBLIC CUDA::cuda_driver)
