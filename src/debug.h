@@ -18,6 +18,9 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <iostream>
+#include <stacktrace>
+
 #include "dist_array.h"
 #include "dev_array.h"
 #include "hdf5/writer.h"
