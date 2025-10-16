@@ -21,11 +21,9 @@
 #ifndef TOMOCAM_DISTARRAY__H
 #define TOMOCAM_DISTARRAY__H
 
-#include <vector>
-#include <fstream>
 #include <iostream>
+#include <vector>
 
-#include "types.h"
 #include "common.h"
 #include "partition.h"
 
@@ -37,291 +35,279 @@ namespace tomocam {
 
     template <typename T>
     class DArray {
-        private:
-            dim3_t dims_;      ///< [Slices, Rows, Colums]
-            uint64_t size_;    ///< Size of the alloated array
-            T *buffer_;        ///< Pointer to data buffer
+      private:
+        dim3_t dims_;   ///< [Slices, Rows, Colums]
+        uint64_t size_; ///< Size of the alloated array
+        T *buffer_;     ///< Pointer to data buffer
+        int global_slice_idx_;
+        int rank_;
 
-            // return global index
-            uint64_t idx_(int i, int j, int k) const {
-                uint64_t z64 = static_cast<uint64_t>(dims_.z);
-                return (i * dims_.y * z64 + j * z64 + k);
-            }
+        // return flat index
+        uint64_t idx_(int i, int j, int k) const {
+            uint64_t z64 = static_cast<uint64_t>(dims_.z);
+            return (i * dims_.y * z64 + j * z64 + k);
+        }
 
-        public:
-            // only constructor
-            DArray(dim3_t d) : dims_(d) {
-                size_ = static_cast<uint64_t>(d.z) * d.y * d.x;
-                buffer_ = new T[size_];
-            }
+      public:
+#ifdef MULTIPROC
+        DArray(dim3_t d, int rank, int offset) :
+            dims_(d), rank_(rank), global_slice_idx_(offset) {
+            size_ = static_cast<uint64_t>(d.z) * d.y * d.x;
+            buffer_ = new T[size_];
+        }
+#endif
+        DArray(dim3_t d) : dims_(d), rank_(0), global_slice_idx_(0) {
+            size_ = static_cast<uint64_t>(d.z) * d.y * d.x;
+            buffer_ = new T[size_];
+        }
 
-            // destructor
-            ~DArray() {
-                delete[] buffer_;
-            }
+        // destructor
+        ~DArray() { delete[] buffer_; }
 
-            //  copy constructor
-            DArray(const DArray &rhs) {
+        //  copy constructor
+        DArray(const DArray &rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            rank_ = rhs.rank_;
+            global_slice_idx_ = rhs.global_slice_idx_;
+            buffer_ = new T[size_];
+            std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
+        }
+
+        // assignment operator
+        DArray &operator=(const DArray &rhs) {
+            if (this != &rhs) {
                 dims_ = rhs.dims_;
                 size_ = rhs.size_;
+                rank_ = rhs.rank_;
+                global_slice_idx_ = rhs.global_slice_idx_;
+                delete[] buffer_;
                 buffer_ = new T[size_];
                 std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
             }
+            return *this;
+        }
 
-            // assignment operator
-            DArray &operator=(const DArray &rhs) {
-                if (this != &rhs) {
-                    dims_ = rhs.dims_;
-                    size_ = rhs.size_;
-                    delete[] buffer_;
-                    buffer_ = new T[size_];
-                    std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
-                }
-                return *this;
-            }
+        // move constructor
+        DArray(DArray &&rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            rank_ = rhs.rank_;
+            global_slice_idx_ = rhs.global_slice_idx_;
+            buffer_ = rhs.buffer_;
+            rhs.buffer_ = nullptr;
+        }
 
-            // move constructor
-            DArray(DArray &&rhs) {
+        // move assignment operator
+        DArray &operator=(DArray &&rhs) {
+            if (this != &rhs) {
                 dims_ = rhs.dims_;
                 size_ = rhs.size_;
+                rank_ = rhs.rank_;
+                global_slice_idx_ = rhs.global_slice_idx_;
+                delete[] buffer_;
                 buffer_ = rhs.buffer_;
                 rhs.buffer_ = nullptr;
             }
+            return *this;
+        }
 
-            // move assignment operator
-            DArray &operator=(DArray &&rhs) {
-                if (this != &rhs) {
-                    dims_ = rhs.dims_;
-                    size_ = rhs.size_;
-                    delete[] buffer_;
-                    buffer_ = rhs.buffer_;
-                    rhs.buffer_ = nullptr;
+        // init
+        void init(T v) {
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++) buffer_[i] = v;
+        }
+
+        // norm2
+        T norm() const {
+            T v = 0;
+#pragma omp parallel for reduction(+ : v)
+            for (uint64_t i = 0; i < size_; i++) v += buffer_[i] * buffer_[i];
+            return v;
+        }
+
+        // sum
+        T sum() const {
+            T v = 0;
+#pragma omp parallel for reduction(+ : v)
+            for (uint64_t i = 0; i < size_; i++) v += buffer_[i];
+            return v;
+        }
+
+        // max
+        T max() const {
+            T v = 1.0e-20;
+#pragma omp parallel for reduction(max : v)
+            for (uint64_t i = 0; i < size_; i++)
+                if (buffer_[i] > v) v = buffer_[i];
+            return v;
+        }
+
+        // min
+        T min() const {
+            T v = 1.0e20;
+#pragma omp parallel for reduction(min : v)
+            for (uint64_t i = 0; i < size_; i++)
+                if (buffer_[i] < v) v = buffer_[i];
+            return v;
+        }
+
+        // subtract
+        DArray<T> operator-(const DArray<T> &rhs) const {
+            DArray<T> out(dims_);
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] - rhs.buffer_[i];
+            return out;
+        }
+
+        // add
+        DArray<T> operator+(const DArray<T> &rhs) const {
+            DArray<T> out(dims_);
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] + rhs.buffer_[i];
+            return out;
+        }
+
+        // multiply
+        DArray<T> operator*(T v) const {
+            DArray<T> out(dims_);
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] * v;
+            return out;
+        }
+
+        // in-place multiply
+        DArray<T> &operator*=(T v) {
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++) buffer_[i] *= v;
+            return *this;
+        }
+
+        // divide
+        DArray<T> operator/(T v) const {
+            if (v == 0) {
+                std::cerr << "Error: division by zero" << std::endl;
+                exit(1);
+            }
+            DArray<T> out(dims_);
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++)
+                out.buffer_[i] = buffer_[i] / v;
+            return out;
+        }
+
+        // in-place divide
+        DArray<T> &operator/=(T v) {
+            if (v == 0) {
+                std::cerr << "Error: division by zero" << std::endl;
+                exit(1);
+            }
+#pragma omp parallel for
+            for (uint64_t i = 0; i < size_; i++) buffer_[i] /= v;
+            return *this;
+        }
+
+        // drop a column
+        void dropcol() {
+            dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
+            uint64_t new_size = static_cast<uint64_t>(d.z) * d.y * d.x;
+            T *new_buffer = new T[new_size];
+
+            // copy data
+            uint64_t nz = static_cast<uint64_t>(dims_.z);
+            uint64_t new_nz = static_cast<uint64_t>(d.z);
+#pragma omp parallel for
+            for (int i = 0; i < dims_.x; i++) {
+                for (int j = 0; j < dims_.y; j++) {
+                    uint64_t beg = i * dims_.y * nz + j * nz;
+                    uint64_t end = i * dims_.y * nz + j * nz + d.z;
+                    uint64_t out_beg = i * d.y * new_nz + j * new_nz;
+                    std::copy(buffer_ + beg, buffer_ + end,
+                        new_buffer + out_beg);
                 }
-                return *this;
             }
+            delete[] buffer_;
+            buffer_ = new_buffer;
+            new_buffer = nullptr;
+            dims_ = d;
+            size_ = new_size;
+        }
 
-            // init
-            void init(T v) {
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] = v;
-            }
+        /// dimensions of the array
+        dim3_t dims() const { return dims_; };
+        int nslices() const { return dims_.x; }
+        int nrows() const { return dims_.y; }
+        int ncols() const { return dims_.z; }
+        uint64_t size() const { return size_; }
+        size_t bytes() const { return size_ * sizeof(T); }
 
-            // norm2
-            T norm() const {
-                T v = 0;
-                #pragma omp parallel for reduction( + : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    v += buffer_[i] * buffer_[i];
-                return v;
-            }
+        int rank() const { return rank_; }
 
-            // sum
-            T sum() const {
-                T v = 0;
-                #pragma omp parallel for reduction( + : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    v += buffer_[i];
-                return v;
-            }
+        int global_slice_idx() const { return global_slice_idx_; }
 
-            // max
-            T max() const {
-                T v = 1.0e-20;
-                #pragma omp parallel for reduction(max : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    if (buffer_[i] > v)
-                        v = buffer_[i];
-                return v;
-            }
+        // indexing
+        T &operator[](uint64_t i) { return buffer_[i]; }
+        T operator[](uint64_t i) const { return buffer_[i]; }
+        T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
+        T operator()(int i, int j, int k) const {
+            return buffer_[idx_(i, j, k)];
+        }
 
-            // min
-            T min() const {
-                T v = 1.0e20;
-                #pragma omp parallel for reduction(min : v)
-                for (uint64_t i = 0; i < size_; i++)
-                    if (buffer_[i] < v)
-                        v = buffer_[i];
-                return v;
-            }
+        // returns pointer to the first element of a row
+        T *row(int i, int j) { return (buffer_ + (i * dims_.y + j) * dims_.z); }
+        const T *row(int i, int j) const {
+            return (buffer_ + (i * dims_.y + j) * dims_.z);
+        }
 
-            // subtract
-            DArray<T> operator-(const DArray<T> &rhs) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] - rhs.buffer_[i];
-                return out;
-            }
+        // Returns pointer to N-th slice
+        T *slice(int n) { return (buffer_ + n * dims_.y * dims_.z); }
+        const T *slice(int n) const {
+            return (buffer_ + n * dims_.y * dims_.z);
+        }
 
-            // add
-            DArray<T> operator+(const DArray<T> &rhs) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] + rhs.buffer_[i];
-                return out;
-            }
+        // Expose the allocated memoy pointer
+        T *data() { return buffer_; }
+        const T *data() const { return buffer_; }
 
-            // multiply
-            DArray<T> operator*(T v) const {
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] * v;
-                return out;
-            }
+        // Expose the beginning of the allocated memory
+        T *begin() { return buffer_; }
+        const T *begin() const { return buffer_; }
 
-            // in-place multiply
-            DArray<T> &operator*=(T v) {
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] *= v;
-                return *this;
-            }
+        // Expose the end of the allocated memory
+        T *end() { return buffer_ + size_; }
+        const T *end() const { return buffer_ + size_; }
 
-            // divide
-            DArray<T> operator/(T v) const {
-                if (v == 0) {
-                    std::cerr << "Error: division by zero" << std::endl;
-                    exit(1);
-                }
-                DArray<T> out(dims_);
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    out.buffer_[i] = buffer_[i] / v;
-                return out;
-            }
+#ifdef MULTIPROC
+        void update_neigh_proc() {
+            // set up neighs
+            int myrank = multiproc::mp.myrank();
+            int nproc = multiproc::mp.nprocs();
+            int prev = myrank - 1;
+            int next = myrank + 1;
+            bool first = multiproc::mp.first();
+            bool last = multiproc::mp.last();
 
-            // in-place divide
-            DArray<T> &operator/=(T v) {
-                if (v == 0) {
-                    std::cerr << "Error: division by zero" << std::endl;
-                    exit(1);
-                }
-                #pragma omp parallel for
-                for (uint64_t i = 0; i < size_; i++)
-                    buffer_[i] /= v;
-                return *this;
-            }
+            // buffer size
+            size_t count = dims_.y * dims_.z;
 
-            // drop a column
-            void dropcol() {
-                dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
-                uint64_t new_size = static_cast<uint64_t>(d.z) * d.y * d.x;
-                T *new_buffer = new T[new_size];
+            // send slice 1 to prev
+            if (!first) multiproc::mp.Send(this->slice(1), count, prev);
 
-                // copy data
-                uint64_t nz = static_cast<uint64_t>(dims_.z);
-                uint64_t new_nz = static_cast<uint64_t>(d.z);
-                #pragma omp parallel for
-                for (int i = 0; i < dims_.x; i++) {
-                    for (int j = 0; j < dims_.y; j++) {
-                        uint64_t beg = i * dims_.y * nz + j * nz;
-                        uint64_t end = i * dims_.y * nz + j * nz + d.z;
-                        uint64_t out_beg = i * d.y * new_nz + j * new_nz;
-                        std::copy(buffer_ + beg, buffer_ + end,
-                            new_buffer + out_beg);
-                    }
-                }
-                delete[] buffer_;
-                buffer_ = new_buffer;
-                new_buffer = nullptr;
-                dims_ = d;
-                size_ = new_size;
-            }
+            // receive last slice from next
+            if (!last)
+                multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
 
-            /// dimensions of the array
-            dim3_t dims() const {
-                return dims_;
-            };
-            int nslices() const {
-                return dims_.x;
-            }
-            int nrows() const {
-                return dims_.y;
-            }
-            int ncols() const {
-                return dims_.z;
-            }
-            uint64_t size() const {
-                return size_;
-            }
-            size_t bytes() const {
-                return size_ * sizeof(T);
-            }
-
-            // indexing
-            T &operator[](uint64_t i) {
-                return buffer_[i];
-            }
-            T operator[](uint64_t i) const {
-                return buffer_[i];
-            }
-            T &operator()(int i, int j, int k) {
-                return buffer_[idx_(i, j, k)];
-            }
-            T operator()(int i, int j, int k) const {
-                return buffer_[idx_(i, j, k)];
-            }
-
-            // Returns pointer to N-th slice
-            T *slice(int n) {
-                return (buffer_ + n * dims_.y * dims_.z);
-            }
-            const T *slice(int n) const {
-                return (buffer_ + n * dims_.y * dims_.z);
-            }
-
-            // Expose the allocated memoy pointer
-            T *begin() {
-                return buffer_;
-            }
-            T *data() {
-                return buffer_;
-            }
-            const T *begin() const {
-                return buffer_;
-            }
-            const T *data() const {
-                return buffer_;
-            }
-
-            // Expose the end of the allocated memory
-            T *end() {
-                return buffer_ + size_;
-            }
-            const T *end() const {
-                return buffer_ + size_;
-            }
-
-            #ifdef MULTIPROC
-            void update_neigh_proc() {
-                // set up neighs
-                int myrank = multiproc::mp.myrank();
-                int nproc = multiproc::mp.nprocs();
-                int prev = myrank - 1;
-                int next = myrank + 1;
-                bool first = multiproc::mp.first();
-                bool last = multiproc::mp.last();
-
-                // buffer size
-                size_t count = dims_.y * dims_.z;
-
-                // send slice 1 to prev
-                if (!first) multiproc::mp.Send(this->slice(1), count, prev);
-
-                // receive last slice from next
-                if (!last) multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
-
-                // send penultimate slice to next
-                if (!last) multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
-                //
-                // receive slice 0 from prev
-                if (!first) multiproc::mp.Recv(this->slice(0), count, prev);
-
-            }
-            #endif // MULTIPROC
+            // send penultimate slice to next
+            if (!last)
+                multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
+            //
+            // receive slice 0 from prev
+            if (!first) multiproc::mp.Recv(this->slice(0), count, prev);
+        }
+#endif // MULTIPROC
     };
 
     template <typename T>
@@ -351,8 +337,8 @@ namespace tomocam {
         return table;
     }
 
-    /* subdivide array into N partitions, with n halo layers on boundaries */
-    #ifndef MULTIPROC
+/* subdivide array into N partitions, with n halo layers on boundaries */
+#ifndef MULTIPROC
     template <typename T>
     std::vector<Partition<T>> create_partitions(DArray<T> &arr,
         int n_partitions, int halo) {
@@ -376,7 +362,7 @@ namespace tomocam {
         }
 
         // add halo layers
-        int h[2];
+        std::array<int, 2> h;
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
             if (i == 0) h[0] = 0;
@@ -391,7 +377,7 @@ namespace tomocam {
         }
         return table;
     }
-    #else
+#else
     template <typename T>
     std::vector<Partition<T>> create_partitions(DArray<T> &arr,
         int n_partitions, int halo) {
@@ -424,7 +410,7 @@ namespace tomocam {
         }
 
         // add halo layers
-        int h[2];
+        std::array<int, 2> h;
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
             if ((myrank == 0) && (i == 0)) h[0] = 0;
@@ -439,6 +425,6 @@ namespace tomocam {
         }
         return table;
     }
-    #endif
+#endif
 } // namespace tomocam
 #endif // TOMOCAM_DISTARRAY__H
