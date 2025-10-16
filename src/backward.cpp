@@ -18,18 +18,15 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <concepts>
-#include <iostream>
-#include <vector>
-
 #include "dev_array.h"
 #include "fft.h"
 #include "fftshift.h"
-#include "internals.h"
 #include "nufft.h"
-#include "types.h"
 
+#ifdef DEBUG
 #include "debug.h"
+#endif
+
 #include "gpu/padding.cuh"
 
 namespace tomocam {
@@ -45,13 +42,13 @@ namespace tomocam {
         in2 = ifftshift(in2, 1);
         in2 = fft1D(in2);
         in2 = fftshift(in2, 1);
-        
+
         // nufft type 1
         auto out = nufft2d1(in2, grid);
         SAFE_CALL(cudaDeviceSynchronize());
 
         // return real part
-        T scale =  static_cast<T>(sino.ncols() * sino.ncols());
+        T scale = static_cast<T>(sino.ncols() * sino.ncols());
         return real(out) / scale;
     }
 
