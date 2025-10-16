@@ -26,6 +26,7 @@
 #include "dist_array.h"
 #include "internals.h"
 #include "machine.h"
+#include "padding.h"
 #include "scheduler.h"
 #include "shipper.h"
 #include "toeplitz.h"
@@ -97,12 +98,14 @@ namespace tomocam {
     }
 
     // specialization for float
-    template DArray<float> gradient2<float>(DArray<float> &solution,
-        DArray<float> &sinoT,
-        const std::vector<PointSpreadFunction<float>> &psfs);
+    template DArray<float> gradient2<float>(
+            DArray<float> &solution, 
+            DArray<float> &sinoT,
+            const std::vector<PointSpreadFunction<float>> &psfs);
     // specialization for double
-    template DArray<double> gradient2<double>(DArray<double> &solution,
-        DArray<double> &sinoT,
-        const std::vector<PointSpreadFunction<double>> &psfs);
+    template DArray<double> gradient2<double>(
+            DArray<double> &solution, 
+            DArray<double> &sinoT,
+            const std::vector<PointSpreadFunction<double>> &psfs);
 
 } // namespace tomocam
