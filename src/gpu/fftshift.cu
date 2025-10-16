@@ -26,35 +26,37 @@
 namespace tomocam {
     namespace gpu {
 
+        /* roll along the fastest dimension */
         template <typename T>
-        __global__ void roll_kernel(const DeviceMemory<T> in, DeviceMemory<T> out, int delta) {
+        __global__ void roll_kernel(const DeviceMemory<T> in,
+            DeviceMemory<T> out, int3 delta) {
 
             // indices
             dim3_t dims = in.dims();
             int3 idx = Index3D();
             if (idx < dims) {
                 int3 idx2 = idx;
-                idx2.z = (idx.z + delta + dims.z) % dims.z;
+                idx2.x = (idx.x + delta.x + dims.x) % dims.x;
+                idx2.y = (idx.y + delta.y + dims.y) % dims.y;
+                idx2.z = (idx.z + delta.z + dims.z) % dims.z;
                 out[idx] = in[idx2];
             }
         }
 
         template <typename T>
-        DeviceArray<T> roll(const DeviceArray<T> &arr, int delta) {
+        DeviceArray<T> roll(const DeviceArray<T> &arr, int3 delta) {
 
             auto dims = arr.dims();
             DeviceArray<T> out(dims);
             Grid grid(dims);
-            roll_kernel<T> <<< grid.blocks(), grid.threads()>>>(arr, out, delta);
+            roll_kernel<T> <<< grid.blocks(), grid.threads() >>> (arr, out, delta);
             return out;
         }
         // explicit instantiation
-        template DeviceArray<float> roll(const DeviceArray<float> &, int);
-        template DeviceArray<double> roll(const DeviceArray<double> &, int);
-        template DeviceArray<complex_t<float>> roll(
-            const DeviceArray<complex_t<float>> &, int);
-        template DeviceArray<complex_t<double>> roll(
-            const DeviceArray<complex_t<double>> &, int);
+        template DeviceArray<float> roll(const DeviceArray<float> &, int3);
+        template DeviceArray<double> roll(const DeviceArray<double> &, int3);
+        template DeviceArray<complex_t<float>> roll(const DeviceArray<complex_t<float> > &, int3);
+        template DeviceArray<complex_t<double>> roll(const DeviceArray<complex_t<double> > &, int3);
 
         /* --------------------------------------------------------------------
          */
@@ -66,7 +68,8 @@ namespace tomocam {
             dim3_t dims = in.dims();
             int3 idx = Index3D();
             if (idx < dims) {
-                T q = 2 * M_PI * idx.z / dims.z * delta;
+                T f = (T) idx.z / (T) dims.z;
+                T q = 2 * M_PI * f * delta;
                 out[idx] = complex_t<T>(cuda::std::cos(q), cuda::std::sin(q)) *
                     in[idx];
             }
@@ -79,7 +82,7 @@ namespace tomocam {
             DeviceArray<complex_t<T>> out(in.dims());
             Grid grid(in.dims());
             phase_shift_kernel<T>
-            <<< grid.blocks(), grid.threads()>>>(in, out, delta);
+            <<< grid.blocks(), grid.threads() >>> (in, out, delta);
             return out;
         }
 
