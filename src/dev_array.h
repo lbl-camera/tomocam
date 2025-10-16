@@ -21,18 +21,18 @@
 #ifndef TOMOCAM_DEV_ARRAY__H
 #define TOMOCAM_DEV_ARRAY__H
 
-#include <iostream>
+#include <cuda.h>
+#include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
-#include "common.h"
 #include "dist_array.h"
 #include "gpu/gpu_ops.cuh"
 #include "gpu/utils.cuh"
 #include "partition.h"
 #include "types.h"
 #include <ctime>
-#include <cuda.h>
 
 #ifdef __NVCC__
 #include "gpu/dev_memory.cuh"
@@ -40,220 +40,241 @@
 
 namespace tomocam {
 
+    namespace gpuMem {
+
+        struct cudaDeleter {
+            void operator()(void *ptr) const {
+                if (ptr) SAFE_CALL(cudaFree(ptr));
+            }
+        };
+
+        template <class T>
+        using cuniquePtr = std::unique_ptr<T, cudaDeleter>;
+
+        template <class T>
+        cuniquePtr<T> make_cuniquePtr(size_t size) {
+            if (size <= 0) {
+                throw std::runtime_error("zero or negative bytes allocation");
+            }
+            T *ptr = nullptr;
+            SAFE_CALL(cudaMalloc((void **)&ptr, sizeof(T) * size));
+            return cuniquePtr<T>(ptr);
+        }
+
+    } // namespace gpuMem
+
     template <typename T>
     class DeviceArray {
-        protected:
-            dim3_t dims_;
-            size_t size_;
-            T *dev_ptr_;
-            int2 halo_;
+      protected:
+        dim3_t dims_;
+        size_t size_;
+        gpuMem::cuniquePtr<T> dev_ptr_;
+        int2 halo_;
 
-        public:
-            DeviceArray() : dims_({0, 0, 0}), size_(0), dev_ptr_(nullptr) {}
+      public:
+        DeviceArray() : dims_({0, 0, 0}), size_(0), dev_ptr_(nullptr) {}
 
-            // Allocate space
-            DeviceArray(dim3_t d) : dims_(d) {
-                halo_ = {0, 0};
-                size_ = d.x * d.y * d.z;
-                size_t bytes = sizeof(T) * size_;
-                SAFE_CALL(cudaMalloc(&dev_ptr_, bytes));
-                SAFE_CALL(cudaMemset(dev_ptr_, 0, bytes));
+        // Allocate space
+        DeviceArray(dim3_t d) : dims_(d) {
+            halo_ = {0, 0};
+            size_ = d.x * d.y * d.z;
+            dev_ptr_ = gpuMem::make_cuniquePtr<T>(size_);
+        }
+
+        // Allocate space with halo
+        DeviceArray(dim3_t d, int *h) : dims_(d) {
+            halo_ = {h[0], h[1]};
+            size_ = d.x * d.y * d.z;
+            dev_ptr_ = gpuMem::make_cuniquePtr<T>(size_);
+        }
+
+        /* create device array from partition */
+        DeviceArray(const Partition<T> &rhs) :
+            dims_(rhs.dims()),
+            halo_(make_int2(rhs.halo()[0], rhs.halo()[1])),
+            size_(rhs.size()),
+            dev_ptr_(gpuMem::make_cuniquePtr<T>(rhs.size())) {
+            SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.begin(), rhs.bytes(),
+                cudaMemcpyHostToDevice));
+        }
+
+        // cuniquePtr makes destructor redundant
+        ~DeviceArray() = default;
+
+        //  copy constructor
+        DeviceArray(const DeviceArray<T> &rhs) :
+            dims_(rhs.dims_),
+            halo_(rhs.halo_),
+            size_(rhs.size_),
+            dev_ptr_(gpuMem::make_cuniquePtr<T>(size_)) {
+            SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.dev_ptr_.get(),
+                rhs.bytes(), cudaMemcpyDeviceToDevice));
+        }
+
+        // assignment operator
+        DeviceArray<T> &operator=(const DeviceArray &rhs) {
+            if (this != &rhs) {
+                DeviceArray<T> temp(rhs);
+                std::swap(dims_, temp.dims_);
+                std::swap(size_, temp.size_);
+                std::swap(halo_, temp.halo_);
+                std::swap(dev_ptr_, temp.dev_ptr_);
+                SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.dev_ptr_.get(),
+                    rhs.bytes(), cudaMemcpyDeviceToDevice));
             }
+            return *this;
+        }
 
-            // Allocate space with halo
-            DeviceArray(dim3_t d, int *h) : dims_(d) {
-                halo_ = {h[0], h[1]};
-                size_ = d.x * d.y * d.z;
-                size_t bytes = sizeof(T) * size_;
-                SAFE_CALL(cudaMalloc(&dev_ptr_, bytes));
-                SAFE_CALL(cudaMemset(dev_ptr_, 0, bytes));
-            }
+        void swap(DeviceArray<T> &other) {
+            std::swap(dims_, other.dims_);
+            std::swap(size_, other.size_);
+            std::swap(halo_, other.halo_);
+            std::swap(dev_ptr_, other.dev_ptr_);
+        }
 
-            /* create device array from partition */
-            DeviceArray(const Partition<T> &rhs) {
-                dims_ = rhs.dims();
-                size_ = rhs.size();
-                halo_ = {rhs.halo()[0], rhs.halo()[1]};
-                SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
-                SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.begin(), rhs.bytes(),
-                    cudaMemcpyHostToDevice));
-            }
+        // move constructor
+        DeviceArray(DeviceArray<T> &&rhs) = default;
 
-            // destructor
-            ~DeviceArray() {
-                if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_));
-            }
+        // move assignment operator
+        DeviceArray<T> &operator=(DeviceArray<T> &&rhs) = default;
 
-            //  copy constructor
-            DeviceArray(const DeviceArray<T> &rhs) {
-                dims_ = rhs.dims_;
-                halo_ = rhs.halo_;
-                size_ = rhs.size_;
-                SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
-                SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, rhs.bytes(),
-                    cudaMemcpyDeviceToDevice));
-            }
+#ifdef __NVCC__
+        // encapsulate raw ptr in DeviceMemory for device access
+        operator gpu::DeviceMemory<T>() {
+            return gpu::DeviceMemory<T>(dims_, halo_, dev_ptr_.get());
+        }
 
-            // assignment operator
-            DeviceArray<T> &operator=(const DeviceArray &rhs) {
-                if (this == &rhs) return *this;
-                dims_ = rhs.dims_;
-                size_ = rhs.size_;
-                halo_ = rhs.halo_;
-                if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_));
-                SAFE_CALL(cudaMalloc(&dev_ptr_, rhs.bytes()));
-                SAFE_CALL(cudaMemcpy(dev_ptr_, rhs.dev_ptr_, rhs.bytes(),
-                    cudaMemcpyDeviceToDevice));
-                return *this;
-            }
+        operator gpu::DeviceMemory<T>() const {
+            return gpu::DeviceMemory<T>(dims_, halo_, dev_ptr_.get());
+        }
+#endif
 
-            // move constructor
-            DeviceArray(DeviceArray<T> &&rhs) {
-                dims_ = rhs.dims_;
-                halo_ = rhs.halo_;
-                size_ = rhs.size_;
-                dev_ptr_ = rhs.dev_ptr_;
-                rhs.dev_ptr_ = nullptr;
-            }
+        // access to the device-pointer
+        T *dev_ptr() { return dev_ptr_.get(); }
+        T *data() { return dev_ptr_.get(); }
 
-            // move assignment operator
-            DeviceArray<T> &operator=(DeviceArray<T> &&rhs) {
-                if (this == &rhs) return *this;
-                dims_ = rhs.dims_;
-                size_ = rhs.size_;
-                halo_ = rhs.halo_;
-                if (dev_ptr_) SAFE_CALL(cudaFree(dev_ptr_));
-                dev_ptr_ = rhs.dev_ptr_;
-                rhs.dev_ptr_ = nullptr;
-                return *this;
-            }
+        // access to the device-pointer
+        const T *dev_ptr() const { return dev_ptr_.get(); };
+        const T *data() const { return dev_ptr_.get(); }
 
-            #ifdef __NVCC__
-            // convert to DeviceMemory
-            operator gpu::DeviceMemory<T>() {
-                return gpu::DeviceMemory<T>(dims_, halo_, dev_ptr_);
-            }
+        // size of the array
+        [[nodiscard]] size_t size() const { return size_; }
 
-            operator gpu::DeviceMemory<T>() const {
-                return gpu::DeviceMemory<T>(dims_, halo_, dev_ptr_);
-            }
-            #endif
+        // bytes of the array
+        [[nodiscard]] size_t bytes() const { return sizeof(T) * size_; }
 
-            // access to the device-pointer
-            T *dev_ptr() { return dev_ptr_; }
-            T *data() { return dev_ptr_; }
+        // get array dims
+        [[nodiscard]] dim3_t dims() const { return dims_; }
 
-            // access to the device-pointer
-            const T *dev_ptr() const { return dev_ptr_; };
-            const T *data() const { return dev_ptr_; }
+        // get number of slices
+        [[nodiscard]] int nslices() const { return dims_.x; }
 
-            // size of the array
-            size_t size() const { return size_; }
+        // get number of rows
+        [[nodiscard]] int nrows() const { return dims_.y; }
 
-            // bytes of the array
-            size_t bytes() const { return sizeof(T) * size_; }
+        // get number of columns
+        [[nodiscard]] int ncols() const { return dims_.z; }
 
-            // get array dims
-            dim3_t dims() const { return dims_; }
+        // initialize
+        void init(T v) { gpu::init_array<T>(dev_ptr_.get(), v, size_); }
 
-            // get number of slices
-            int nslices() const { return dims_.x; }
-
-            // get number of rows
-            int nrows() const { return dims_.y; }
-
-            // get number of columns
-            int ncols() const { return dims_.z; }
-
-            // initialize
-            void init(T v) { gpu::init_array<T>(dev_ptr_, v, size_); }
-
-            // copy to partition
-            void copy_to(Partition<T> &rhs) const {
-                if (dims_ == rhs.dims()) {
-                    SAFE_CALL(cudaMemcpy(rhs.begin(), dev_ptr_, rhs.bytes(),
-                        cudaMemcpyDeviceToHost));
-                } else {
-                    throw std::runtime_error(
-                        "Partition and DeviceArray dimensions do not match");
-                }
-            }
-
-            // copy to host
-            std::vector<T> copy_to_host() const {
-                std::vector<T> h_ptr(size_);
-                SAFE_CALL(cudaMemcpy(h_ptr.data(), dev_ptr_, bytes(),
+        // copy to partition
+        void copy_to(Partition<T> &rhs) const {
+            if (dims_ == rhs.dims()) {
+                SAFE_CALL(cudaMemcpy(rhs.begin(), dev_ptr_.get(), rhs.bytes(),
                     cudaMemcpyDeviceToHost));
-                return h_ptr;
+            } else {
+                throw std::runtime_error(
+                    "Partition and DeviceArray dimensions do not match");
             }
+        }
 
-            // operator overloading
-            DeviceArray<T> operator*(const DeviceArray<T> &rhs) const {
-                DeviceArray<T> res(dims_);
-                gpu::multiply_arrays<T>(dev_ptr_, rhs.dev_ptr_, res.dev_ptr_,
-                    size_);
-                return res;
+        // copy to host
+        std::vector<T> copy_to_host() const {
+            std::vector<T> h_ptr(size_);
+            SAFE_CALL(cudaMemcpy(h_ptr.data(), dev_ptr_.get(), bytes(),
+                cudaMemcpyDeviceToHost));
+            return h_ptr;
+        }
+
+        // operator overloading
+        DeviceArray<T> operator*(const DeviceArray<T> &rhs) const {
+            DeviceArray<T> res(dims_);
+            gpu::multiply_arrays<T>(dev_ptr_.get(), rhs.dev_ptr_.get(),
+                res.dev_ptr_.get(), size_);
+            return res;
+        }
+
+        // multiply (for FFT Convolution)
+        DeviceArray<T> multiply(const DeviceArray<T> &arr) const {
+
+            DeviceArray<T> res(dims_);
+            if ((arr.dims_.x != 1) || (arr.dims_.y != dims_.y) ||
+                (arr.dims_.z != dims_.z))
+                throw std::runtime_error(
+                    "Array is not a point spread function");
+            gpu::broadcast_multiply<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                res.dev_ptr_.get(), dims_);
+            return res;
+        }
+
+        // division (for normalization)
+        DeviceArray<T> operator/(const T val) const {
+            DeviceArray<T> res(dims_);
+            if (val == static_cast<T>(0)) {
+                throw std::runtime_error("division by zero");
             }
+            T val_inv = static_cast<T>(1) / val;
+            gpu::scale_array<T>(dev_ptr_.get(), val_inv, res.dev_ptr_.get(),
+                size_);
+            return res;
+        }
 
-            // multiply (for FFT Convolution)
-            DeviceArray<T> multiply(const DeviceArray<T> &arr) const {
-
-                DeviceArray<T> res(dims_);
-                if ((arr.dims_.x != 1) || (arr.dims_.y != dims_.y) ||
-                    (arr.dims_.z != dims_.z))
-                    throw std::runtime_error(
-                        "Array is not a point spread function");
-                gpu::broadcast_multiply<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
-                    dims_);
-                return res;
+        // /= operator
+        DeviceArray<T> &operator/=(const T val) {
+            if (val == static_cast<T>(0)) {
+                throw std::runtime_error("division by zero");
             }
+            T val_inv = static_cast<T>(1) / val;
+            gpu::scale_array<T>(dev_ptr_.get(), val_inv, dev_ptr_.get(), size_);
+            return *this;
+        }
 
-            // division (for normalization)
-            DeviceArray<T> operator/(const T val) const {
-                DeviceArray<T> res(dims_);
-                T val_inv = static_cast<T>(1) / val;
-                gpu::scale_array<T>(dev_ptr_, val_inv, res.dev_ptr_, size_);
-                return res;
+        // addition
+        DeviceArray<T> operator+(const DeviceArray<T> &arr) const {
+            DeviceArray<T> res(dims_);
+            if (dims_ == arr.dims_)
+                gpu::add_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                    res.dev_ptr_.get(), size_);
+            else
+                throw std::runtime_error("Array dimensions do not match in +");
+            return res;
+        }
+
+        // subtraction
+        DeviceArray<T> operator-(const DeviceArray<T> &arr) const {
+            DeviceArray<T> res(dims_);
+            if (dims_ == arr.dims_)
+                gpu::subtract_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                    res.dev_ptr_.get(), size_);
+            else {
+                throw std::runtime_error("Array dimensions do not match in -");
             }
+            return res;
+        }
 
-            // /= operator
-            DeviceArray<T> operator/=(const T val) {
-                T val_inv = static_cast<T>(1) / val;
-                gpu::scale_array<T>(dev_ptr_, val_inv, dev_ptr_, size_);
-                return *this;
-            }
+        // dot product
+        T dot(const DeviceArray<T> &arr) const {
+            if (dims_ != arr.dims_)
+                throw std::runtime_error(
+                    "Array dimensions do not match in dot");
+            return gpu::dot(dev_ptr_.get(), arr.dev_ptr_.get(), size_);
+        }
 
-            // addition
-            DeviceArray<T> operator+(const DeviceArray<T> &arr) const {
-                DeviceArray<T> res(dims_);
-                if (dims_ == arr.dims_)
-                    gpu::add_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_, size_);
-                else
-                    throw std::runtime_error("Array dimensions do not match in +");
-                return res;
-            }
-
-            // subtraction
-            DeviceArray<T> operator-(const DeviceArray<T> &arr) const {
-                DeviceArray<T> res(dims_);
-                if (dims_ == arr.dims_)
-                    gpu::subtract_arrays<T>(dev_ptr_, arr.dev_ptr_, res.dev_ptr_,
-                        size_);
-                else
-                    throw std::runtime_error("Array dimensions do not match in -");
-                return res;
-            }
-
-            // dot product
-            T dot(const DeviceArray<T> &arr) const {
-                if (dims_ != arr.dims_)
-                    throw std::runtime_error(
-                        "Array dimensions do not match in dot");
-                return gpu::dot(dev_ptr_, arr.dev_ptr_, size_);
-            }
-
-            // norm2
-            T norm2() const { return gpu::dot<T>(dev_ptr_, dev_ptr_, size_); }
+        // norm2
+        T norm2() const {
+            return gpu::dot<T>(dev_ptr_.get(), dev_ptr_.get(), size_);
+        }
     };
 
     typedef DeviceArray<float> DeviceArrayf;
