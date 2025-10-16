@@ -208,6 +208,73 @@ namespace tomocam {
         }
     }
 
+
+    /** @brief Perform a 1D Forward FFT on a real valued array
+      * @param in input array
+      * @return complex valued DeviceArray
+      */
+    template <typename T>
+    DeviceArray<gpu::complex_t<T>> rfft1D(DeviceArray<T> &in) {
+
+        // create output array
+        dim3_t dims = {in.nslices(), in.nrows(), in.ncols() / 2 + 1};
+        DeviceArray<gpu::complex_t<T>> out(dims);
+
+        if (std::is_same<T, float>::value) {
+            // create a plan
+            cufftHandle plan = fftPlan1D(in.dims(), CUFFT_R2C);
+            cufftReal *idata = reinterpret_cast<cufftReal *>(in.dev_ptr());
+            cufftComplex *odata =
+                reinterpret_cast<cufftComplex *>(out.dev_ptr());
+            SAFE_CUFFT_CALL(cufftExecR2C(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
+        } else if (std::is_same<T, double>::value) {
+            cufftHandle plan = fftPlan1D(in.dims(), CUFFT_D2Z);
+            cufftDoubleReal *idata =
+                reinterpret_cast<cufftDoubleReal *>(in.dev_ptr());
+            cufftDoubleComplex *odata =
+                reinterpret_cast<cufftDoubleComplex *>(out.dev_ptr());
+            SAFE_CUFFT_CALL(cufftExecD2Z(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
+        } else {
+            throw std::runtime_error("Unsupported data type");
+        }
+        return out;
+    }
+
+    /** @brief Perform a 1D Inverse FFT on a complex valued array
+      * @param in input array
+      * @return real valued DeviceArray
+      */
+    template <typename T>
+    DeviceArray<T> irfft1D(DeviceArray<gpu::complex_t<T>> &in, int ncols) {
+
+        // create output array, reconstruction is always going to be a square
+        // matrix
+        dim3_t dims = {in.nslices(), in.nrows(), ncols};
+        DeviceArray<T> out(dims);
+
+        if (std::is_same<T, float>::value) {
+            cufftHandle plan = fftPlan1D(dims, CUFFT_C2R);
+            cufftComplex *idata =
+                reinterpret_cast<cufftComplex *>(in.dev_ptr());
+            cufftReal *odata = reinterpret_cast<cufftReal *>(out.dev_ptr());
+            SAFE_CUFFT_CALL(cufftExecC2R(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
+        } else if (std::is_same<T, double>::value) {
+            cufftHandle plan = fftPlan1D(dims, CUFFT_Z2D);
+            cufftDoubleComplex *idata =
+                reinterpret_cast<cufftDoubleComplex *>(in.dev_ptr());
+            cufftDoubleReal *odata =
+                reinterpret_cast<cufftDoubleReal *>(out.dev_ptr());
+            SAFE_CUFFT_CALL(cufftExecZ2D(plan, idata, odata));
+            SAFE_CUFFT_CALL(cufftDestroy(plan));
+        } else {
+            throw std::runtime_error("Unsupported data type");
+        }
+        return out;
+    }
+
     /** @brief Perform a 2D Forward FFT on a real valued array
       * @param in input array
       * @return complex valued DeviceArray
