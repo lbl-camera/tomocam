@@ -47,8 +47,7 @@ namespace tomocam {
         T sum = 0;
 
         // create a scheduler
-        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1,
-            p2);
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1, p2);
 
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
