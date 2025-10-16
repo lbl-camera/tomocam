@@ -18,21 +18,17 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
-
 #include "dev_array.h"
 #include "fft.h"
 #include "fftshift.h"
 #include "gpu/padding.cuh"
 #include "internals.h"
 #include "nufft.h"
-#include "tomocam.h"
-#include "types.h"
 
 namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid, T center) {
+        const NUFFT::Grid<T> &grid) {
 
         // cast to complex
         auto in2 = complex(input);
@@ -42,19 +38,20 @@ namespace tomocam {
         SAFE_CALL(cudaDeviceSynchronize());
 
         //  1d inverse fft along columns
-        out = ifftshift(out);
+        out = ifftshift(out, 1);
         out = ifft1D(out);
-        out = fftshift(out);
+        out = fftshift(out, 1);
 
         T scale = static_cast<T>(input.ncols() * input.ncols());
+
         // cast to real
-        return (real(out) / scale);
+        return real(out) / scale;
     }
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &, float);
+        const NUFFT::Grid<float> &);
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &, double);
+        const NUFFT::Grid<double> &);
 
 } // namespace tomocam
