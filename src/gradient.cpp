@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
 #include <omp.h>
 #include <vector>
 
@@ -28,7 +27,6 @@
 #include "machine.h"
 #include "scheduler.h"
 #include "shipper.h"
-#include "types.h"
 
 namespace tomocam {
 
@@ -56,8 +54,7 @@ namespace tomocam {
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto[idx, d_f, d_sinoT] = work.value();
-
+                auto [idx, d_f, d_sinoT] = work.value();
                 auto t1 = complex(d_f);
                 auto t2 = nufft2d2(t1, nugrid);
                 auto t3 = nufft2d1(t2, nugrid);
@@ -88,14 +85,14 @@ namespace tomocam {
         // vecor to store partial function values
         std::vector<T> pfunc(nDevice, 0);
 
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+// launch all the available devices
+#pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             gradient_<T>(p1[i], p2[i], p3[i], nugrids[i], center, i);
         }
 
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
+// wait for devices to finish
+#pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
