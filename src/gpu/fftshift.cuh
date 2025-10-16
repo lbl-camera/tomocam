@@ -22,7 +22,7 @@
 
 #include "dev_array.h"
 
-#ifndef TOMOCAM_GPU_OPS_CUH 
+#ifndef TOMOCAM_GPU_OPS_CUH
 #define TOMOCAM_GPU_OPS_CUH
 
 namespace tomocam {
@@ -33,10 +33,11 @@ namespace tomocam {
          *
          * @param in input array
          * @param shift number of pixels to shift
+         * @param axis axis to shift
          * @return shifted array
          */
         template <typename T>
-        DeviceArray<T> roll(const DeviceArray<T> &, int);
+        DeviceArray<T> roll(const DeviceArray<T> &, int3);
 
         /** fftshift
          * Shifts the zero-frequency component to the center of the array.
@@ -47,8 +48,7 @@ namespace tomocam {
          * @return shifted array
          */
         template <typename T>
-        DeviceArray<complex_t<T>> phase_shift(const DeviceArray<complex_t<T>> &,
-            T);
+        DeviceArray<complex_t<T>> phase_shift(const DeviceArray<complex_t<T>> &, T);
     } // namespace gpu
 } // namespace tomocam
 #endif // TOMOCAM_GPU_OPS_CUH
