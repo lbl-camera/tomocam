@@ -21,6 +21,8 @@
 #include <mpi.h>
 #include <stdexcept>
 #include <type_traits>
+#include <complex>
+#include <vector>
 
 #ifndef MULTIPROC_H
 #define MULTIPROC_H
@@ -28,13 +30,18 @@
 namespace tomocam {
 
     template <typename T>
-    constexpr MPI_Datatype MPItype() {
+    constexpr MPI_Datatype MPItype()
+    {
         if (std::is_same<T, float>::value) {
             return MPI_FLOAT;
         }  else if (std::is_same<T, double>::value) {
             return MPI_DOUBLE;
         } else if (std::is_same<T, int>::value) {
             return MPI_INT;
+        } else if (std::is_same<T, std::complex<float >>::value) {
+            return MPI_C_FLOAT_COMPLEX;
+        } else if (std::is_same<T, std::complex<double >>::value) {
+            return MPI_C_DOUBLE_COMPLEX;
         } else {
             throw std::runtime_error("Unsupported data type");
         }
@@ -126,6 +133,54 @@ namespace tomocam {
                     throw std::runtime_error("MPI_Recv failed");
                 }
             }
+            
+
+            // Isend
+            template <typename T>
+            void Isend(const T *buf, size_t count, int dest, MPI_Request *req) {
+                auto st = MPI_Isend(buf, count, MPItype<T>(), dest, 123,
+                    MPI_COMM_WORLD, req);
+                if (st != MPI_SUCCESS) {
+                    throw std::runtime_error("MPI_Isend failed");
+                }
+            }
+
+            // Irecv
+            template <typename T>
+            void Irecv(T *buf, size_t count, int src, MPI_Request *req) {
+                auto st = MPI_Irecv(buf, count, MPItype<T>(), src, 123,
+                    MPI_COMM_WORLD, req);
+                if (st != MPI_SUCCESS) {
+                    throw std::runtime_error("MPI_Irecv failed");
+                }
+            }
+
+            // Wait for request
+            void Wait(MPI_Request *req) {
+                MPI_Wait(req, MPI_STATUS_IGNORE);
+            }
+
+            // Wait for all requests
+            void Waitall(std::vector<MPI_Request> &reqs) {
+                MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
+            }
+
+            // scatter
+            template <typename T>
+            void Scatter(const T *sendbuf, size_t sendcount, T *recvbuf,
+                size_t recvcount, int root) {
+                MPI_Scatter(sendbuf, sendcount, MPItype<T>(), recvbuf, recvcount,
+                    MPItype<T>(), root, MPI_COMM_WORLD);
+            }
+
+            // gather
+            template <typename T>
+            void Gather(const T *sendbuf, size_t sendcount, T *recvbuf,
+                size_t recvcount, int root) {
+                MPI_Gather(sendbuf, sendcount, MPItype<T>(), recvbuf, recvcount,
+                    MPItype<T>(), root, MPI_COMM_WORLD);
+            }
+
     };
 
     namespace multiproc {
