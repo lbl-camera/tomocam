@@ -21,78 +21,54 @@
 #ifndef TOMOCAM_PARTITION__H
 #define TOMOCAM_PARTITION__H
 
+#include <array>
+#include <cstdint>
 #include <vector>
 
-#include "types.h"
 #include "common.h"
 
 namespace tomocam {
 
     template <typename T>
     class Partition {
-        private:
-            dim3_t dims_;
-            uint64_t size_;
-            T *first_;
-            int halo_[2];
+      private:
+        dim3_t dims_;
+        uint64_t size_;
+        T *first_;
+        std::array<int, 2> halo_;
 
-        public:
-            Partition(dim3_t d, T *pos) : dims_(d), first_(pos) {
-                size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x;
-                halo_[0] = 0;
-                halo_[1] = 0;
-            }
+      public:
+        Partition(dim3_t d, T *pos) :
+            dims_(d),
+            first_(pos),
+            size_(static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x),
+            halo_({0, 0}) {}
 
-            Partition(dim3_t d, T *pos, int *h) : dims_(d), first_(pos) {
-                size_ = static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x;
-                halo_[0] = h[0];
-                halo_[1] = h[1];
-            }
+        Partition(dim3_t d, T *pos, const std::array<int, 2> &h) :
+            dims_(d),
+            first_(pos),
+            halo_(h),
+            size_(static_cast<uint64_t>(dims_.z) * dims_.y * dims_.x) {}
 
-            dim3_t dims() const {
-                return dims_;
-            }
-            int nslices() const {
-                return dims_.x;
-            }
-            int nrows() const {
-                return dims_.y;
-            }
-            int ncols() const {
-                return dims_.z;
-            }
-            uint64_t size() const {
-                return size_;
-            }
-            size_t bytes() const {
-                return size_ * sizeof(T);
-            }
-            int  *halo() {
-                return halo_;
-            }
-            const int  *halo() const {
-                return halo_;
-            }
+        [[nodiscard]] dim3_t dims() const { return dims_; }
+        [[nodiscard]] int nslices() const { return dims_.x; }
+        [[nodiscard]] int nrows() const { return dims_.y; }
+        [[nodiscard]] int ncols() const { return dims_.z; }
+        [[nodiscard]] uint64_t size() const { return size_; }
+        [[nodiscard]] size_t bytes() const { return size_ * sizeof(T); }
+        [[nodiscard]] auto halo() const { return halo_; }
 
-            T *begin() {
-                return first_;
-            }
-            const T *begin() const {
-                return first_;
-            }
-            T *slice(int i) {
-                return first_ + i * dims_.y * dims_.z;
-            }
-            const T *slice(int i) const {
-                return first_ + i * dims_.y * dims_.z;
-            }
+        T *begin() { return first_; }
+        const T *begin() const { return first_; }
+        T *slice(int i) { return first_ + i * dims_.y * dims_.z; }
+        const T *slice(int i) const { return first_ + i * dims_.y * dims_.z; }
 
-            T &operator()(int i, int j, int k) {
-                return first_[i * dims_.y * dims_.z + j * dims_.z + k];
-            }
-            T operator()(int i, int j, int k) const {
-                return first_[i * dims_.y * dims_.z + j * dims_.z + k];
-            }
+        T &operator()(int i, int j, int k) {
+            return first_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
+        T operator()(int i, int j, int k) const {
+            return first_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
     };
 
     // partition an array into sub-partitions
@@ -149,17 +125,17 @@ namespace tomocam {
 
         // set pointers as if  there is no halo
         std::vector<int> shares(npartitions, work);
-        for (int i = 0; i < extra; i++) {
-            shares[i] += 1;
-        }
+        for (int i = 0; i < extra; i++) { shares[i] += 1; }
 
         // create the sub-partitions
-        int h[2];
+        std::array<int, 2> h;
         for (int i = 0; i < npartitions; i++) {
             if (i == 0) h[0] = a.halo()[0];
-            else h[0] = halo;
+            else
+                h[0] = halo;
             if (i == npartitions - 1) h[1] = a.halo()[1];
-            else h[1] = halo;
+            else
+                h[1] = halo;
             dim3_t d(shares[i] + h[0] + h[1], dims.y, dims.z);
             table.push_back(Partition<T>(d, a.slice(offset - h[0]), h));
             offset += shares[i];
