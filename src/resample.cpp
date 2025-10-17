@@ -19,6 +19,7 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <cassert>
 #include <thread>
 #include <vector>
 
@@ -28,10 +29,14 @@
 #include "gpu/padding.cuh"
 #include "gpu/resample.cuh"
 #include "machine.h"
-#include "multiproc.h"
+
 #include "partition.h"
 #include "scheduler.h"
 #include "shipper.h"
+
+#ifdef MULTIPROC
+#include "multiproc.h"
+#endif
 
 namespace tomocam {
 
