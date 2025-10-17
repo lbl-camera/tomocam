@@ -1,8 +1,5 @@
-#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
-#include <iomanip>
 #include <nlohmann/json.hpp>
 
 #include "dist_array.h"
@@ -24,15 +21,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // initialize MPI
-    #ifdef MULTIPROC
+// initialize MPI
+#ifdef MULTIPROC
     tomocam::multiproc::mp.init(argc, argv);
     int nprocs = tomocam::multiproc::mp.nprocs();
     int myrank = tomocam::multiproc::mp.myrank();
-    #else
+#else
     int nprocs = 1;
     int myrank = 0;
-    #endif
+#endif
 
     // get JSON file
     std::ifstream json_file(argv[1]);
@@ -47,7 +44,7 @@ int main(int argc, char **argv) {
     std::string filename = cfg["filename"];
     std::string dataset = cfg["dataset"];
     std::string angles = cfg["angles"];
-    int center = cfg["axis"];
+    float center = cfg["axis"];
 
     int ibeg = 0, iend = -1;
     // chcek for "slices" key
@@ -65,6 +62,9 @@ int main(int argc, char **argv) {
     // MBIR parameters
     auto params = cfg["MBIR"];
     int max_iters = params["num_iters"];
+    bool hier = false;
+    if (params.find("hierarchical") != params.end())
+        hier = params["hierarchical"];
     float sigma = params["sigma"];
 
     float tol = 0.001;
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     if (iend < 0) iend = fp.dims(dataset.c_str(), 1);
     int nslices = iend - ibeg;
 
-    #ifdef MULTIPROC
+#ifdef MULTIPROC
     int slcs_per_proc = nslices / nprocs;
     int extra_slcs = nslices % nprocs;
     if ((extra_slcs > 0) && (myrank < extra_slcs)) slcs_per_proc += 1;
@@ -87,10 +87,10 @@ int main(int argc, char **argv) {
     iend = ibeg + slcs_per_proc;
     if (myrank > extra_slcs) {
         ibeg = extra_slcs * (slcs_per_proc + 1) +
-            (myrank - extra_slcs) * slcs_per_proc;
+               (myrank - extra_slcs) * slcs_per_proc;
         iend = ibeg + slcs_per_proc;
     }
-    #endif
+#endif
 
     auto sino = fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
     auto angs = fp.read<float>(angles.c_str());
@@ -98,43 +98,43 @@ int main(int argc, char **argv) {
     // if number of columns is even, drop one column
     if (sino.ncols() % 2 == 0) {
         sino.dropcol();
-        center -= 1;
+        center--;
     }
 
-    float cen = static_cast<float>(center);
-
-    // inital guess
-    auto x0 = tomocam::DArray<float>({sino.nslices(), sino.ncols(), sino.ncols()});
+    tomocam::DArray<float> x0({sino.nslices(), sino.ncols(), sino.ncols()});
     x0.init(1.f);
 
     // run MBIR
     Timer t;
     t.start();
-    auto recon = tomocam::mbir<float>(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon =
+        tomocam::mbir(x0, sino, angs, center, max_iters, sigma, tol, xtol);
+    // auto recon = tomocam::recon<float>(sino, angs, center, max_iters, sigma,
+    // tol, xtol, hier);
     t.stop();
 
-    #ifdef MULTIPROC
+#ifdef MULTIPROC
     if (myrank == 0)
-    #endif
+#endif
         std::cout << "time taken(s): " << t.ms() / 1000.0 << std::endl;
 
-    // save reconstruction
-    #ifdef MULTIPROC
+// save reconstruction
+#ifdef MULTIPROC
     auto fname = cfg["output"].get<std::string>();
     auto prefix = fname.substr(0, fname.find_last_of("."));
     auto suffix = fname.substr(fname.find_last_of("."));
     std::stringstream tag;
     tag << std::setw(3) << std::setfill('0') << myrank;
     auto outf = prefix + tag.str() + suffix;
-    #else
+#else
     auto outf = cfg["output"].get<std::string>();
-    #endif
+#endif
     tomocam::h5::Writer writer(outf.c_str());
     writer.write("recon", recon);
 
-    #ifdef MULTIPROC
+#ifdef MULTIPROC
     tomocam::multiproc::mp.finalize();
-    #endif
+#endif
 
     return 0;
 }
