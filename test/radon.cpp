@@ -1,11 +1,9 @@
-#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-#include "dist_array.h"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
 #include "machine.h"
