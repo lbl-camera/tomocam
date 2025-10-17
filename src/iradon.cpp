@@ -21,14 +21,12 @@
 #include <iostream>
 #include <omp.h>
 
+#include "dev_array.h"
 #include "dist_array.h"
 #include "internals.h"
 #include "machine.h"
-#include "shipper.h"
-#include "types.h"
-
-#include "dev_array.h"
 #include "scheduler.h"
+#include "shipper.h"
 
 namespace tomocam {
 
@@ -42,13 +40,12 @@ namespace tomocam {
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
         int ncols = sino.ncols();
+
+        // create NUFFT Grid
         auto grid = NUFFT::Grid<T>(nproj, ncols, angles.data(), device);
 
         // create a data shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
-
-        // input dimensions
-        dim3_t idims = sino.dims();
 
         // subpartitions
         int nparts =
@@ -58,11 +55,11 @@ namespace tomocam {
 
         // start a scheduler
         Scheduler<Partition<T>, DeviceArray<T>> scheduler(sub_sinos);
-        while(scheduler.has_work()) {
+        while (scheduler.has_work()) {
             auto task = scheduler.get_work();
             if (task.has_value()) {
                 auto [i, d_sino] = task.value();
-                auto d_recn = backproject(d_sino, grid, center);
+                auto d_recn = backproject(d_sino, grid);
 
                 // copy the result to the output
                 shipper.push(sub_outputs[i], d_recn);
@@ -86,13 +83,13 @@ namespace tomocam {
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+// launch all the available devices
+#pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++)
             backproject(p1[i], p2[i], angles, center, i);
 
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
+// wait for devices to finish
+#pragma omp parallel for num_threads(nDevice)
         for (int i = 0; i < nDevice; i++) {
             SAFE_CALL(cudaSetDevice(i));
             SAFE_CALL(cudaDeviceSynchronize());
