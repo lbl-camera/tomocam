@@ -27,6 +27,7 @@
 #include "scheduler.h"
 #include "shipper.h"
 #include "types.h"
+#include "padding.h"
 
 namespace tomocam {
 
@@ -40,11 +41,12 @@ namespace tomocam {
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
         int ncols = input.ncols();
+
+        // pad solution by sqrt(2)
         auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), device);
 
         // create subpartitions
-        int nparts =
-            Machine::config.num_of_partitions(input.dims(), input.bytes());
+        int nparts = Machine::config.num_of_partitions(input.dims(), input.bytes());
         auto sub_ins = create_partitions(input, nparts);
         auto sub_outs = create_partitions(sino, nparts);
 
@@ -57,7 +59,8 @@ namespace tomocam {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_input] = work.value();
-                auto d_sino = project(d_input, nugrid, center);
+
+                auto d_sino = project(d_input, nugrid);
 
                 // copy the result to the output
                 shipper.push(sub_outs[idx], d_sino);
@@ -97,9 +100,7 @@ namespace tomocam {
     }
 
     // specializations for float and double
-    template DArray<float> project(DArray<float> &, const std::vector<float> &,
-        float);
-    template DArray<double> project(DArray<double> &,
-        const std::vector<double> &, double);
+    template DArray<float> project(DArray<float> &, const std::vector<float> &, float);
+    template DArray<double> project(DArray<double> &, const std::vector<double> &, double);
 
 } // namespace tomocam
