@@ -59,7 +59,8 @@ namespace tomocam {
                 auto d_sino2 = gpu::pad1d(d_sino, 2 * npad, PadType::SYMMETRIC);
 
                 // shift by twice the center offset
-                d_sino2 = gpu::roll(d_sino2, offset);
+                int3 shift = make_int3(0, 0, offset);
+                d_sino2 = gpu::roll(d_sino2, shift);
 
                 // copy data to partition
                 shipper.push(p2[idx], d_sino2);
