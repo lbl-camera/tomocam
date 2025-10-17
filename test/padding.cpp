@@ -14,6 +14,7 @@ using json = nlohmann::json;
 #include "gpu/padding.cuh"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
+#include "padding.h"
 #include "internals.h"
 #include "tomocam.h"
 
