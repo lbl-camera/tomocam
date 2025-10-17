@@ -21,7 +21,6 @@
 #ifndef TOMOCAM__H
 #define TOMOCAM__H
 
-#include <tuple>
 #include <vector>
 
 #include "dist_array.h"
@@ -61,8 +60,9 @@ namespace tomocam {
      * @param current solution.
      * @param transposed_sinogram the transposed sinogram.
      * @param A copy of NUFFT Grid on each GPU
+     * @param center of rotation
      *
-     * @return a tuple containing the gradient and the partial function value
+     * @return gradient
      */
     template <typename T>
     DArray<T> gradient(DArray<T> &, DArray<T> &,
@@ -75,8 +75,9 @@ namespace tomocam {
      * @param current solution.
      * @param transposed_sinogram the transposed sinogram.
      * @param A copy of PSF on each GPU device.
+     * @param center of rotation
      *
-     * @return a tuple containing the gradient and the partial function value
+     * @return gradient
      */
 
     template <typename T>
@@ -89,13 +90,12 @@ namespace tomocam {
      *
      * @param current solution.
      * @param std::vector of NUFFT::Grid types per device
-     * @param center of rotation
      *
      * @return the value of the objective function
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, T);
+        const std::vector<NUFFT::Grid<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -122,8 +122,21 @@ namespace tomocam {
     template <typename T>
     void add_total_var(DArray<T> &, DArray<T> &, float, float);
 
+    /**
+     * @brief Compute the MBIR reconstruction.
+     *
+     * @param initial guess
+     * @param sinogram The sinogram to reconstruct.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
+     * @param num_iter The number of iterations.
+     * @param sigma The regularization parameter.
+     * @param tolerance The stopping criterion.
+     * @param xtol The tolerance for the solution.
+     */
+
     template <typename T>
-    DArray<T> mbir2(DArray<T> &, std::vector<T>, T, T, T, int, T, T, T);
+    DArray<T> mbir2(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
 
     /**
      * @brief Compute the MBIR reconstruction.
@@ -141,6 +154,23 @@ namespace tomocam {
     DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
 
     /**
+     * @brief
+     *
+     * @param sinogram
+     * @param angles of projection
+     * @param center of rotation
+     * @param num_iters
+     * @param sigma
+     * @param tolerance
+     * @param xtol
+     * @param bool (optional) use hierarchical reconstruction
+     * @param initial guess (optional)
+     */
+    template <typename T>
+    DArray<T> recon(const DArray<T> &, const std::vector<T> &, T, int, T, T, T,
+        bool f = false, DArray<T> x = DArray<T>({0, 0, 0}));
+
+    /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
      */
     namespace gpu {
@@ -148,57 +178,26 @@ namespace tomocam {
         void add_tv_hessian(DArray<T> &, float);
     }
 
-    /**
-     * @brief classical gradeint calculation
-     *
-     *  @param current solution.
-     *  @param sinogram
-     *  @param NUFFT object for each GPU device
-     *  @param center of rotation
-     *
-     *  @return the gradient
-     */
     template <typename T>
-    DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
+    DArray<T> preproc(const DArray<T> &, T);
 
-    /**
-     * @brief Compute the value of the objective function, given current
-     * solution
-     *
-     * @param current solution.
-     * @param sinogram
-     * @param vector of NUFFT objects for each GPU device
-     * @param center of rotation
-     *
-     * @return the value of the objective function
-     */
     template <typename T>
-    T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &, int);
-
-    /**
-     * @brief Zero pad the sinogram by a factor of \sqrt{2}
-     * @param sinogram
-     *
-     * @return zero padded sinogram
-     */
-    template <typename T>
-    DArray<T> preproc(DArray<T> &, T);
-
-    /**
-     * @brief Crop the reconstruction by a factor of \sqrt{2}
-     * @param reconstruction
-     *
-     * @return cropped reconstruction
-     */
-    template <typename T>
-    DArray<T> postproc(DArray<T> &, int);
+    DArray<T> postproc(const DArray<T> &, int);
 
     /**
      */
     template <typename T>
-    DArray<T> pad2d(DArray<T> &, int, PadType);
+    DArray<T> fftdownsamp(DArray<T> &, int);
+
+    /**
+     */
+    template <typename T>
+    DArray<T> downsample(DArray<T> &, int);
+
+    /**
+     */
+    template <typename T>
+    DArray<T> upsample(DArray<T> &, dim3_t);
 
 } // namespace tomocam
 
