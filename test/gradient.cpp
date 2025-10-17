@@ -1,18 +1,12 @@
 
-#include <chrono>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <string>
-#include <thread>
 
 #include "dist_array.h"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
+#include "timer.h"
 #include "toeplitz.h"
 #include "tomocam.h"
-
-#include "timer.h"
 
 int main(int argc, char **argv) {
 
@@ -24,15 +18,11 @@ int main(int argc, char **argv) {
 
     // create data
     tomocam::DArray<float> sino(tomocam::dim3_t{1, nprojs, npixel});
-    for (int i = 0; i < sino.size(); i++) {
-        sino[i] = rng.rand<float>();
-    }
+    for (int i = 0; i < sino.size(); i++) { sino[i] = rng.rand<float>(); }
 
     // create angles
     std::vector<float> angs(nprojs);
-    for (int i = 0; i < nprojs; i++) {
-        angs[i] = i * M_PI / nprojs;
-    }
+    for (int i = 0; i < nprojs; i++) { angs[i] = i * M_PI / nprojs; }
 
     // allocate solution array
     tomocam::dim3_t dims = {1, npixel, npixel};
