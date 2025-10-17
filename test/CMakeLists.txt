@@ -3,6 +3,11 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 # JSON
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
+
+add_executable(dsample dsample.cpp)
+target_link_libraries(dsample PRIVATE tomocam)
+target_link_libraries(dsample PRIVATE ${HDF5_LIBRARIES})
+
 add_executable(padding padding.cpp)
 target_link_libraries(padding PRIVATE tomocam)
 target_link_libraries(padding PRIVATE ${HDF5_LIBRARIES})
