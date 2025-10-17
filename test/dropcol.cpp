@@ -1,7 +1,5 @@
 
 #include <chrono>
-#include <filesystem>
-#include <fstream>
 #include <nlohmann/json.hpp>
 
 #include "hdf5/writer.h"
