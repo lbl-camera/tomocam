@@ -1,6 +1,5 @@
 
 #include <chrono>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -9,6 +8,7 @@
 #include "dist_array.h"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
+#include "padding.h"
 #include "tomocam.h"
 
 using json = nlohmann::json;
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     auto t1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_read = t1 - t0;
     std::cout << "Elapsed time reading data: " << elapsed_read.count() << " s"
-        << std::endl;
+              << std::endl;
 
     // if number of columns is even, drop one column
     sino.dropcol();
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Backprojection time: " << elapsed.count() << " s"
-        << std::endl;
+              << std::endl;
 
     tomocam::h5::Writer w("backproj.h5");
     w.write("backproj", recn);
