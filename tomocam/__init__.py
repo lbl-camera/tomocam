@@ -3,6 +3,5 @@
 
 from ._version import __version__
 
-from .transform import radon, radon_adj
-from .modeling import MBIR
-
+from .transform import radon, backproject
+from .recon import MBIR as recon

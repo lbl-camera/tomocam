@@ -1,7 +1,7 @@
 import numpy as np
 from . import cTomocam
 
-def radon(volume, angles, center, over_sample=1.5):
+def radon(volume, angles, center):
     """Computes the radon transform using nufft.
 
     Parameters
@@ -12,8 +12,6 @@ def radon(volume, angles, center, over_sample=1.5):
         Projection angles (single, precision)
     center: float
         Offset correction to be applied to center of rotation
-    over_sample: float
-        Zero padding to be added to signal
 
     Returns
     --------
@@ -27,8 +25,8 @@ def radon(volume, angles, center, over_sample=1.5):
     return cTomocam.radon(volume, angles, center, over_sample)
 
 
-def radon_adj(sinogram, angles, center, over_sample=1.5):
-    """Computes the inverse-radon transform using nufft.
+def backproject(sinogram, angles, center):
+    """Computes the back-projection transform using nufft.
 
     Parameters
     ----------
@@ -38,8 +36,6 @@ def radon_adj(sinogram, angles, center, over_sample=1.5):
         Projection angles (single, precision)
     center: float
         Offset correction to be applied to center of rotation
-    over_sample: float
-        Zero padding to be added to signal
 
     Returns
     --------

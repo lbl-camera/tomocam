@@ -2,7 +2,7 @@ import numpy as np
 from . import cTomocam
 
 
-def MBIR(sinogram, angles, center, num_iters = 100, smoothness=0.01, tol=1.0E-04, xtol=1.0E-04):
+def MBIR(sinogram, angles, center, num_iters = 50, smoothness=0.01, tol=1.0E-04, xtol=1.0E-04):
     """Computes the Model-based Iterative reconstruction using nufft.
 
     Parameters
@@ -15,7 +15,7 @@ def MBIR(sinogram, angles, center, num_iters = 100, smoothness=0.01, tol=1.0E-04
        Center of rotation
     num_iters: int
         Number of iterations
-    smoothness: float (>= 0)
+    smoothness: float (> 0)
         Controls smoothness of reconstruction
     tol: float
         Value of objective function at which to stop iteration
