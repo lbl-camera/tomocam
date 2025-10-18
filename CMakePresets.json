@@ -1,11 +1,11 @@
 
 {
-    "version": 5,
+    "version": 6,
     "configurePresets": [
         {
             "name": "debug",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Debug",
+            "binaryDir": "${sourceDir}/Serial/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_TESTS": {
@@ -21,7 +21,7 @@
         {
             "name": "release",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Release",
+            "binaryDir": "${sourceDir}/Serial/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_TESTS": {
@@ -35,9 +35,9 @@
             }
         },
         {
-            "name": "multiproc",
+            "name": "multiproc-debug",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Multiproc",
+            "binaryDir": "${sourceDir}/Multiproc/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_TESTS": {
@@ -53,7 +53,27 @@
                     "value": "ON"
                 }
             }
-        } 
+        },
+        {
+            "name": "multiproc-release",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/Multiproc/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "MULTI_PROC": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        }
     ],
     "buildPresets": [
         {
@@ -67,9 +87,44 @@
             "jobs": 8
         },
         {
-            "name": "multiproc",
-            "configurePreset": "multiproc",
+            "name": "multiproc-debug",
+            "configurePreset": "multiproc-debug",
             "jobs": 8
+        },
+        { 
+            "name": "multiproc-release",
+            "configurePreset": "multiproc-release",
+            "jobs": 8
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "debug",
+            "steps": [
+                { "name": "debug", "type": "configure" },
+                { "name": "debug", "type": "build" }
+            ]
+        },
+        {
+            "name": "release",
+            "steps": [
+                { "name": "release", "type": "configure" },
+                { "name": "release", "type": "build" }
+            ]
+        },
+        {
+            "name": "multiproc-debug",
+            "steps": [
+                { "name": "multiproc-debug", "type": "configure" },
+                { "name": "multiproc-debug", "type": "build" }
+            ]
+        },
+        {
+            "name": "multiproc-release",
+            "steps": [
+                { "name": "multiproc-release", "type": "configure" },
+                { "name": "multiproc-release", "type": "build" }
+            ]
         }
     ]
 }
