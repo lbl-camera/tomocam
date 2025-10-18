@@ -22,7 +22,6 @@
 #include <iostream>
 #include <utility>
 #include <functional>
-#include <pybind11/pybind11.h>
 
 #include "dist_array.h"
 #include "machine.h"
@@ -43,32 +42,39 @@ namespace tomocam {
 
         // normalize
         auto maxv = sino.max();
+        auto minv = sino.min();
         #ifdef MULTIPROC
         maxv = multiproc::mp.MaxReduce(maxv);
+        minv = multiproc::mp.MinReduce(minv);
         #endif
-        sino /= maxv;
+        if (maxv == minv) {
+            std::cerr << "Error: sinogram has no variation" << std::endl;
+            return x0;
+        }
+        auto sino2 = (sino - minv) / (maxv - minv);
 
         // pad and center
         int nrays = sino.ncols();
-        sino = preproc(sino, center);
-        int npad = (sino.ncols() - x0.ncols());
+        sino2 = preproc(sino2, center);
+        int npad = (sino2.ncols() - x0.ncols());
         x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
         // backproject sinogram
         auto sinoT = backproject(sino, angles, center);
 
         // recon dimensions
-        int nslcs = sino.nslices();
-        int nproj = sino.nrows();
-        int ncols = sino.ncols();
+        int nslcs = sino2.nslices();
+        int nproj = sino2.nrows();
+        int ncols = sino2.ncols();
+
+        // backproject sinogram
+        auto sinoT = backproject(sino2, angles);
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
-        if (ndevice > nslcs) {
-            ndevice = 1;
-        }
+        if (ndevice > nslcs) { ndevice = nslcs; }
 
-        // calculate point-spread function for each device
+        // calculate nonuniform grid for each device
         int current_dev = 0;
         SAFE_CALL(cudaGetDevice(&current_dev));
         std::vector<NUFFT::Grid<T>> grids(ndevice);
@@ -82,31 +88,30 @@ namespace tomocam {
         DArray<T> ytmp(dim3_t(1, ncols, ncols));
         xtmp.init(1);
         ytmp.init(0);
-        auto g = gradient(xtmp, ytmp, grids, center);
+        auto g = gradient(xtmp, ytmp, grids);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
-
         #ifdef MULTIPROC
         L = multiproc::mp.MaxReduce(L);
         #endif
         T step_size = 1 / L;
+        if (step_size > 1) step_size = 1;
         T p = 1.2;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &grids, center, sigma, p](DArray<T> &x) -> DArray<T> {
-            auto g = gradient(x, sinoT, grids, center);
-            add_total_var(x, g, sigma, p);
+        auto calc_gradient = [&sinoT, &grids, sigma, p](DArray<T> &x) -> DArray<T> {
+            auto g = gradient(x, sinoT, grids);
+            add_total_var2(x, g, sigma, p);
             return g;
         };
 
-        auto calc_error = [&sino, &grids, center](DArray<T> &x) -> T {
-            T e = function_value(x, sino, grids, center);
-            double size = static_cast<double>(x.size());
+        auto calc_error = [&sino2, &grids](DArray<T> &x) -> T {
+            T e = function_value(x, sino2, grids);
             #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
             size = multiproc::mp.SumReduce(size);
             #endif
-            return e;
+            return std::sqrt(e);
         };
 
         // create optimizer

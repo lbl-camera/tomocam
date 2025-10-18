@@ -12,6 +12,9 @@ authors = [ {name = "Dinesh Kumar", email = "dkumar@lbl.gov"} ]
 dependencies = [ "numpy" ]
 requires-python = ">=3.6"
 
-
-
-
+[tool.scikit-build]
+cmake.args = [ "-DMULTI_PROC:BOOL=ON", "-DENABLE_PYTHON:BOOL=ON" ]
+#cmake.args = [ "-DENABLE_PYTHON:BOOL=ON" ]
+cmake.build-type = "Release"
+cmake.source-dir = "."
+ninja.make-fallback = true

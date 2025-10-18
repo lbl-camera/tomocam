@@ -7,9 +7,7 @@
 #include "machine.h"
 #include "tomocam.h"
 #include "types.h"
-
-#include "hdf5/writer.h"
-#include "hdf5/reader.h"
+#include "timer.h"
 
 namespace tomocam {
 
@@ -82,50 +80,70 @@ int main(int argc, char **argv) {
     float p = 1.2;
     float sigma = 10.0;
 
-    //load solution from h5
-    tomocam::h5::Reader fp("recon.h5");
-    auto a = fp.read2<float>("recon");
+    // Random number generator
+    auto rng = NPRandom();
 
     // data
     std::cout << "allocating memory .. " << std::endl;
-    tomocam::dim3_t dims = a.dims();
+    tomocam::dim3_t dims = {16, 1023, 1023};
+    tomocam::DArray<float> a(dims);
     tomocam::DArray<float> b(dims);
     tomocam::DArray<float> c(dims);
     tomocam::DArray<float> d(dims);
 
     // initializing
+    for (int i = 0; i < a.size(); i++) {
+        a[i] = rng.rand<float>();
+    }
     std::cout << "initializing ... " << std::endl;
     b.init(0.f);
     c.init(0.f);
     d.init(0.f);
 
     // test GPU code
+    /*
     std::cout << "testing single GPU code ... " << std::endl;
     tomocam::DeviceArray<float> d_a(dims);
     cudaMemcpy(d_a.dev_ptr(), a.begin(), a.bytes(), cudaMemcpyHostToDevice);
     tomocam::DeviceArray<float> d_b(dims);
     cudaMemset(d_b.dev_ptr(), 0, d_b.bytes());
 
-    tomocam::gpu::add_total_var(d_a, d_b, p, sigma);
+    tomocam::gpu::add_total_var2(d_a, d_b, sigma, p);
     // copy back to host
     cudaMemcpy(b.begin(), d_b.dev_ptr(), b.bytes(), cudaMemcpyDeviceToHost);
+    */
 
-    cpuTotalVar(a, c, sigma, p);
-    auto err = c - b;
+    std::cout << "testing CPU code ... " << std::endl;
 
-    std::cout << "Max error: " << err.max() << std::endl;
-    std::cout << "L2 error: " << err.norm() / err.size() << std::endl;
+    Timer t0; 
+    t0.start();
+    cpuTotalVar(a, b, sigma, p);
+    t0.stop();
 
+    
     // test multi-GPU code
     std::cout << "\n\ntesting multi-GPU code ... " << std::endl;
-    tomocam::add_total_var(a, d, p, sigma);
+    Timer t1;
+    t1.start();
+    tomocam::add_total_var(a, c, sigma, p);
+    t1.stop();
+    Timer t2;
+    t2.start();
+    tomocam::add_total_var2(a, d, sigma, p);
+    t2.stop();
 
-    tomocam::h5::Writer writer("test_tvd.h5");
-    writer.write("cpu", c);
-    writer.write("gpu", d);
-    auto err2 = c - d;
-    std::cout << "Max error: " << err2.max() << std::endl;
-    std::cout << "L2 error: " << err2.norm() / err2.size() << std::endl;
+    // report times
+    std::cout << "CPU time: " << t0.ms() << " ms" << std::endl;
+    std::cout << "GPU time 1: " << t1.ms() << " ms" << std::endl;
+    std::cout << "GPU time 2: " << t2.ms() << " ms" << std::endl;
+
+    auto err = c - b;
+    std::cout << "Max error 1: " << err.max() << std::endl;
+    std::cout << "L2 error 2: " << err.norm() / err.size() << std::endl;
+
+    auto err2 = d - c;
+    std::cout << "Max error 2: " << err2.max() << std::endl;
+    std::cout << "L2 error 2: " << err2.norm() / err2.size() << std::endl;
 
     return 0;
     // create

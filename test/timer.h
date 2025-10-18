@@ -3,7 +3,8 @@
 #include <iostream>
 #include <random>
 
-#ifndef TIMEIT_H
+#ifndef UTILS__H
+#define UTILS__H
 
 class Timer {
     private:
@@ -19,7 +20,7 @@ class Timer {
 
         void stop() {
             auto end = std::chrono::high_resolution_clock::now();
-            duration_ += std::chrono::duration_cast<std::chrono::milliseconds>(
+            duration_ = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end - start_);
         }
 
@@ -28,6 +29,10 @@ class Timer {
         }
         int ms() {
             return duration_.count();
+        }
+
+        double seconds() {
+            return static_cast<double>(duration_.count()) / 1000.0;
         }
 
 };
@@ -48,4 +53,5 @@ class NPRandom {
             return static_cast<T>((a * 67108864.0 + b) / 9007199254740992.0);
         }
 };
-#endif // TIMEIT_H
+
+#endif // UTILS__H

@@ -18,7 +18,8 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
+#include <thread>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -31,8 +32,8 @@
 namespace tomocam {
 
     template <typename T>
-    void project(Partition<T> input, Partition<T> sino,
-        const std::vector<T> &angles, T center, int device) {
+    void project_(Partition<T> input, Partition<T> sino,
+        const std::vector<T> &angles, int device) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device));
@@ -57,7 +58,7 @@ namespace tomocam {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_input] = work.value();
-                auto d_sino = project(d_input, nugrid, center);
+                auto d_sino = project(d_input, nugrid);
 
                 // copy the result to the output
                 shipper.push(sub_outs[idx], d_sino);
@@ -67,8 +68,7 @@ namespace tomocam {
 
     // radon (Multi-GPU call)
     template <typename T>
-    DArray<T> project(DArray<T> &input, const std::vector<T> &angles,
-        T center) {
+    DArray<T> project(DArray<T> &input, const std::vector<T> &angles) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > input.nslices()) nDevice = 1;
@@ -82,24 +82,21 @@ namespace tomocam {
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
-        // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++)
-            project(p1[i], p2[i], angles, center, i);
-
-        // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
+            threads[i] = std::thread(project_<T>, 
+                    p1[i], p2[i], std::cref(angles), i);
         }
+
+        Machine::config.barrier();
+        // wait for threads to finish 
+        for (auto &t: threads) { t.join(); }
+ 
         return output;
     }
 
     // specializations for float and double
-    template DArray<float> project(DArray<float> &, const std::vector<float> &,
-        float);
-    template DArray<double> project(DArray<double> &,
-        const std::vector<double> &, double);
+    template DArray<float> project(DArray<float> &, const std::vector<float> &);
+    template DArray<double> project(DArray<double> &, const std::vector<double> &);
 
 } // namespace tomocam

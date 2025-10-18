@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
     int center = num_rays / 2;
 
-    auto p = tomocam::project<float>(image, angles, center);
+    auto p = tomocam::project<float>(image, angles);
 
     // write to hdf5
     tomocam::h5::Writer writer("project.h5");

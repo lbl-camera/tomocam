@@ -22,6 +22,8 @@ header="/* ---------------------------------------------------------------------
 copyright='Tomocam Copyright (c) 2018'
 files=$(find ./src -type f)
 
+# find .cpp, .h, .cu, and .cuh files in src directory
+files=$(find ./src -type f -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.cu" -o -name "*.cuh")
 for file in $files; do
     if ! grep -q "$copyright" $file; then
         echo "Adding license to file $file"

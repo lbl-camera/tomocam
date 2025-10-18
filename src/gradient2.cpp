@@ -19,7 +19,7 @@
  */
 
 #include <iostream>
-#include <omp.h>
+#include <thread>
 #include <vector>
 
 #include "dev_array.h"
@@ -41,7 +41,8 @@ namespace tomocam {
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.nslices());
+        int nparts =
+            Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
@@ -51,14 +52,14 @@ namespace tomocam {
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
+
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
                 auto [idx, d_f, d_sinoT] = work.value();
 
                 // compute gradient
-                auto tmp = psf.convolve(d_f);
-                auto d_g = tmp - d_sinoT;
+                auto d_g = psf.convolve(d_f) - d_sinoT;
 
                 // copy gradient to host
                 shipper.push(p3[idx], d_g);
@@ -82,17 +83,19 @@ namespace tomocam {
         auto p3 = create_partitions(gradient, nDevice);
 
         // launch all the available devices
-        #pragma omp parallel for num_threads(nDevice)
+        std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            gradient2_<T>(p1[i], p2[i], p3[i], psfs[i], i);
+            threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i],
+                std::cref(psfs[i]), i);
         }
 
+        // wait for all devices to finish
+        Machine::config.barrier();
+
         // wait for devices to finish
-        #pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
+        for (auto &t : threads) { t.join(); }
+
+        // return the gradient
         return gradient;
     }
 

@@ -25,6 +25,7 @@
 
 #include "types.h"
 #include "common.h"
+#include "machine.h"
 
 namespace tomocam {
 
@@ -95,6 +96,45 @@ namespace tomocam {
             }
     };
 
+
+    inline std::vector<std::vector<int>> create_partition_table(int N) {
+
+        // create a partioning scheme for size N
+        int nBlocks = Machine::config.slicesPerStream();
+        int nDevices = Machine::config.num_of_gpus();
+
+        int n_p = N / nBlocks;
+        int n_e = N % nBlocks;
+        std::vector<int> pre_partition;
+        for (int i = 0; i < n_p; i++) {
+            pre_partition.push_back(i * nBlocks);
+        }
+        if (n_e > 0) {
+            pre_partition.push_back(n_p * nBlocks);
+        }
+        
+        int nParts = pre_partition.size() / nDevices;
+        int nExtra = pre_partition.size() % nDevices;
+       
+        // create the partition table
+        std::vector<int> sizes(nDevices, nParts);
+        for (int i = 0; i < nExtra; i++) {
+            sizes[i] += 1;
+        }
+
+        int ibegin = 0;
+        std::vector<std::vector<int>> table(nDevices);
+        for (int i = 0; i < nDevices; i++) {
+            std::vector<int> part(sizes[i], 0);
+            for (int j = 0; j < sizes[i]; j++) {
+                table[i][j] = pre_partition[ibegin + j];
+            }
+            ibegin += sizes[i];
+        }
+        return table;
+    }
+     
+    
     // partition an array into sub-partitions
     template <typename T>
     std::vector<Partition<T>> create_partitions(Partition<T> &a,
@@ -166,6 +206,12 @@ namespace tomocam {
         }
         return table;
     }
+
+    namespace PartitionScheme {
+        // store the global partition table
+        inline std::vector<std::vector<int>> table;
+
+    } // namespace PartitionScheme
 } // namespace tomocam
 
 #endif // TOMOCAM_PARTITION__H

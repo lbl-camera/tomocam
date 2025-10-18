@@ -143,6 +143,35 @@ namespace tomocam {
         template DeviceArray<double> pad2d(const DeviceArray<double> &, int,
             PadType);
 
+        template <typename T>
+        void pad2d(DeviceArray<T> &dst, const DeviceArray<T> &src, int padding,
+            PadType type) {
+
+            // allocate the output array
+            int ncols = src.ncols() + std::abs(padding);
+            int nrows = src.nrows() + std::abs(padding);
+            // if dest is not of correct size, raise an error
+            if ((dst.nrows() != nrows) || (dst.ncols() != ncols)) {
+                throw std::runtime_error(
+                    "Destination array is not of correct size for padding");
+            }
+            SAFE_CALL(cudaMemset(dst.dev_ptr(), 0, dst.bytes()));
+
+            // calculate the shift
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = std::abs(padding);
+
+            // cuda kernel launch
+            Grid grid(src.dims());
+            pad2d_kernel<T><<<grid.blocks(), grid.threads()>>>(src, dst, shift);
+        }
+        // specializations
+        template void pad2d(DeviceArray<float> &, const DeviceArray<float> &,
+            int, PadType);
+        template void pad2d(DeviceArray<double> &, const DeviceArray<double> &,
+            int, PadType);
+
         /* two-dimensional crop */
         template <typename T>
         __global__ void crop2d_kernel(DeviceMemory<T> in, DeviceMemory<T> out,
@@ -179,6 +208,34 @@ namespace tomocam {
             PadType);
         template DeviceArray<double> unpad2d(const DeviceArray<double> &, int,
             PadType);
+
+        template <typename T>
+        void unpad2d(DeviceArray<T> &dst, const DeviceArray<T> &src, int padding,
+            PadType type) {
+
+            // allocate the output array
+            int nrows = src.nrows() - std::abs(padding);
+            int ncols = src.ncols() - std::abs(padding);
+            // if dest is not of correct size, raise an error
+            if ((dst.nrows() != nrows) || (dst.ncols() != ncols)) {
+                throw std::runtime_error(
+                    "Destination array is not of correct size for unpadding");
+            }
+
+            // shift for symmetric padding
+            int shift = std::abs(padding) / 2;
+            if (type == PadType::RIGHT) shift = 0;
+            if (type == PadType::LEFT) shift = std::abs(padding);
+
+            // cuda kernel launch
+            Grid grid(src.dims());
+            crop2d_kernel<T><<<grid.blocks(), grid.threads()>>>(src, dst, shift);
+        }
+        // specializations for float and double
+        template void unpad2d(DeviceArray<float> &, const DeviceArray<float> &,
+            int, PadType);
+        template void unpad2d(DeviceArray<double> &, const DeviceArray<double> &,
+            int, PadType);
 
     } // namespace gpu
 } // namespace tomocam

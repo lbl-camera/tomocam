@@ -1,0 +1,75 @@
+
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        },
+        {
+            "name": "release",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        },
+        {
+            "name": "multiproc",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/Multiproc",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "MULTI_PROC": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        } 
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "jobs": 8
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "jobs": 8
+        },
+        {
+            "name": "multiproc",
+            "configurePreset": "multiproc",
+            "jobs": 8
+        }
+    ]
+}

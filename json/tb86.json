@@ -1,0 +1,14 @@
+{
+    "filename": "/home/dkumar/data/tomobank/tb86.h5",
+    "dataset": "proj",
+    "angles": "theta",
+    "axis": 1227,
+    "slices": [0, 128],
+    "MBIR": {
+        "num_iters": 100,
+        "tol": 1e-6,
+        "xtol": 1e-6,
+        "sigma": 200.0
+    },
+    "output": "tb86.h5"
+}

@@ -38,8 +38,8 @@ namespace tomocam {
         template <typename T>
         DeviceArray<T> roll(const DeviceArray<T> &, int);
 
-        /** fftshift
-         * Shifts the zero-frequency component to the center of the array.
+        /** roll2
+         * Shifts the the elements of the array by a specified number of positions
          *
          * @param in input array
          * @param shfit numper of pixels to shift
@@ -47,8 +47,41 @@ namespace tomocam {
          * @return shifted array
          */
         template <typename T>
-        DeviceArray<complex_t<T>> phase_shift(const DeviceArray<complex_t<T>> &,
-            T);
+        DeviceArray<T> roll2(const DeviceArray<T> &, int, int);
+
+
+        /** fftshift
+         * Shifts the zero-frequency component to the center of the spectrum.
+         *
+         * @param in input array
+         * @return shifted array
+         */
+        template <typename T>
+        DeviceArray<T> fftshift(const DeviceArray<T> &in) {
+            auto shfit = in.ncols() / 2;
+            return roll(in, -shfit);
+        }
+
+        template <typename T>
+        DeviceArray<T> fftshift2(const DeviceArray<T> &in) {
+            auto shfit = in.ncols() / 2;
+            auto shfit2 = in.nrows() / 2;
+            return roll2(in, -shfit, -shfit2);
+        }
+
+        template <typename T>
+        DeviceArray<T> ifftshift(const DeviceArray<T> &in) {
+            auto shfit = in.ncols() / 2;
+            return roll(in, shfit);
+        }
+
+        template <typename T>
+        DeviceArray<T> ifftshift2(const DeviceArray<T> &in) {
+            auto shfit = in.ncols() / 2;
+            auto shfit2 = in.nrows() / 2;
+            return roll2(in, shfit, shfit2);
+        }
+
     } // namespace gpu
 } // namespace tomocam
 #endif // TOMOCAM_GPU_OPS_CUH
