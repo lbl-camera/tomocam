@@ -49,14 +49,9 @@ namespace tomocam {
         #endif
         sino /= maxv;
 
-        // check for initial guess
-        if (guess.has_value()) x0 = guess.value();
-        else
-            x0 = backproject(sino2, angles, true);
-
         // preprocess
         int nrays = sino.ncols();
-        sino2 = preproc(sino2, center);
+        auto sino2 = preproc(sino, center);
         int npad = (sino2.ncols() - x0.ncols());
         x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
@@ -64,6 +59,11 @@ namespace tomocam {
         int nslcs = sino2.nslices();
         int nproj = sino2.nrows();
         int ncols = sino2.ncols();
+
+        // check for initial guess
+        if (x0.size() == 0) {
+            x0 = backproject(sino2, angles, true);
+        }
 
         // backproject sinogram
         auto sinoT = backproject(sino2, angles);
@@ -84,7 +84,7 @@ namespace tomocam {
         }
 
         // calculate point-spread function for each device
-        int current_dev = 0;
+        current_dev = 0;
         SAFE_CALL(cudaGetDevice(&current_dev));
         std::vector<PointSpreadFunction<T>> psfs(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
@@ -133,9 +133,6 @@ namespace tomocam {
         };
 
         // create optimizer
-        };
-
-        // create optimizer
         Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)> opt(
             calc_gradient, calc_error);
 
@@ -145,24 +142,9 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> mbir2(std::optional<DArray<float>>, // initial guess
-        const DArray<float> &,                                 // sinogram
-        std::vector<float>, // projection angles
-        float,              // center of rotation
-        int,                // number of iterations
-        float,              // sigma
-        float,              // tol
-        float               // xtol
-    );
+    template DArray<float> mbir2(DArray<float> &, DArray<float> &, std::vector<float>, 
+        float, int, float,float, float);
 
-    template DArray<double> mbir2(
-        std::optional<DArray<double>>, // initial guess
-        const DArray<double> &,        // sinogram
-        std::vector<double>,           // projection angles
-        double,                        // center of rotation
-        int,                           // number of iterations
-        double,                        // sigma
-        double,                        // tol
-        double                         // xtol
-    );
+    template DArray<double> mbir2(DArray<double> &, DArray<double> &,  std::vector<double>,  
+        double, int, double, double, double);
 } // namespace tomocam
