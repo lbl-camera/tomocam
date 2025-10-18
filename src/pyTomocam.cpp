@@ -122,7 +122,7 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     tomocam::dim3_t dims = sino.dims();
 
     // initial guess
-    std::optional<tomocam::DArray<float>> x0;
+    tomocam::DArray<float> x0({0, 0, 0});
 
     // get data pointer to angles
     auto angles = getVec<float>(np_angles);
