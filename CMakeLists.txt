@@ -118,7 +118,7 @@ find_package(finufft REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
 
 # TRY the official package
-find_package(hdf5 REQUIRED)
+find_package(HDF5 REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
 
 
@@ -162,6 +162,7 @@ if (ENABLE_PYTHON)
                           PREFIX "${PYTHON_MODULE_PREFIX}" 
                           SUFFIX "${PYTHON_MODULE_EXTENSION}")
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
+    target_link_libraries(cTomocam PUBLIC pybind11::headers)
     target_compile_features(cTomocam PUBLIC cxx_std_20)
     install(TARGETS cTomocam DESTINATION tomocam)
 
