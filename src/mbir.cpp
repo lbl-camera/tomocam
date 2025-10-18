@@ -59,9 +59,6 @@ namespace tomocam {
         int npad = (sino2.ncols() - x0.ncols());
         x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
-        // backproject sinogram
-        auto sinoT = backproject(sino, angles, center);
-
         // recon dimensions
         int nslcs = sino2.nslices();
         int nproj = sino2.nrows();
@@ -109,7 +106,6 @@ namespace tomocam {
             T e = function_value(x, sino2, grids);
             #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
-            size = multiproc::mp.SumReduce(size);
             #endif
             return std::sqrt(e);
         };
