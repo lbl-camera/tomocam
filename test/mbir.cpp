@@ -45,7 +45,6 @@ int main(int argc, char **argv) {
 
     // initialize MPI
     #ifdef MULTIPROC
-    tomocam::multiproc::mp.init(argc, argv);
     int nprocs = tomocam::multiproc::mp.nprocs();
     int myrank = tomocam::multiproc::mp.myrank();
     #else
@@ -156,10 +155,6 @@ int main(int argc, char **argv) {
     #endif
     tomocam::h5::Writer writer(outf.c_str());
     writer.write("recon", recon2);
-
-    #ifdef MULTIPROC
-    tomocam::multiproc::mp.finalize();
-    #endif
 
     return 0;
 }

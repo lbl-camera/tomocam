@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <optional>
 #include <sstream>
 
 #include "dist_array.h"
@@ -27,7 +26,6 @@ int main(int argc, char **argv) {
 
 // initialize MPI
 #ifdef MULTIPROC
-    tomocam::multiproc::mp.init(argc, argv);
     int nprocs = tomocam::multiproc::mp.nprocs();
     int myrank = tomocam::multiproc::mp.myrank();
 #else
@@ -104,12 +102,11 @@ int main(int argc, char **argv) {
 
     float cen = static_cast<float>(center);
 
-    std::optional<tomocam::DArray<float>> x1;
+    tomocam::DArray<float> x0({0,0,0});
     // run MBIR
     Timer t2;
     t2.start();
-    auto recon2 =
-        tomocam::mbir2(x1, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon2 = tomocam::mbir2(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
     t2.stop();
 
 #ifdef MULTIPROC
@@ -130,10 +127,6 @@ int main(int argc, char **argv) {
 #endif
     tomocam::h5::Writer writer(outf.c_str());
     writer.write("recon", recon2);
-
-#ifdef MULTIPROC
-    tomocam::multiproc::mp.finalize();
-#endif
 
     return 0;
 }
