@@ -25,7 +25,18 @@
 #ifndef MULTIPROC_H
 #define MULTIPROC_H
 
+#define MPI_CHECK(ans) { _mpiAssert((ans), __FILE__, __LINE__); }
+inline void _mpiAssert(int code, const char *file, int line) {
+    if (code != MPI_SUCCESS) {
+        fprintf(stderr, "MPI error code (%d) at %s: %d\n",
+                code, file, line);
+        MPI_Abort(MPI_COMM_WORLD, code);
+    }
+}
+ 
 namespace tomocam {
+
+ 
 
     template <typename T>
     constexpr MPI_Datatype MPItype() {
@@ -44,36 +55,33 @@ namespace tomocam {
       private:
         int myrank_;
         int nprocs_;
+        bool inited_;
         bool is_first_;
         bool is_last_;
 
       public:
         MultiProc() {
             int initialized = 0;
-            if (MPI_Initialized(&initialized) == MPI_SUCCESS) {
-                MPI_Comm_rank(MPI_COMM_WORLD, &myrank_);
-                MPI_Comm_size(MPI_COMM_WORLD, &nprocs_);
-                is_first_ = (myrank_ == 0);
-                is_last_ = (myrank_ == nprocs_ - 1);
+            MPI_CHECK(MPI_Initialized(&initialized));
+            if (!initialized){
+                int argc = 0;
+                char **argv = nullptr;
+                MPI_CHECK(MPI_Init(&argc, &argv));
+                inited_ = true;
             } else {
-                myrank_ = 0;
-                nprocs_ = 1;
-                is_first_ = true;
-                is_last_ = true;
+                inited_ = false;
             }
-        }
-
-        // initialize MPI
-        void init(int argc = 0, char **argv = nullptr) {
-            MPI_Init(&argc, &argv);
+    
             MPI_Comm_rank(MPI_COMM_WORLD, &myrank_);
             MPI_Comm_size(MPI_COMM_WORLD, &nprocs_);
             is_first_ = (myrank_ == 0);
             is_last_ = (myrank_ == nprocs_ - 1);
         }
-
-        // Finalize
-        void finalize() { MPI_Finalize(); }
+         
+        // Finalize, if inited_
+        ~MultiProc() {
+            if (inited_) { MPI_CHECK(MPI_Finalize()); }
+        }
 
         // access private members
         int myrank() const { return myrank_; }
@@ -82,20 +90,20 @@ namespace tomocam {
         bool last() const { return is_last_; }
 
         // Wrapper for MPI_Barrier
-        void Wait() { MPI_Barrier(MPI_COMM_WORLD); }
+        void Wait() { MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD)); }
 
         // Wrapper for MPI_Bcast
         template <typename T>
         void Bcast(T *buf, size_t count, int root) {
-            MPI_Bcast(buf, count, MPItype<T>(), root, MPI_COMM_WORLD);
+            MPI_CHECK(MPI_Bcast(buf, count, MPItype<T>(), root, MPI_COMM_WORLD));
         }
 
         // Wrapper for MPI_Allreduce (MPI_SUM)
         template <typename T>
         T SumReduce(T value) {
             T result;
-            MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_SUM,
-                MPI_COMM_WORLD);
+            MPI_CHECK(MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_SUM,
+                MPI_COMM_WORLD));
             return result;
         }
 
@@ -103,8 +111,8 @@ namespace tomocam {
         template <typename T>
         T MaxReduce(T value) {
             T result;
-            MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_MAX,
-                MPI_COMM_WORLD);
+            MPI_CHECK(MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_MAX,
+                MPI_COMM_WORLD));
             return result;
         }
 
@@ -112,29 +120,22 @@ namespace tomocam {
         template <typename T>
         T MinReduce(T value) {
             T result;
-            MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_MIN,
-                MPI_COMM_WORLD);
+            MPI_CHECK(MPI_Allreduce(&value, &result, 1, MPItype<T>(), MPI_MIN,
+                MPI_COMM_WORLD));
             return result;
         }
 
         // send wrapper
         template <typename T>
         void Send(const T *buf, size_t count, int proc) {
-            auto st =
-                MPI_Send(buf, count, MPItype<T>(), proc, 123, MPI_COMM_WORLD);
-            if (st != MPI_SUCCESS) {
-                throw std::runtime_error("MPI_Send failed");
-            }
+            MPI_CHECK(MPI_Send(buf, count, MPItype<T>(), proc, 123, MPI_COMM_WORLD));
         }
 
         // recv wrapper
         template <typename T>
         void Recv(T *buf, size_t count, int proc) {
-            auto st = MPI_Recv(buf, count, MPItype<T>(), proc, 123,
-                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            if (st != MPI_SUCCESS) {
-                throw std::runtime_error("MPI_Recv failed");
-            }
+            MPI_CHECK(MPI_Recv(buf, count, MPItype<T>(), proc, 123,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE));
         }
     };
 
