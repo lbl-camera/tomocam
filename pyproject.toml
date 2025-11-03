@@ -1,6 +1,6 @@
 
 [build-system]
-requires = [ "setuptools>=42.0.0", "wheel>=0.32.0", "setuptools_cpp>=0.0.11" ]
+requires = [ "setuptools>=42.0.0", "wheel>=0.32.0", "setuptools_cpp>=0.0.11", "scikit-build>=0.11.0" ]
 build-backend = "setuptools.build_meta"
 
 [project]

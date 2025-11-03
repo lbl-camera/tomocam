@@ -44,12 +44,11 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/xerror.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
-    ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTV2.cu
-    ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/pyMBIR.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
     ${PROJECT_SOURCE_DIR}/src/padding.cpp

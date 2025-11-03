@@ -59,7 +59,6 @@ namespace tomocam {
 
         // nufft type 1
         auto out = nufft2d1(in2, grid);
-        SAFE_CALL(cudaDeviceSynchronize());
 
         // return real part
         T scale =  static_cast<T>(sino.ncols() * sino.ncols());

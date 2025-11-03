@@ -156,6 +156,22 @@ namespace tomocam {
     DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
 
     /**
+     * @brief Model-based iterative reconstruction with MPI gathering.
+     *
+     * @param sino The sinogram.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
+     * @param num_iter The number of iterations.
+     * @param sigma The regularization parameter.
+     * @param tolerance The stopping criterion.
+     * @param xtol The tolerance for the solution.
+     * @param file_write Whether to write output to HDF5 file.
+     * @param output_file The output file name.
+     */
+    template <typename T>
+    DArray<T> mbir_mpi(DArray<T> &, std::vector<T> &, T, int, T, T, T, bool, const std::string &);
+
+    /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
      */
     namespace gpu {

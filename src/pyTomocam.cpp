@@ -133,6 +133,19 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
     return to_numpy<float>(recon);
 }
 
+np_array_t<float> mbir_mpi_wrapper(np_array_t<float> &np_sino,
+    np_array_t<float> &np_angles, float center, int num_iters, float sigma,
+    float tol, float xtol, bool file_write, std::string output_file) {
+
+    tomocam::DArray<float> sino(from_numpy<float>(np_sino));
+    auto angles = getVec<float>(np_angles);
+
+    tomocam::DArray<float> recon = tomocam::mbir_mpi(sino, angles, center,
+        num_iters, sigma, tol, xtol, file_write, output_file);
+
+    return to_numpy<float>(recon);
+}
+
 /* setup methods table */
 PYBIND11_MODULE(cTomocam, m) {
     m.doc() = "Python interface to multi-GPU tomocam";
@@ -149,4 +162,7 @@ PYBIND11_MODULE(cTomocam, m) {
 
     // mbir
     m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
+
+    // mbir with MPI gathering
+    m.def("mbir_mpi", &mbir_mpi_wrapper, "Model-based iterative reconstruction with HPC");
 }

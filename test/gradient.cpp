@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <format>
 #include <nlohmann/json.hpp>
 
 #include "dist_array.h"
@@ -66,7 +67,7 @@ int main(int argc, char **argv) {
     auto dt3 = t3.elapsed();
 
     // report time
-    fprintf(stdout,  "g1(ms): %d, g2(ms): %d, g3(ms): %d\n", dt1, dt2, dt3);
+    std::cout << std::format("Gradient computation times (ms): g1: {}, g2: {}, g3: {}\n", dt1, dt2, dt3);
 
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");

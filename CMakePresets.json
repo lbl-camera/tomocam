@@ -4,7 +4,7 @@
     "configurePresets": [
         {
             "name": "debug",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/Serial/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -20,7 +20,7 @@
         },
         {
             "name": "release",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/Serial/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
@@ -36,7 +36,7 @@
         },
         {
             "name": "multiproc-debug",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/Multiproc/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -56,13 +56,13 @@
         },
         {
             "name": "multiproc-release",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/Multiproc/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
-                    "value": "ON"
+                    "value": "OFF"
                 },
                 "MULTI_PROC": {
                     "type": "BOOL",

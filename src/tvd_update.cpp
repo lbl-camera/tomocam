@@ -103,12 +103,6 @@ namespace tomocam {
         for (int i = 0; i < nDevice; i++) {
             total_var<T>(p1[i], p2[i], sigma, p, i);
         }
-
-        //#pragma omp parallel for num_threads(nDevice)
-        for (int i = 0; i < nDevice; i++) {
-            SAFE_CALL(cudaSetDevice(i));
-            SAFE_CALL(cudaDeviceSynchronize());
-        }
     }
 
     // explicit instantiation

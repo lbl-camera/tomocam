@@ -92,9 +92,6 @@ namespace tomocam {
                     std::cref(nugrids[i]), i);
         }
 
-       // wait for all the GPUs
-        Machine::config.barrier();
-        
         // waht for all threads to join
         for (auto &t : threads) { t.join(); }
 

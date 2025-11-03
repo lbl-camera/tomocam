@@ -137,6 +137,21 @@ namespace tomocam {
             MPI_CHECK(MPI_Recv(buf, count, MPItype<T>(), proc, 123,
                 MPI_COMM_WORLD, MPI_STATUS_IGNORE));
         }
+
+        // Gather wrapper
+        template <typename T>
+        void Gather(const T *sendbuf, size_t sendcount, T *recvbuf, size_t recvcount, int root) {
+            MPI_CHECK(MPI_Gather(sendbuf, sendcount, MPItype<T>(), 
+                recvbuf, recvcount, MPItype<T>(), root, MPI_COMM_WORLD));
+        }
+
+        // Gatherv wrapper
+        template <typename T>
+        void Gatherv(const T *sendbuf, size_t sendcount, T *recvbuf, 
+                     const int *recvcounts, const int *displs, int root) {
+            MPI_CHECK(MPI_Gatherv(sendbuf, sendcount, MPItype<T>(),
+                recvbuf, recvcounts, displs, MPItype<T>(), root, MPI_COMM_WORLD));
+        }
     };
 
     namespace multiproc {

@@ -39,7 +39,6 @@ namespace tomocam {
 
         // nufft type 2
         auto out = nufft2d2(in2, grid);
-        SAFE_CALL(cudaDeviceSynchronize());
 
         //  1d inverse fft along columns
         out = gpu::ifftshift(out);
