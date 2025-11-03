@@ -55,7 +55,7 @@ namespace tomocam {
       private:
         int myrank_;
         int nprocs_;
-        bool inited_;
+        bool owned_;
         bool is_first_;
         bool is_last_;
 
@@ -67,9 +67,9 @@ namespace tomocam {
                 int argc = 0;
                 char **argv = nullptr;
                 MPI_CHECK(MPI_Init(&argc, &argv));
-                inited_ = true;
+                owned_ = true;
             } else {
-                inited_ = false;
+                owned_ = false;
             }
     
             MPI_Comm_rank(MPI_COMM_WORLD, &myrank_);
@@ -78,9 +78,9 @@ namespace tomocam {
             is_last_ = (myrank_ == nprocs_ - 1);
         }
          
-        // Finalize, if inited_
+        // Finalize, if owned_
         ~MultiProc() {
-            if (inited_) { MPI_CHECK(MPI_Finalize()); }
+            if (owned_) { MPI_CHECK(MPI_Finalize()); }
         }
 
         // access private members
