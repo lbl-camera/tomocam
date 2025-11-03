@@ -29,19 +29,18 @@
 #include "nufft.h"
 #include "types.h"
 
-#include "gpu/padding.cuh"
 #include "gpu/filters.cuh"
+#include "gpu/padding.cuh"
 
 #ifdef DEBUG
 #include "debug.h"
 #endif
 
-
 namespace tomocam {
 
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
-        const NUFFT::Grid<T> &grid, bool fbp) {
+        const NUFFT::Grid<T> &grid, bool filter) {
 
         // cast to complex
         auto in2 = complex(sino);
@@ -55,14 +54,14 @@ namespace tomocam {
         // shift 0-frequency  to center
         in2 = gpu::fftshift(in2);
 
-        if (fbp) gpu::apply_filter(in2);
+        if (filter) gpu::apply_filter(in2);
 
         // nufft type 1
         auto out = nufft2d1(in2, grid);
         SAFE_CALL(cudaDeviceSynchronize());
 
         // return real part
-        T scale =  static_cast<T>(sino.ncols() * sino.ncols());
+        T scale = static_cast<T>(sino.ncols() * sino.ncols());
         return (real(out) / scale);
     }
 
