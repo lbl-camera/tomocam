@@ -54,7 +54,7 @@ namespace tomocam {
             if (work.has_value()) {
                 auto[idx, d_curr, d_prev] = work.value();
                 auto diff = d_curr - d_prev;
-                sum += diff.norm();
+                sum += diff.norm2();
             }
         }
         return sum;
