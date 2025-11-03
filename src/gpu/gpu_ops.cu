@@ -31,7 +31,8 @@ namespace tomocam {
         template <typename T>
         __global__ void gpu_add_arrays(const T *a, const T *b, T *result, int size) {
             int idx = Index1D();
-            if (idx < size) result[idx] = a[idx] + b[idx];
+            if (idx < size) 
+                result[idx] = a[idx] + b[idx];
         }
 
         template <typename T>
@@ -107,7 +108,7 @@ namespace tomocam {
         __global__ void gpu_broadcast_multiply(const T *a, const T *b, T *out,
             int3 dims) {
             int3 idx = Index3D();
-            if (idx < dims) {
+            if (idx.x < dims.x && idx.y < dims.y && idx.z < dims.z) {
                 int i0 = idx.x * dims.y * dims.z + idx.y * dims.z + idx.z;
                 int i1 = idx.y * dims.z + idx.z;
                 out[i0] = a[i0] * b[i1];
