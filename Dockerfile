@@ -59,6 +59,9 @@ RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     python3.11 -m pip install --upgrade pip
 
+# Install Python packages for run.py script
+RUN python3.11 -m pip install click mpi4py
+
 # Install pybind11 from GitHub
 RUN git clone https://github.com/pybind/pybind11.git && \
     cd pybind11 && \
