@@ -81,8 +81,10 @@ RUN git clone https://github.com/flatironinstitute/finufft.git && \
         -DBUILD_EXAMPLES:BOOL=OFF \
         -DFINUFFT_USE_CUDA:BOOL=ON \
         -DCMAKE_CUDA_ARCHITECTURES=80 \
-        -DFINUFFT_STATIC_LINKING:BOOL=OFF && \
-    cmake --build build && cmake --install build
+        -DFINUFFT_STATIC_LINKING:BOOL=OFF \
+        -DFINUFFT_BUILD_PYTHON:BOOL=OFF && \
+    cmake --build build && cmake --install build && \
+    cp -r include/finufft_common /usr/local/include/
 RUN rm -rf finufft
 
 # Install tomocam from GitHub (perlmutter branch)
