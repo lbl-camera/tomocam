@@ -6,7 +6,6 @@ import tomopy
 import h5py
 import tomocam
 import tifffile
-import dxchange as dx
 from mpi4py import MPI
 import click
 import sys
@@ -38,6 +37,25 @@ def validate_volumes():
         raise RuntimeError(f"Output volume {output_vol} not mounted")
 
 
+def read_als_832h5(filename, sino=None):
+    """Read ALS 8.3.2 HDF5 format using h5py"""
+    with h5py.File(filename, 'r') as f:
+        dset = f['exchange/data']
+        if sino is not None:
+            ibegin, iend = sino
+            tomo = dset[:, ibegin:iend, :]
+        else:
+            tomo = dset[:]
+        
+        flat = f['exchange/data_white'][:,ibegin:iend, :]
+        dark = f['exchange/data_dark'][:,ibegin:iend, :]
+        theta = f['exchange/theta'][:]
+        if np.any(theta > 2 * np.pi):
+            theta = theta * np.pi / 180.0
+    
+    return tomo, flat, dark, theta
+
+
 def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol=1e-5, xtol=1e-5):
     """ Tomocam MBIR reconstruction pipeline. Partitions data across MPI ranks along the rotation axis.
 
@@ -64,6 +82,9 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
+    # FOR DEBUGGING ONLY
+    if not size == 4:
+        raise RuntimeError("This script is configured to run with 4 MPI ranks only for debugging")
     
     logger = setup_logging()
     
@@ -108,6 +129,7 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
 
         # Calculate dynamic slice distribution
         # First (size-1) ranks get slices as multiples of 16, last rank gets remainder
+        """ FIX THIS LATER 
         if size > 1:
             base_slices = (height // 16 // (size - 1)) * 16
             
@@ -122,13 +144,17 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
             # Single rank gets all slices
             my_share = height
             ibegin = 0
-        
-        iend = ibegin + my_share
+        """ 
+
+        # FOR DEBUGGING ONLY: Equal slice distribution 
+        base_slices = 64
+        ibegin = rank * base_slices
+        iend = ibegin + base_slices
         
         logger.info(f"Processing slices {ibegin} to {iend} ({my_share} slices)")
 
         # Load data from file
-        tomo, flat, dark, theta = dx.read_als_832(dataset, sino=(ibegin, iend))
+        tomo, flat, dark, theta = read_als_832h5(dataset, sino=(ibegin, iend))
         tomo = tomo.astype(np.float32)
         theta = theta.astype(np.float32)
         
