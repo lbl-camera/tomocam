@@ -108,10 +108,8 @@ VOLUME ["/data/input", "/data/output"]
 
 WORKDIR /data
 
-
-
-# COPY ./operators/832/recon/run.py ./run.py
-# COPY ./operators/832/recon/processor.py ./processor.py
+# Copy the entrypoint script
+COPY ./scripts/run.py /usr/local/bin/run.py
 
 # Set the entrypoint to use Python 3.11 explicitly
-# ENTRYPOINT ["python3.11", "run.py"]
+ENTRYPOINT ["python3.11", "/usr/local/bin/run.py"]
