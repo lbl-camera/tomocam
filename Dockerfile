@@ -102,8 +102,11 @@ RUN rm -rf finufft
 RUN git clone -b perlmutter https://github.com/lbl-camera/tomocam.git && \
     cd tomocam && python3 -m pip install . && cd .. && rm -rf tomocam
 
+# Create mount points for input and output data
+RUN mkdir -p /data/input /data/output
+VOLUME ["/data/input", "/data/output"]
 
-#WORKDIR /app
+WORKDIR /data
 
 
 
