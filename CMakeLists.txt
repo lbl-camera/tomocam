@@ -73,7 +73,8 @@ endif(ENABLE_GPROF)
 
 # create a dependency interface shortcut
 add_library(tomocam::deps INTERFACE IMPORTED)
-target_link_libraries(tomocam::deps INTERFACE stdc++exp)
+# Note: stdc++exp removed for Ubuntu 22.04 compatibility
+#target_link_libraries(tomocam::deps INTERFACE stdc++exp)
 
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)

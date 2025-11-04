@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     pybind11-dev \
     libopenmpi-dev \
     libtbb-dev \
+    libc++-dev \
+    libc++abi-dev \
     python3-numpy \
     python3-skbuild \
     python3-pyfftw \
@@ -56,6 +58,15 @@ RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
 # Set Python 3.11 as the default python3 and install/upgrade pip
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     python3.11 -m pip install --upgrade pip
+
+# Install pybind11 from GitHub
+RUN git clone https://github.com/pybind/pybind11.git && \
+    cd pybind11 && \
+    cmake -S . -B build -GNinja \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DPYBIND11_TEST=OFF && \
+    cmake --build build && cmake --install build && \
+    cd .. && rm -rf pybind11
 
 # clone tomopy and install python part of the code
 RUN git clone https://github.com/tomopy/tomopy.git && \
