@@ -30,20 +30,6 @@ RUN apt-get update && apt-get install -y \
     libtbb-dev \
     libc++-dev \
     libc++abi-dev \
-    python3-numpy \
-    python3-skbuild \
-    python3-pyfftw \
-    python3-pywt \
-    python3-scipy \
-    python3-six \
-    python3-numexpr \
-    python3-skimage \
-    python3-skimage-lib \
-    python3-tifffile \
-    python3-h5py \
-    python3-importlib-metadata \
-    python3-opencv \
-    python3-pandas \
     && rm -rf /var/lib/apt/lists/* && apt-get clean
 
 # Install newer CMake version
@@ -55,12 +41,35 @@ RUN wget -O cmake.sh https://github.com/Kitware/CMake/releases/download/v3.27.7/
 RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
     update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
-# Set Python 3.11 as the default python3 and install/upgrade pip
+# Add library paths to ld.conf and update ld cache
+RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/local.conf && \
+    echo "/usr/local/cuda/lib64" >> /etc/ld.so.conf.d/local.conf && \
+    ldconfig
+
+# Install pip for Python 3.11
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+
+# Set Python 3.11 as the default python3 and upgrade pip
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     python3.11 -m pip install --upgrade pip
 
 # Install Python packages for run.py script
-RUN python3.11 -m pip install click mpi4py
+RUN python3.11 -m pip install --upgrade \
+    click \
+    mpi4py \
+    numpy \
+    scikit-build \
+    pylib-fftw3 \
+    pywavelets \
+    scipy \
+    six \ 
+    numexpr \
+    scikit-image \
+    tifffile \
+    h5py \
+    importlib-metadata \
+    opencv-python \
+    pandas
 
 # Install pybind11 from GitHub
 RUN git clone https://github.com/pybind/pybind11.git && \
