@@ -72,10 +72,10 @@ inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
     auto dims = arr.dims();
     std::vector<ssize_t> shape{(ssize_t)dims.x, (ssize_t)dims.y,
         (ssize_t)dims.z};
-    size_t N = arr.size();
-    T *buf = new T[N];
-    std::copy(arr.begin(), arr.end(), buf);
-    return np_array_t<T>(shape, buf);
+    np_array_t<T> result(shape);
+
+    std::copy(arr.begin(), arr.end(), result.mutable_data());
+    return result;
 }
 
 np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
@@ -164,5 +164,6 @@ PYBIND11_MODULE(cTomocam, m) {
     m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
 
     // mbir with MPI gathering
-    m.def("mbir_mpi", &mbir_mpi_wrapper, "Model-based iterative reconstruction with HPC");
+    m.def("mbir_mpi", &mbir_mpi_wrapper,
+        "Model-based iterative reconstruction with HPC");
 }
