@@ -21,18 +21,18 @@
 #ifndef TOMOCAM_DISTARRAY__H
 #define TOMOCAM_DISTARRAY__H
 
-#include <vector>
-#include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <execution>
+#include <fstream>
+#include <iostream>
+#include <vector>
 
-#include "types.h"
 #include "common.h"
 #include "partition.h"
+#include "types.h"
 
 #ifdef MULTIPROC
-#include "multiproc.h"
+    #include "multiproc.h"
 #endif
 
 namespace tomocam {
@@ -41,337 +41,306 @@ namespace tomocam {
 
     template <typename T>
     class DArray {
-        private:
-            dim3_t dims_;      ///< [Slices, Rows, Colums]
-            uint64_t size_;    ///< Size of the alloated array
-            T *buffer_;        ///< Pointer to data buffer
+      private:
+        dim3_t dims_;   ///< [Slices, Rows, Colums]
+        uint64_t size_; ///< Size of the alloated array
+        T *buffer_;     ///< Pointer to data buffer
 
-            // return global index
-            uint64_t idx_(int i, int j, int k) const {
-                uint64_t z64 = static_cast<uint64_t>(dims_.z);
-                return (i * dims_.y * z64 + j * z64 + k);
-            }
+        // return global index
+        uint64_t idx_(int i, int j, int k) const {
+            return static_cast<uint64_t>(i) * static_cast<uint64_t>(dims_.y) *
+                       static_cast<uint64_t>(dims_.z) +
+                   static_cast<uint64_t>(j) * static_cast<uint64_t>(dims_.z) +
+                   static_cast<uint64_t>(k);
+        }
 
-        public:
-            // only constructor
-            DArray(dim3_t d) : dims_(d) {
-                size_ = static_cast<uint64_t>(d.z) * d.y * d.x;
-                buffer_ = new T[size_];
-            }
+      public:
+        // only constructor
+        DArray(dim3_t d) : dims_(d) {
+            size_ = static_cast<uint64_t>(d.z) * d.y * d.x;
+            buffer_ = new T[size_];
+        }
 
-            // destructor
-            ~DArray() {
-                delete[] buffer_;
-            }
+        // destructor
+        ~DArray() { delete[] buffer_; }
 
-            //  copy constructor
-            DArray(const DArray &rhs) {
+        //  copy constructor
+        DArray(const DArray &rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            buffer_ = new T[size_];
+            std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
+        }
+
+        // assignment operator
+        DArray &operator=(const DArray &rhs) {
+            if (this != &rhs) {
                 dims_ = rhs.dims_;
                 size_ = rhs.size_;
+                delete[] buffer_;
                 buffer_ = new T[size_];
                 std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
             }
+            return *this;
+        }
 
-            // assignment operator
-            DArray &operator=(const DArray &rhs) {
-                if (this != &rhs) {
-                    dims_ = rhs.dims_;
-                    size_ = rhs.size_;
-                    delete[] buffer_;
-                    buffer_ = new T[size_];
-                    std::copy(rhs.buffer_, rhs.buffer_ + size_, buffer_);
-                }
-                return *this;
-            }
+        // move constructor
+        DArray(DArray &&rhs) {
+            dims_ = rhs.dims_;
+            size_ = rhs.size_;
+            buffer_ = rhs.buffer_;
+            rhs.buffer_ = nullptr;
+        }
 
-            // move constructor
-            DArray(DArray &&rhs) {
+        // move assignment operator
+        DArray &operator=(DArray &&rhs) {
+            if (this != &rhs) {
                 dims_ = rhs.dims_;
                 size_ = rhs.size_;
+                delete[] buffer_;
                 buffer_ = rhs.buffer_;
                 rhs.buffer_ = nullptr;
             }
+            return *this;
+        }
 
-            // move assignment operator
-            DArray &operator=(DArray &&rhs) {
-                if (this != &rhs) {
-                    dims_ = rhs.dims_;
-                    size_ = rhs.size_;
-                    delete[] buffer_;
-                    buffer_ = rhs.buffer_;
-                    rhs.buffer_ = nullptr;
+        void match_dims(const dim3_t &d) {
+            if (dims_.x != d.x || dims_.y != d.y || dims_.z != d.z) {
+                throw std::runtime_error(
+                    "Error: DArray dimensions do not match");
+            }
+        }
+
+        // init
+        void init(T v) {
+            std::fill(exe::par_unseq, this->begin(), this->end(), v);
+        }
+
+        // normalize
+        void normalize() {
+            T min = this->min();
+            T max = this->max();
+            T denom = max - min;
+            if (denom == 0) {
+                throw std::runtime_error("Error: Division by zero");
+            }
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                this->begin(), [min, denom](T a) { return (a - min) / denom; });
+        }
+
+        // norm2
+        T norm() const {
+            return std::transform_reduce(exe::par_unseq, this->begin(),
+                this->end(), T(0), std::plus<T>(), [](T x) { return x * x; });
+        }
+
+        // sum
+        T sum() const {
+            return std::reduce(exe::par_unseq, this->begin(), this->end(), T(0),
+                std::plus<T>());
+        }
+
+        // max
+        T max() const {
+            return std::reduce(exe::par_unseq, this->begin(), this->end(),
+                T(-1.0e20), [](T a, T b) { return std::max(a, b); });
+        }
+
+        // min
+        T min() const {
+            return std::reduce(exe::par_unseq, this->begin(), this->end(),
+                T(1.0e20), [](T a, T b) { return std::min(a, b); });
+        }
+
+        // subtract
+        DArray<T> &operator-=(const DArray<T> &rhs) {
+            match_dims(rhs.dims_);
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                rhs.begin(), this->begin(), std::minus<T>());
+            return *this;
+        }
+        DArray<T> operator-(const DArray<T> &rhs) const {
+            DArray<T> out = *this;
+            out -= rhs;
+            return out;
+        }
+
+        // add
+        DArray<T> operator+=(const DArray<T> &rhs) {
+            match_dims(rhs.dims_);
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                rhs.begin(), this->begin(), std::plus<T>());
+            return *this;
+        }
+        DArray<T> operator+(const DArray<T> &rhs) const {
+            DArray<T> out = *this;
+            out += rhs;
+            return out;
+        }
+
+        // multiply
+        DArray<T> operator*=(const DArray<T> &rhs) {
+            match_dims(dims_);
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                rhs.begin(), this->begin(), std::multiplies<T>());
+            return *this;
+        }
+        DArray<T> operator*(const DArray<T> &rhs) const {
+            DArray<T> out = *this;
+            out *= rhs;
+            return out;
+        }
+
+        // divide
+        DArray<T> operator/=(const DArray<T> &rhs) {
+            match_dims(rhs.dims_);
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                rhs.begin(), this->begin(), std::divides<T>());
+            return *this;
+        }
+        DArray<T> operator/(const DArray<T> &rhs) const {
+            DArray<T> out = *this;
+            out /= rhs;
+            return out;
+        }
+
+        // subtract a scalar
+        DArray<T> &operator-=(const T &rhs) {
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                this->begin(), [rhs](T a) { return a - rhs; });
+            return *this;
+        }
+        // right subtract a scalar
+        DArray<T> operator-(const T &rhs) const {
+            DArray<T> out = *this;
+            out -= rhs;
+            return out;
+        }
+
+        DArray<T> &operator+=(const T &rhs) {
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                this->begin(), [rhs](T a) { return a + rhs; });
+            return *this;
+        }
+        // right add a scalar
+        DArray<T> operator+(const T &rhs) const {
+            DArray<T> out = *this;
+            out += rhs;
+            return out;
+        }
+
+        // multiply by a scalar
+        DArray<T> &operator*=(const T &rhs) {
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                this->begin(), [rhs](T a) { return a * rhs; });
+            return *this;
+        }
+        // right multiply by a scalar
+        DArray<T> operator*(const T &rhs) const {
+            DArray<T> out = *this;
+            out *= rhs;
+            return out;
+        }
+
+        // divide by a scalar
+        DArray<T> &operator/=(const T &rhs) {
+            std::transform(exe::par_unseq, this->begin(), this->end(),
+                this->begin(), [rhs](T a) { return a / rhs; });
+            return *this;
+        }
+        // right divide by a scalar
+        DArray<T> operator/(const T &rhs) const {
+            DArray<T> out = *this;
+            out /= rhs;
+            return out;
+        }
+
+        // drop a column
+        void dropcol() {
+            dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
+            uint64_t new_size = static_cast<uint64_t>(d.z) * d.y * d.x;
+            T *new_buffer = new T[new_size];
+
+            // copy data
+            uint64_t nz = static_cast<uint64_t>(dims_.z);
+            uint64_t new_nz = static_cast<uint64_t>(d.z);
+#pragma omp parallel for
+            for (int i = 0; i < dims_.x; i++) {
+                for (int j = 0; j < dims_.y; j++) {
+                    uint64_t beg = i * dims_.y * nz + j * nz;
+                    uint64_t end = i * dims_.y * nz + j * nz + d.z;
+                    uint64_t out_beg = i * d.y * new_nz + j * new_nz;
+                    std::copy(buffer_ + beg, buffer_ + end,
+                        new_buffer + out_beg);
                 }
-                return *this;
             }
+            delete[] buffer_;
+            buffer_ = new_buffer;
+            new_buffer = nullptr;
+            dims_ = d;
+            size_ = new_size;
+        }
 
-            void match_dims(const dim3_t &d) {
-                if (dims_.x != d.x || dims_.y != d.y || dims_.z != d.z) {
-                    std::runtime_error("Error: DArray dimensions do not match");
-                }
-            }
+        /// dimensions of the array
+        dim3_t dims() const { return dims_; };
+        int nslices() const { return dims_.x; }
+        int nrows() const { return dims_.y; }
+        int ncols() const { return dims_.z; }
+        uint64_t size() const { return size_; }
+        size_t bytes() const { return size_ * sizeof(T); }
 
+        // indexing
+        T &operator[](uint64_t i) { return buffer_[i]; }
+        T operator[](uint64_t i) const { return buffer_[i]; }
+        T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
+        T operator()(int i, int j, int k) const {
+            return buffer_[idx_(i, j, k)];
+        }
 
-            // init
-            void init(T v) { 
-                std::fill(exe::par_unseq, this->begin(), this->end(), v);
-            }
+        // Returns pointer to N-th slice
+        T *slice(int n) { return (buffer_ + n * dims_.y * dims_.z); }
+        const T *slice(int n) const {
+            return (buffer_ + n * dims_.y * dims_.z);
+        }
 
-            // normalize
-            void normalize() {
-                T min = this->min();
-                T max = this->max();
-                T denom = max - min;
-                if (denom == 0) { std::runtime_error("Error: Division by zero"); }
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [min, denom](T a) { return (a - min) / denom; });
-            }
+        // Expose the allocated memoy pointer
+        T *begin() { return buffer_; }
+        T *data() { return buffer_; }
+        const T *begin() const { return buffer_; }
+        const T *data() const { return buffer_; }
 
-            // norm2
-            T norm() const {
-                return std::transform_reduce(exe::par_unseq, this->begin(), this->end(),
-                    T(0), std::plus<T>(), [](T x) { return x * x; });
-            }
+        // Expose the end of the allocated memory
+        T *end() { return buffer_ + size_; }
+        const T *end() const { return buffer_ + size_; }
 
-            // sum
-            T sum() const {
-                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(0), 
-                    std::plus<T>());
-            }
+#ifdef MULTIPROC
+        void update_neigh_proc() {
+            // set up neighs
+            int myrank = multiproc::mp.myrank();
+            int nproc = multiproc::mp.nprocs();
+            int prev = myrank - 1;
+            int next = myrank + 1;
+            bool first = multiproc::mp.first();
+            bool last = multiproc::mp.last();
 
-            // max
-            T max() const {
-                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(-1.0e20),
-                    [](T a, T b) { return std::max(a, b); });
-                
-            }
+            // buffer size
+            size_t count = dims_.y * dims_.z;
 
-            // min
-            T min() const {
-                return std::reduce(exe::par_unseq, this->begin(), this->end(), T(1.0e20),
-                    [](T a, T b) { return std::min(a, b); });
-            }
+            // send slice 1 to prev
+            if (!first) multiproc::mp.Send(this->slice(1), count, prev);
 
-            // subtract
-            DArray<T> & operator-=(const DArray<T> &rhs) {
-                match_dims(rhs.dims_);
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), this->begin(), std::minus<T>());
-                return *this;
-            }
-            DArray<T> operator-(const DArray<T> &rhs) const {
-                DArray<T> out = *this;
-                out -= rhs; 
-                return out;
-            }
+            // receive last slice from next
+            if (!last)
+                multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
 
-            // add
-            DArray<T> operator+=(const DArray<T> &rhs) {
-                match_dims(rhs.dims_);
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), this->begin(), std::plus<T>());
-                return *this;
-            }
-            DArray<T> operator+(const DArray<T> &rhs) const {
-                DArray<T> out = *this;
-                out += rhs; 
-                return out;
-            }
-
-            // multiply
-            DArray<T> operator*=(const DArray<T> &rhs) {
-                match_dims(dims_);
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), this->begin(), std::multiplies<T>());
-                return *this;
-            }
-            DArray<T> operator*(const DArray<T> &rhs) const {
-                DArray<T> out = *this;
-                out *= rhs; 
-                return out;
-            }
-
-            // divide 
-            DArray<T> operator/=(const DArray<T> &rhs) {
-                match_dims(rhs.dims_);
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    rhs.begin(), this->begin(), std::divides<T>());
-                return *this;
-            }
-            DArray<T> operator/(const DArray<T> &rhs) const {
-                DArray<T> out = *this;
-                out /= rhs; 
-                return out;
-            }
-
-            // subtract a scalar
-            DArray<T> & operator-=(const T &rhs) {
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [rhs](T a) { return a - rhs; });
-                return *this;
-            }
-            // right subtract a scalar
-            DArray<T> operator-(const T &rhs) const {
-                DArray<T> out = *this;
-                out -= rhs; 
-                return out;
-            }
-
-
-            DArray<T> & operator+=(const T &rhs) {
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [rhs](T a) { return a + rhs; });
-                return *this;
-            }
-            // right add a scalar
-            DArray<T> operator+(const T &rhs) const {
-                DArray<T> out = *this;
-                out += rhs; 
-                return out;
-            }
-
-            // multiply by a scalar
-            DArray<T> & operator*=(const T &rhs) {
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [rhs](T a) { return a * rhs; });
-                return *this;
-            }
-            // right multiply by a scalar
-            DArray<T> operator*(const T &rhs) const {
-                DArray<T> out = *this;
-                out *= rhs; 
-                return out;
-            }
-
-            // divide by a scalar
-            DArray<T> & operator/=(const T &rhs) {
-                std::transform(exe::par_unseq, this->begin(), this->end(),
-                    this->begin(), [rhs](T a) { return a / rhs; });
-                return *this;
-            }
-            // right divide by a scalar
-            DArray<T> operator/(const T &rhs) const {
-                DArray<T> out = *this;
-                out /= rhs; 
-                return out;
-            }
-
-            // drop a column
-            void dropcol() {
-                dim3_t d = {dims_.x, dims_.y, dims_.z - 1};
-                uint64_t new_size = static_cast<uint64_t>(d.z) * d.y * d.x;
-                T *new_buffer = new T[new_size];
-
-                // copy data
-                uint64_t nz = static_cast<uint64_t>(dims_.z);
-                uint64_t new_nz = static_cast<uint64_t>(d.z);
-                #pragma omp parallel for
-                for (int i = 0; i < dims_.x; i++) {
-                    for (int j = 0; j < dims_.y; j++) {
-                        uint64_t beg = i * dims_.y * nz + j * nz;
-                        uint64_t end = i * dims_.y * nz + j * nz + d.z;
-                        uint64_t out_beg = i * d.y * new_nz + j * new_nz;
-                        std::copy(buffer_ + beg, buffer_ + end,
-                            new_buffer + out_beg);
-                    }
-                }
-                delete[] buffer_;
-                buffer_ = new_buffer;
-                new_buffer = nullptr;
-                dims_ = d;
-                size_ = new_size;
-            }
-
-            /// dimensions of the array
-            dim3_t dims() const {
-                return dims_;
-            };
-            int nslices() const {
-                return dims_.x;
-            }
-            int nrows() const {
-                return dims_.y;
-            }
-            int ncols() const {
-                return dims_.z;
-            }
-            uint64_t size() const {
-                return size_;
-            }
-            size_t bytes() const {
-                return size_ * sizeof(T);
-            }
-
-            // indexing
-            T &operator[](uint64_t i) {
-                return buffer_[i];
-            }
-            T operator[](uint64_t i) const {
-                return buffer_[i];
-            }
-            T &operator()(int i, int j, int k) {
-                return buffer_[idx_(i, j, k)];
-            }
-            T operator()(int i, int j, int k) const {
-                return buffer_[idx_(i, j, k)];
-            }
-
-            // Returns pointer to N-th slice
-            T *slice(int n) {
-                return (buffer_ + n * dims_.y * dims_.z);
-            }
-            const T *slice(int n) const {
-                return (buffer_ + n * dims_.y * dims_.z);
-            }
-
-            // Expose the allocated memoy pointer
-            T *begin() {
-                return buffer_;
-            }
-            T *data() {
-                return buffer_;
-            }
-            const T *begin() const {
-                return buffer_;
-            }
-            const T *data() const {
-                return buffer_;
-            }
-
-            // Expose the end of the allocated memory
-            T *end() {
-                return buffer_ + size_;
-            }
-            const T *end() const {
-                return buffer_ + size_;
-            }
-
-            #ifdef MULTIPROC
-            void update_neigh_proc() {
-                // set up neighs
-                int myrank = multiproc::mp.myrank();
-                int nproc = multiproc::mp.nprocs();
-                int prev = myrank - 1;
-                int next = myrank + 1;
-                bool first = multiproc::mp.first();
-                bool last = multiproc::mp.last();
-
-                // buffer size
-                size_t count = dims_.y * dims_.z;
-
-                // send slice 1 to prev
-                if (!first) multiproc::mp.Send(this->slice(1), count, prev);
-
-                // receive last slice from next
-                if (!last) multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
-
-                // send penultimate slice to next
-                if (!last) multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
-                //
-                // receive slice 0 from prev
-                if (!first) multiproc::mp.Recv(this->slice(0), count, prev);
-
-            }
-            #endif // MULTIPROC
+            // send penultimate slice to next
+            if (!last)
+                multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
+            //
+            // receive slice 0 from prev
+            if (!first) multiproc::mp.Recv(this->slice(0), count, prev);
+        }
+#endif // MULTIPROC
     };
 
     // left subscript a scalar
@@ -424,8 +393,8 @@ namespace tomocam {
         return table;
     }
 
-    /* subdivide array into N partitions, with n halo layers on boundaries */
-    #ifndef MULTIPROC
+/* subdivide array into N partitions, with n halo layers on boundaries */
+#ifndef MULTIPROC
     template <typename T>
     std::vector<Partition<T>> create_partitions(DArray<T> &arr,
         int n_partitions, int halo) {
@@ -464,7 +433,7 @@ namespace tomocam {
         }
         return table;
     }
-    #else
+#else
     template <typename T>
     std::vector<Partition<T>> create_partitions(DArray<T> &arr,
         int n_partitions, int halo) {
@@ -512,6 +481,6 @@ namespace tomocam {
         }
         return table;
     }
-    #endif
+#endif
 } // namespace tomocam
 #endif // TOMOCAM_DISTARRAY__H
