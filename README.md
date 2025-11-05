@@ -1,33 +1,87 @@
-tomoCAM: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
+# tomoCAM
 
-**Dependencies**
-----------------
-
-1. CUDA
-2. pybind11
-3. numpy
-4. cmake
-
-**Installation**
------------------
-Make sure `CUDA`, `cmake`, and `pybind11` are installed.
-
-**Recommended**
+<p style="text-align: center;">
+<img src="logo/tomocam.png" alt="tomoCAM" width="400"/>
+</p>
 
 
-```
-pip install virtualenv
-virtualenv -p /usr/bin/python3 tomocam-venv
-source tomocam-venv/bin/activate
-```
+**tomoCAM** is a fast, GPU-accelerated **Model-Based Iterative Reconstruction (MBIR)** framework for synchrotron tomography data, utilizing **Non-Uniform Fast Fourier Transforms (NUFFT)** for advanced computational imaging applications.
 
-with or without virtualenv
+---
 
-```
-git clone https://github.com/lbl-camera/tomocam.git
-cd tomocam
-pip install .
-```
+## Table of Contents
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Citation](#citation)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+- [Contact](#contact)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
+
+---
+
+## Features
+- High-speed MBIR reconstruction optimized for GPUs
+- NUFFT for efficient data processing
+- User-friendly Python interface
+- Open-source with DOE-supported licensing
+- Suitable for a variety of synchrotron imaging applications
+
+---
+
+## Requirements
+Before you start, make sure your system meets these requirements:
+- **CUDA** (NVIDIA GPU drivers and toolkit)
+- **CMake** (version 3.10 or later recommended)
+- **pybind11** (for Python bindings)
+- **numpy** (for numerical operations)
+
+---
+
+## Installation
+
+### Recommended (Using `virtualenv`)
+1. Install virtualenv:
+   ```bash
+   pip install virtualenv
+   ```
+
+2. Create the virtual environment
+   ```bash
+   python3 -m venv tomcam-venv
+   ```
+3. Activate the virtual environment
+    ```bash
+    source tomocam-venv/bin/activate
+    ```
+### With or without virtualenv
+4. Install tomocam
+   ```bash
+   pip install git+https://github.com/lbl-camera/tomocam.git
+   ```
+## Usage
+   ```python
+   import numpy as np
+   from tomocam import recon
+   import tomopy
+
+   # Preprocss data using tomopy
+   # data, flat, dark, theta
+   read_projections( ... )
+   # normalize
+   tomo = tomopy.normalize( ... )
+   # -log
+   tomo = tomopy.minus_log( ... ) 
+   # find center of rotation
+   center = tomopy.find_center( ... )
+
+   # call tomocam recon
+   result = recon(sino, theta, center)
+   ```
+
 
 **Citation**
 ------------
