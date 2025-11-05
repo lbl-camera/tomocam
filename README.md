@@ -1,33 +1,66 @@
-tomoCAM: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs.
+# tomoCAM
 
-**Dependencies**
-----------------
+Model-Based Iterative Reconstruction (MBIR) for synchrotron tomography data using Non-Uniform Fast Fourier Transforms (NUFFT) on GPUs.
 
-1. CUDA
-2. pybind11
-3. numpy
-4. cmake
+## Features
 
-**Installation**
------------------
-Make sure `CUDA`, `cmake`, and `pybind11` are installed.
+- GPU-accelerated reconstruction using CUDA and NUFFT
+- Model-based iterative reconstruction with total variation regularization
+- Multi-GPU support on single node
+- Multi-node and multi-GPU support via MPI
+- Python interface with C++/CUDA backend
+- Docker container with complete environment
 
-**Recommended**
+## Core Functions
 
+- `tomocam.recon()` - MBIR reconstruction (multi-GPU on single node)
+- `tomocam.recon_mpi()` - MBIR reconstruction (multi-GPU, multi-node via MPI)
+- `tomocam.radon()` - Forward projection using NUFFT
+- `tomocam.backproject()` - Back-projection using NUFFT
 
-```
+## Dependencies
+
+- CUDA Toolkit
+- CMake >= 3.20
+- pybind11
+- numpy
+- [finufft](https://finufft.readthedocs.io/en/latest/install.html)
+
+## Installation
+
+### From Source
+
+```bash
+# Create virtual environment (recommended)
 pip install virtualenv
 virtualenv -p /usr/bin/python3 tomocam-venv
 source tomocam-venv/bin/activate
-```
 
-with or without virtualenv
-
-```
+# Install tomocam
 git clone https://github.com/lbl-camera/tomocam.git
 cd tomocam
 pip install .
 ```
+
+### Using Docker
+
+The Docker image includes all dependencies and an MPI-enabled reconstruction pipeline:
+
+```bash
+# Pull the image
+podman-hpc pull dkumar13/tomocam:perlmutter
+
+# Run reconstruction
+srun -n 2 --mpi=pmi2 podman-hpc run --rm --openmpi-pmi2 --gpu \
+  -v /path/to/input:/data/input \
+  -v /path/to/output:/data/output \
+  tomocam:perlmutter \
+  --datadir /data/input \
+  --filename data.h5 \
+  --axis 512.5
+```
+
+The container expects HDF5 files in ALS 8.3.2 format and writes output as TIFF files.
 
 **Citation**
 ------------
