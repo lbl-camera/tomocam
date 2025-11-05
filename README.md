@@ -38,6 +38,7 @@ Before you start, make sure your system meets these requirements:
 - **CMake** (version 3.10 or later recommended)
 - **pybind11** (for Python bindings)
 - **numpy** (for numerical operations)
+- [**finufft**](https://finufft.readthedocs.io/en/latest/install.html)
 
 ---
 
