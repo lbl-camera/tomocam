@@ -44,11 +44,13 @@ def read_als_832h5(filename, sino=None):
         if sino is not None:
             ibegin, iend = sino
             tomo = dset[:, ibegin:iend, :]
+            flat = f['exchange/data_white'][:, ibegin:iend, :]
+            dark = f['exchange/data_dark'][:, ibegin:iend, :]
         else:
             tomo = dset[:]
+            flat = f['exchange/data_white'][:]
+            dark = f['exchange/data_dark'][:]
         
-        flat = f['exchange/data_white'][:,ibegin:iend, :]
-        dark = f['exchange/data_dark'][:,ibegin:iend, :]
         theta = f['exchange/theta'][:]
         if np.any(theta > 2 * np.pi):
             theta = theta * np.pi / 180.0
@@ -56,16 +58,12 @@ def read_als_832h5(filename, sino=None):
     return tomo, flat, dark, theta
 
 
-def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol=1e-5, xtol=1e-5):
+def tomocam_pipeline(filename, output_file, num_iters=50, smoothness=0.01, tol=1e-5, xtol=1e-5):
     """ Tomocam MBIR reconstruction pipeline. Partitions data across MPI ranks along the rotation axis.
 
     Parameters:
-    datadir : str
-        Directory where the data file is located
     filename : str
         Name of the data file
-    axis : float
-        Center of rotation
     num_iters : int, default 50
         Number of MBIR iterations
     smoothness : float, default 0.01
@@ -78,7 +76,7 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
     None
     """
     
-    # Init MPI
+    # MPI setup
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -89,33 +87,6 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
     logger = setup_logging()
     
     try:
-        # Validate volumes on rank 0
-        if rank == 0:
-            validate_volumes()
-            logger.info(f"Starting reconstruction with {size} MPI ranks")
-            logger.info(f"Input: {datadir}/{filename}, Rotation axis: {axis}")
-        
-        # Sync all ranks after validation
-        comm.Barrier()
-        
-        # /data/input is mounted podman volume for input data
-        input_data = Path('/data/input') / datadir
-        output_data = Path('/data/output') / datadir
-        
-        if rank == 0:
-            if not output_data.exists():
-                output_data.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory: {output_data}")
-        
-        comm.Barrier()
-        outdir = output_data
-
-        dataset = input_data / filename
-        
-        # Validate dataset exists on all ranks
-        if not dataset.exists():
-            raise FileNotFoundError(f"File {dataset} not found")
-
         # Get the size of data on rank 0 and broadcast
         if rank == 0:
             with h5py.File(dataset, 'r') as f:
@@ -151,57 +122,84 @@ def tomocam_pipeline(datadir, filename, axis, num_iters=50, smoothness=0.01, tol
         ibegin = rank * base_slices
         iend = ibegin + base_slices
         
-        logger.info(f"Processing slices {ibegin} to {iend} ({my_share} slices)")
+        logger.info(f"Processing slices {ibegin} to {iend}: ({base_slices} slices)")
 
         # Load data from file
-        tomo, flat, dark, theta = read_als_832h5(dataset, sino=(ibegin, iend))
+        tomo, flat, dark, theta = read_als_832h5(filename)
         tomo = tomo.astype(np.float32)
         theta = theta.astype(np.float32)
+
+        # ensure theta is in radians
+        if np.any(theta > 2 * np.pi):
+            theta = theta * np.pi / 180.0
         
         logger.info("Data loaded, starting normalization")
         tomo = tomopy.normalize(tomo, flat, dark, out=tomo)
 
+        logger.info("Normalization complete, starting center-of-rotation search")
+        # rank 0 only for COR search
+        # Center of rotation search
+        # find projection at 0 and 180 degrees
+        if rank == 0:
+            proj0 = tomo[0,:,:].copy()
+            t180 = theta[0] + np.pi
+            idx180 = (np.abs(theta - t180)).argmin()
+            proj180 = tomo[idx180,:,:].copy()
+            cor = tomopy.find_center_pc(proj0, proj180, tol=0.5)
+            logger.info(f"Center of rotation found at: {cor:.2f}")
+        else:
+            cor = None
+
+        # Broadcast COR to all ranks
+        cor = comm.bcast(cor, root=0)
+
         # Apply threshold and preprocessing
         tomo[tomo < 0.01] = 0.01
         tomo = tomopy.minus_log(tomo)
-        tomo = tomopy.remove_stripe_fw(tomo)
+        tomo = tomopy.remove_stripe_fw(tomo, level=7, sigma=3)
 
-        tomo = np.transpose(tomo, (1, 0, 2))
-        
+        # Transpose data to (slices, projections, pixels)
+        sino = np.transpose(tomo, (1, 0, 2))
         logger.info("Starting MBIR reconstruction")
 
+        my_sino = sino[ibegin:iend, :, :].copy()
         # MBIR reconstruction, it gathers data from all ranks internally
-        rec = tomocam.recon_mpi(tomo, theta, center=axis, num_iters=num_iters, smoothness=smoothness, tol=tol, xtol=xtol)
-        rec = tomopy.circ_mask(rec, axis=0, ratio=0.95)
+        rec = tomocam.recon_mpi(my_sino, theta, center=cor, num_iters=num_iters, smoothness=smoothness, tol=tol, xtol=xtol)
+        rec = tomopy.circ_mask(rec, axis=0, ratio=0.98)
 
         # Save reconstructed data with input filename base
-        input_base = Path(filename).stem
-        outfile = outdir / f'{input_base}_recon.tif'
+        outdir = Path('/data/output')
+        outfile = outdir / output_file
         
         if rank == 0:
             logger.info(f"Saving reconstruction to {outfile}")
+            tifffile.imwrite(outfile, rec.astype(np.float32), imagej=True)
         
-        tifffile.imwrite(outfile, rec.astype(np.float32), imagej=True)
-        
-        if rank == 0:
-            logger.info("Reconstruction complete")
-    
+        logger.info("Reconstruction complete")
+
     except Exception as e:
         logger.error(f"Error during reconstruction: {str(e)}", exc_info=True)
         comm.Abort(1)
         sys.exit(1)
 
 @click.command()
-@click.option('--datadir', type=str, required=True, help='Directory where the data file is located')
 @click.option('--filename', type=str, required=True, help='Name of the data file')
-@click.option('--axis', type=float, required=True, help='Center of rotation')
-@click.option('--num_iters', type=int, default=50, help='Number of MBIR iterations')
+@click.option('--output-file', type=str, default='recon.tif', help='Output filename for the reconstruction')
+@click.option('--num-iters', type=int, default=50, help='Number of MBIR iterations')
 @click.option('--smoothness', type=float, default=0.01, help='Smoothness parameter for MBIR')
 @click.option('--tol', type=float, default=1e-5, help='Tolerance for MBIR convergence')
 @click.option('--xtol', type=float, default=1e-5, help='Tolerance for MBIR convergence')
-def main(datadir, filename, axis, num_iters, smoothness, tol, xtol):
+
+def main(filename, output_file, num_iters, smoothness, tol, xtol):
     try:
-        tomocam_pipeline(datadir, filename, axis, num_iters, smoothness, tol, xtol)
+        MPI.Init()
+        validate_volumes()
+        # ensure filename is a valid  path
+        filename = Path('/data/input') / filename
+        if not filename.exists():
+            raise FileNotFoundError(f"Input file {filename} not found")
+        tomocam_pipeline(filename, output_file, num_iters, smoothness, tol, xtol)
+        
     finally:
         MPI.Finalize()
 
