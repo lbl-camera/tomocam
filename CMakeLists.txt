@@ -84,7 +84,6 @@ set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cudart)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cufft)
-target_link_libraries(tomocam::deps INTERFACE CUDA::cuda_driver)
 
 # openmp
 find_package(OpenMP) 
