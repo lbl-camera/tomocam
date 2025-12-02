@@ -21,7 +21,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dev_array.h"
+#include "memory/dev_array.h"
 #include "gpu/utils.cuh"
 
 #include "potential_function.cuh"

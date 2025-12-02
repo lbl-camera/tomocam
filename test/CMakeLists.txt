@@ -16,14 +16,6 @@ target_link_libraries(partition PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(partition PRIVATE ${MPI_C_LIBRARIES})
 add_test(NAME partition_test COMMAND partition)
 
-# test dropcol
-add_executable(dropcol dropcol.cpp)
-target_link_libraries(dropcol PRIVATE tomocam)
-target_link_libraries(dropcol PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(dropcol PRIVATE nlohmann_json::nlohmann_json)
-add_test(NAME dropcol_test COMMAND dropcol)
-
-
 add_executable(read reader.cpp)
 target_link_libraries(read PRIVATE tomocam)
 target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
@@ -71,20 +63,3 @@ add_test(NAME error_test COMMAND error)
 add_executable(xerror xerror.cpp)
 target_link_libraries(xerror PRIVATE tomocam)
 add_test(NAME xerror_test COMMAND xerror)
-
-
-# MBIR
-add_executable(mbir mbir.cpp)
-target_link_libraries(mbir tomocam)
-target_link_libraries(mbir ${HDF5_LIBRARIES})
-target_link_libraries(mbir nlohmann_json::nlohmann_json)
-target_link_libraries(mbir ${MPI_C_LIBRARIES})
-add_test(NAME mbir_test COMMAND mbir)
-
-# MBIR2
-add_executable(mbir2 mbir2.cpp)
-target_link_libraries(mbir2 tomocam)
-target_link_libraries(mbir2 ${HDF5_LIBRARIES})
-target_link_libraries(mbir2 nlohmann_json::nlohmann_json)
-target_link_libraries(mbir2 ${MPI_C_LIBRARIES})
-add_test(NAME mbir2_test COMMAND mbir2)

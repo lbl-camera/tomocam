@@ -28,78 +28,82 @@
 #include <cuda/std/complex>
 #include <cuda_runtime.h>
 
-#include "common.h"
-#include "dist_array.h"
-#include "types.h"
+#include "memory/common.h"
+#include "memory/dev_array.h"
 #include "utils.cuh"
+#include "utils/types.h"
 
-namespace tomocam {
-    namespace gpu {
+using tomocam::DeviceArray;
 
-        /**
-         * @brief DeviceMemory class is a thin wrapper around a device pointer
-         * that is created as an alias DeviceArray<T> class.
-         * It is implictly convertted from DeviceArray<T> to DeviceMemory<T>
-         * @tparam T data type
-         */
-        template <typename T>
-        class DeviceMemory {
-          protected:
-            dim3_t dims_;
-            size_t size_;
-            T *dev_ptr_;
-            int2 halo_;
+namespace tomocam::gpu {
 
-          public:
-            DeviceMemory(dim3_t d, int2 h, T *ptr) :
-                dims_(d), halo_(h), dev_ptr_(ptr) {
-                size_ = d.x * d.y * d.z;
-            }
+    /**
+     * @brief DeviceMemory class is a non-owning device view of the DeviceArray<T>.
+     * It is implictly convertted from DeviceArray<T> to DeviceMemory<T>
+     * @tparam T data type
+     */
+    template <typename T>
+    class DeviceMemory {
+      protected:
+        dim3_t dims_;
+        size_t size_;
+        T *dev_ptr_;
+        int2 halo_;
 
-            __host__ __device__ T *dev_ptr() { return dev_ptr_; }
+      public:
+        DeviceMemory(DeviceArray<T> &arr)
+            : dims_(arr.dims()), halo_(arr.halo()), dev_ptr_(arr.begin()) {
+            size_ = dims_.x * dims_.y * dims_.z;
+        }
 
-            // size of the array
-            __host__ __device__ size_t size() const { return size_; }
+        DeviceMemory(const DeviceArray<T> &arr)
+            : dims_(arr.dims()), halo_(arr.halo()), dev_ptr_(const_cast<T*>(arr.begin())) {
+            size_ = dims_.x * dims_.y * dims_.z;
+        }
 
-            // get array dims
-            __host__ __device__ dim3_t dims() const { return dims_; }
+        __host__ __device__ T *dev_ptr() { return dev_ptr_; }
 
-            __device__ T &operator[](int i) { return dev_ptr_[i]; }
+        // size of the array
+        __host__ __device__ size_t size() const { return size_; }
 
-            // indexing 3-D
-            __device__ T &operator[](int3 i) {
-                return dev_ptr_[i.x * dims_.y * dims_.z + i.y * dims_.z + i.z];
-            }
-            __device__ const T &operator[](int3 i) const {
-                return dev_ptr_[i.x * dims_.y * dims_.z + i.y * dims_.z + i.z];
-            }
+        // get array dims
+        __host__ __device__ dim3_t dims() const { return dims_; }
 
-            // indexing 3-D
-            __device__ T &operator()(int i, int j, int k) {
-                return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
-            }
-            __device__ const T &operator()(int i, int j, int k) const {
-                return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
-            }
+        __device__ T &operator[](int i) { return dev_ptr_[i]; }
 
-            // indexing ...
-            // -- with halo excluded
-            // -- check for bounds, return 0 if outside
-            __device__ T at(int ii, int j, int k) const {
-                int i = ii + halo_.x;
-                i = max(0, min(dims_.x - 1, i));
-                j = max(0, min(dims_.y - 1, j));
-                k = max(0, min(dims_.z - 1, k));
-                return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
-            }
-        };
+        // indexing 3-D
+        __device__ T &operator[](int3 i) {
+            return dev_ptr_[i.x * dims_.y * dims_.z + i.y * dims_.z + i.z];
+        }
+        __device__ const T &operator[](int3 i) const {
+            return dev_ptr_[i.x * dims_.y * dims_.z + i.y * dims_.z + i.z];
+        }
 
-        typedef DeviceMemory<float> DeviceMemoryf;
-        typedef DeviceMemory<double> DeviceMemoryd;
-        typedef DeviceMemory<cuda::std::complex<float>> DeviceMemorycf;
-        typedef DeviceMemory<cuda::std::complex<double>> DeviceMemorycd;
+        // indexing 3-D
+        __device__ T &operator()(int i, int j, int k) {
+            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
+        __device__ const T &operator()(int i, int j, int k) const {
+            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
 
-    } // namespace gpu
-} // namespace tomocam
+        // indexing ...
+        // -- with halo excluded
+        // -- check for bounds, return 0 if outside
+        __device__ T at(int ii, int j, int k) const {
+            int i = ii + halo_.x;
+            i = max(0, min(dims_.x - 1, i));
+            j = max(0, min(dims_.y - 1, j));
+            k = max(0, min(dims_.z - 1, k));
+            return dev_ptr_[i * dims_.y * dims_.z + j * dims_.z + k];
+        }
+    };
+
+    typedef DeviceMemory<float> DeviceMemoryf;
+    typedef DeviceMemory<double> DeviceMemoryd;
+    typedef DeviceMemory<cuda::std::complex<float>> DeviceMemorycf;
+    typedef DeviceMemory<cuda::std::complex<double>> DeviceMemorycd;
+
+} // namespace tomocam::gpu
 
 #endif // TOMOCAM_DEV_MEMORY__H

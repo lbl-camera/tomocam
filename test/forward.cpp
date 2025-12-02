@@ -1,11 +1,15 @@
-#include <iostream>
-#include <fstream>
 #include <ctime>
+#include <fstream>
+#include <iostream>
 
-#include "dist_array.h"
-#include "hdf5/writer.h"
-#include "tomocam.h"
-#include "timer.h"
+#include "core/tomocam.h"
+#include "io/hdf5/writer.h"
+#include "memory/dist_array.h"
+#include "utils/random.h"
+#include "utils/timer.h"
+
+using tomocam::io::h5::Writer;
+using tomocam::utils::NPRandom;
 
 int main(int argc, char **argv) {
 
@@ -17,18 +21,18 @@ int main(int argc, char **argv) {
     tomocam::DArray<float> image(d0);
     auto rng = NPRandom();
 
-    for (int i = 0; i < image.size(); i++)
-        image[i] = rng.rand<float>();
+    for (int i = 0; i < image.size(); i++) image[i] = rng.rand<float>();
 
     std::vector<float> angles(num_angles);
     for (int i = 0; i < num_angles; i++)
-        angles[i] = M_PI * static_cast<float>(i) / static_cast<float>(num_angles - 1);
+        angles[i] =
+            M_PI * static_cast<float>(i) / static_cast<float>(num_angles - 1);
 
     int center = num_rays / 2;
 
     auto p = tomocam::project<float>(image, angles);
 
     // write to hdf5
-    tomocam::h5::Writer writer("project.h5");
+    Writer writer("project.h5");
     writer.write("project", p);
 }

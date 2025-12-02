@@ -13,12 +13,10 @@ int main(int argc, char **argv) {
     // create a test data
     tomocam::dim3_t dims = {4, 20, 48};
     tomocam::DArray<float> data(dims);
-    for (uint64_t i = 0; i < data.size(); i++) {
-        data[i] = static_cast<float>(i);
-    }
+    for (uint64_t i = 0; i < data.size(); i++) { data[i] = static_cast<float>(i); }
 
     // create a copy of the data
-    auto data2 = data;
+    auto data2 = data.clone();
     auto start = std::chrono::high_resolution_clock::now();
     data2.dropcol();
     auto dt = std::chrono::high_resolution_clock::now() - start;
@@ -29,10 +27,9 @@ int main(int argc, char **argv) {
     writer.write("data2", data2);
 
     // print data shape
-    std::cout
-        << "Data2 shape: (" << data2.nslices() << ", " << data2.nrows() << ", "
-        << data2.ncols() << "), time: "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(dt).count()
-        << " ms" << std::endl;
+    std::cout << "Data2 shape: (" << data2.nslices() << ", " << data2.nrows() << ", "
+              << data2.ncols() << "), time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(dt).count()
+              << " ms" << std::endl;
     return 0;
 }

@@ -8,6 +8,8 @@
             "binaryDir": "${sourceDir}/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "clang++-20",
+                "CMAKE_CUDA_COMPILER": "nvcc",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"

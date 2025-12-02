@@ -18,15 +18,15 @@
  *---------------------------------------------------------------------------------
  */
 
+#ifndef GPU_OPS__H
+#define GPU_OPS__H
+
 #include <cuda.h>
 
 #include "utils.cuh"
 
-#ifndef GPU_OPS__H
-#define GPU_OPS__H
 
-namespace tomocam {
-    namespace gpu {
+namespace tomocam::gpu {
 
         /** Add device arrays 
          * @param[in] a - first array
@@ -134,7 +134,7 @@ namespace tomocam {
         template <typename T>
         void make_nugrid(int, int, T *, T *, const T *);
 
-    } // namespace gpu
-} // namespace tomocam
+
+} // namespace tomocam::gpu
 
 #endif // GPU_OPS__H

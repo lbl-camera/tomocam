@@ -17,16 +17,21 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
+#ifndef GPU_OPS_PADDING_CUH
+#define GPU_OPS_PADDING_CUH
+
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#ifndef GPU_OPS_PADDING_CUH
-#define GPU_OPS_PADDING_CUH
+#include "utils/types.h"
+#include "memory/dev_array.h"
 
-namespace tomocam {
+using tomocam::DeviceArray;
+using tomocam::utils::PadType;
 
-    namespace gpu {
+namespace tomocam::gpu {
+
 
         /**
          * @brief Pads a 1D array with zeros.
@@ -107,7 +112,7 @@ namespace tomocam {
          */
         template <typename T>
         void unpad2d(DeviceArray<T> &, const DeviceArray<T> &, int, PadType);
-    } // namespace gpu
-} // namespace tomocam
+
+} // namespace tomocam::gpu
 
 #endif // GPU_OPS_PADDING_CUH

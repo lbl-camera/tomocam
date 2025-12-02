@@ -4,12 +4,22 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
-#include "dist_array.h"
-#include "hdf5/reader.h"
-#include "hdf5/writer.h"
-#include "tomocam.h"
+#include "core/tomocam.h"
+#include "io/hdf5/reader.h"
+#include "io/hdf5/writer.h"
+#include "memory/array_ops.h"
+#include "memory/dist_array.h"
+#include "utils/timer.h"
 
 using json = nlohmann::json;
+
+using tomocam::backproject;
+using tomocam::DArray;
+using tomocam::io::h5::Reader;
+using tomocam::io::h5::Writer;
+using tomocam::preprocessing::postproc;
+using tomocam::preprocessing::preproc;
+using tomocam::utils::Timer;
 
 int main(int argc, char **argv) {
 
@@ -42,34 +52,30 @@ int main(int argc, char **argv) {
     }
 
     // read data
-    tomocam::h5::Reader h5fp(filename.c_str());
-
-    auto t0 = std::chrono::high_resolution_clock::now();
+    Timer t;
+    t.start();
+    Reader h5fp(filename.c_str());
     auto sino = h5fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
     auto angs = h5fp.read<float>(angles.c_str());
-    auto t1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_read = t1 - t0;
-    std::cout << "Elapsed time reading data: " << elapsed_read.count() << " s"
-        << std::endl;
+    t.stop();
+    std::cout << std::format("Data loading time: {:.3f} s\n", t.seconds());
 
     // if number of columns is even, drop one column
-    sino.dropcol();
     float cen = static_cast<float>(center);
 
     // normalize sinogram
-    auto sino2 = (sino - sino.min()) / (sino.max() - sino.min());
+    auto maxv = tomocam::array::max(sino);
+    auto minv = tomocam::array::min(sino);
+    auto range = maxv - minv;
+    auto sino2 = (sino - minv) / range;
 
-    auto start = std::chrono::high_resolution_clock::now();
-    sino2 = tomocam::preproc(sino2, cen);
-    auto recn = tomocam::backproject(sino2, angs, true);
-    recn = tomocam::postproc(recn, sino.ncols());
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Backprojection time: " << elapsed.count() << " s"
-        << std::endl;
-
-    tomocam::h5::Writer w(outfile.c_str());
+    t.start();
+    sino2 = preproc(sino2, cen);
+    auto recn = backproject(sino2, angs, true);
+    recn = postproc(recn, sino.ncols());
+    t.stop();
+    std::cout << std::format("Reconstruction time: {:.3f} s\n", t.seconds());
+    Writer w(outfile.c_str());
     w.write("recon", recn);
     return 0;
 }

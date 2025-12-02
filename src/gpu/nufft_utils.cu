@@ -22,6 +22,9 @@
 #include <math_constants.h>
 
 #include "gpu/utils.cuh"
+#include "memory/gpu_unique_ptr.h"
+
+using tomocam::memory::H2D;
 
 namespace tomocam {
     namespace gpu {
@@ -50,7 +53,7 @@ namespace tomocam {
             // copy angles to device
             T *d_angles;
             SAFE_CALL(cudaMalloc(&d_angles, sizeof(T) * nproj));
-            SAFE_CALL(cudaMemcpy(d_angles, angles, sizeof(T) * nproj, cudaMemcpyHostToDevice));
+            H2D(d_angles, angles, sizeof(T) * nproj);
 
             auto ceil = [](int a, int b) {
                 if (a % b) return a / b + 1;

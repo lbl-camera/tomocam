@@ -1,17 +1,17 @@
-#include <iostream>
-#include <fstream>
-#include <ctime>
 #include <array>
+#include <ctime>
+#include <cuda_runtime.h>
+#include <fstream>
+#include <iostream>
 #include <random>
 
-#include <cuda_runtime.h>
-#include "timer.h"
-#include "dist_array.h"
-#include "hdf5/writer.h"
-#include "toeplitz.h"
-
-#include "tomocam.h"
-#include "timer.h"
+#include "core/tomocam.h"
+#include "io/hdf5/writer.h"
+#include "memory/array_ops.h"
+#include "memory/dist_array.h"
+#include "transforms/toeplitz.h"
+#include "utils/random.h"
+#include "utils/timer.h"
 
 #define USE_DOUBLE
 
@@ -21,6 +21,11 @@ typedef double real_t;
 typedef float real_t;
 #endif
 
+using tomocam::transforms::PointSpreadFunction;
+using tomocam::transforms::NUFFT::Grid;
+using tomocam::utils::NPRandom;
+using tomocam::utils::Timer;
+
 int main(int argc, char **argv) {
 
     // read data
@@ -29,7 +34,7 @@ int main(int argc, char **argv) {
     real_t center = static_cast<real_t>(ncols) / 2;
 
     // create a hdf5 writer
-    tomocam::h5::Writer fp("test_toeplitz.h5");
+    tomocam::io::h5::Writer fp("test_toeplitz.h5");
     tomocam::dim3_t dim1 = {1, nproj, ncols};
     tomocam::dim3_t dim2 = {1, ncols, ncols};
 
@@ -48,13 +53,13 @@ int main(int argc, char **argv) {
 
     // create a nugrid and psfs
     int ndevices = 4;
-    std::vector<tomocam::NUFFT::Grid<real_t>> nugrids(ndevices);
+    std::vector<Grid<real_t>> nugrids(ndevices);
     for (int i = 0; i < ndevices; i++)
-        nugrids[i] = tomocam::NUFFT::Grid<real_t>(nproj, ncols, theta.data(), i);
+        nugrids[i] = Grid<real_t>(nproj, ncols, theta.data(), i);
 
-    std::vector<tomocam::PointSpreadFunction<real_t>> psfs(ndevices);
+    std::vector<PointSpreadFunction<real_t>> psfs(ndevices);
     for (int i = 0; i < ndevices; i++)
-        psfs[i] = tomocam::PointSpreadFunction<real_t>(nugrids[i]);
+        psfs[i] = PointSpreadFunction<real_t>(nugrids[i]);
 
     // calculate backprojection of data
     auto yT = tomocam::backproject(y, theta, false);
@@ -73,16 +78,15 @@ int main(int argc, char **argv) {
     auto g2 = tomocam::gradient2(f, yT, psfs);
     t2.stop();
 
-    std::cout << "g1.norm(): " << g1.norm() << std::endl;
-    std::cout << "g2.norm(): " << g2.norm() << std::endl;
+    std::cout << std::format("|g1|_2: {}\n", tomocam::array::norm2(g1));
+    std::cout << std::format("|g2|_2: {}\n", tomocam::array::norm2(g2));
 
-    fprintf(stdout, "Time taken(ms): regular method: %d\n", t1.ms());
-    fprintf(stdout, "Time taken(ms): toeplitz method: %d\n", t2.ms());
-
+    std::cout << std::format("Time taken(ms): regular method: {}\n", t1.ms());
+    std::cout << std::format("Time taken(ms): toeplitz method: {}\n", t2.ms());
 
     // compare the two gradients
-    auto err = std::sqrt((g1 - g2).norm()) / std::sqrt(g1.norm());
-    std::cout << "Relative error: " << err << std::endl;
+    auto diff_norm = std::sqrt(tomocam::array::norm2(g1 - g2));
+    auto norm_g1 = std::sqrt(tomocam::array::norm2(g1));
+    std::cout << std::format("Relative error: {}\n", diff_norm / norm_g1);
     return 0;
 }
-

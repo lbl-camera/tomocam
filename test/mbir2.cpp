@@ -87,29 +87,21 @@ int main(int argc, char **argv) {
     ibeg = myrank * slcs_per_proc;
     iend = ibeg + slcs_per_proc;
     if (myrank > extra_slcs) {
-        ibeg = extra_slcs * (slcs_per_proc + 1) +
-               (myrank - extra_slcs) * slcs_per_proc;
+        ibeg =
+            extra_slcs * (slcs_per_proc + 1) + (myrank - extra_slcs) * slcs_per_proc;
         iend = ibeg + slcs_per_proc;
     }
 #endif
 
     auto sino = fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
     auto angs = fp.read<float>(angles.c_str());
-
-    // if number of columns is even, drop one column
-    if (sino.ncols() % 2 == 0) {
-        sino.dropcol();
-        // center -= 1;
-    }
-
     float cen = static_cast<float>(center);
 
-    std::optional<tomocam::DArray<float>> x1;
+    tomocam::DArray<float> x1({0, 0, 0}); // empty initial guess
     // run MBIR
     Timer t2;
     t2.start();
-    auto recon2 =
-        tomocam::mbir2(x1, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon2 = tomocam::mbir2(x1, sino, angs, cen, max_iters, sigma, tol, xtol);
     t2.stop();
 
 #ifdef MULTIPROC

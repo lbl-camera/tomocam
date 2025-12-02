@@ -1,13 +1,15 @@
-#include <iostream>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 
 #include <nlohmann/json.hpp>
 
-#include "hdf5/reader.h"
-#include "hdf5/writer.h"
+#include "io/hdf5/reader.h"
+#include "io/hdf5/writer.h"
 
 using json = nlohmann::json;
+using tomocam::io::h5::Reader;
+using tomocam::io::h5::Writer;
 
 int main(int argc, char *argv[]) {
 
@@ -42,13 +44,13 @@ int main(int argc, char *argv[]) {
         std::cerr << "File does not exist: " << filename << std::endl;
         return 1;
     }
-    tomocam::h5::Reader reader(filename.c_str());
+    Reader reader(filename.c_str());
     auto sino = reader.read_sinogram<float>(dataset.c_str(), begin, end);
     auto theta = reader.read<float>(angles.c_str());
 
     // write sinogram to file
     const std::string output_filename = cfg["output"];
-    tomocam::h5::Writer writer(output_filename.c_str());
+    Writer writer(output_filename.c_str());
     writer.write<float>("sino", sino);
 
     return 0;

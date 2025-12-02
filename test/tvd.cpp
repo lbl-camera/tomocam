@@ -1,27 +1,32 @@
-#include <iostream>
+#include <format>
 #include <fstream>
+#include <iostream>
 #include <random>
 
-#include "dist_array.h"
+#include "core/tomocam.h"
 #include "gpu/totalvar.cuh"
-#include "machine.h"
-#include "tomocam.h"
-#include "types.h"
-#include "timer.h"
+#include "memory/array_ops.h"
+#include "memory/dist_array.h"
+#include "utils/machine.h"
+#include "utils/random.h"
+#include "utils/timer.h"
+#include "utils/types.h"
 
+using tomocam::reconstruction::add_total_var2;
+using tomocam::utils::NPRandom;
+using tomocam::utils::Timer;
 namespace tomocam {
 
     const float weight[3][3][3] = {
         {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}},
         {{0.037, 0.0523, 0.037}, {0.0523, 0., 0.0523}, {0.037, 0.0523, 0.037}},
-        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}
-    };
+        {{0.0302, 0.037, 0.0302}, {0.037, 0.0523, 0.037}, {0.0302, 0.037, 0.0302}}};
 
     const float MRF_Q = 2.f;
     const float MRF_C = 0.001;
 
     float d_potfun(float delta, float sigma, float p) {
-        float sigma_q   = std::pow(sigma, MRF_Q);
+        float sigma_q = std::pow(sigma, MRF_Q);
         float sigma_q_p = std::pow(sigma, MRF_Q - p);
 
         float temp1 = std::pow(std::abs(delta), MRF_Q - p) / sigma_q_p;
@@ -29,15 +34,18 @@ namespace tomocam {
         float temp3 = MRF_C + temp1;
 
         if (delta > 0.f)
-            return ((temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
+            return ((temp2 / (temp3 * sigma_q)) *
+                    (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
         else if (delta < 0.f)
-            return ((-1 * temp2 / (temp3 * sigma_q)) * (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
+            return ((-1 * temp2 / (temp3 * sigma_q)) *
+                    (MRF_Q - ((MRF_Q - p) * temp1) / temp3));
         else
             return 0;
     }
 
     // calculate contraints on CPU
-    void cpuTotalVar(DArray<float> &input, DArray<float> &output, float sigma, float mrf_p) {
+    void cpuTotalVar(DArray<float> &input, DArray<float> &output, float sigma,
+                     float mrf_p) {
 
         // dims
         dim3_t dims = output.dims();
@@ -45,7 +53,7 @@ namespace tomocam {
         int nrow = dims.y;
         int ncol = dims.z;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < nslc; i++) {
             for (int j = 0; j < nrow; j++) {
                 for (int k = 0; k < ncol; k++) {
@@ -92,9 +100,7 @@ int main(int argc, char **argv) {
     tomocam::DArray<float> d(dims);
 
     // initializing
-    for (int i = 0; i < a.size(); i++) {
-        a[i] = rng.rand<float>();
-    }
+    for (int i = 0; i < a.size(); i++) { a[i] = rng.rand<float>(); }
     std::cout << "initializing ... " << std::endl;
     b.init(0.f);
     c.init(0.f);
@@ -115,35 +121,31 @@ int main(int argc, char **argv) {
 
     std::cout << "testing CPU code ... " << std::endl;
 
-    Timer t0; 
+    Timer t0;
     t0.start();
     cpuTotalVar(a, b, sigma, p);
     t0.stop();
 
-    
     // test multi-GPU code
     std::cout << "\n\ntesting multi-GPU code ... " << std::endl;
-    Timer t1;
-    t1.start();
-    tomocam::add_total_var(a, c, sigma, p);
-    t1.stop();
     Timer t2;
     t2.start();
-    tomocam::add_total_var2(a, d, sigma, p);
+    add_total_var2(a, d, sigma, p);
     t2.stop();
 
     // report times
-    std::cout << "CPU time: " << t0.ms() << " ms" << std::endl;
-    std::cout << "GPU time 1: " << t1.ms() << " ms" << std::endl;
-    std::cout << "GPU time 2: " << t2.ms() << " ms" << std::endl;
+    std::cout << std::format("CPU time: {} ms\n", t0.ms());
+    std::cout << std::format("GPU time 2: {} ms\n", t2.ms());
 
     auto err = c - b;
-    std::cout << "Max error 1: " << err.max() << std::endl;
-    std::cout << "L2 error 2: " << err.norm() / err.size() << std::endl;
+    std::cout << std::format("Max error 1: {}\n", tomocam::array::max(err));
+    std::cout << std::format("L2 error 1: {}\n",
+                             tomocam::array::norm2(err) / err.size());
 
     auto err2 = d - c;
-    std::cout << "Max error 2: " << err2.max() << std::endl;
-    std::cout << "L2 error 2: " << err2.norm() / err2.size() << std::endl;
+    std::cout << std::format("Max error 2: {}\n", tomocam::array::max(err2));
+    std::cout << std::format("L2 error 2: {}\n",
+                             tomocam::array::norm2(err2) / err2.size());
 
     return 0;
     // create

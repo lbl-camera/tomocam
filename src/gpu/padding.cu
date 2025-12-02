@@ -21,11 +21,11 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dev_array.h"
+#include "memory/dev_array.h"
 #include "gpu/dev_memory.cuh"
 #include "gpu/padding.cuh"
 #include "gpu/utils.cuh"
-#include "types.h"
+#include "utils/types.h"
 
 namespace tomocam {
     namespace gpu {

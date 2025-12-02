@@ -1,19 +1,24 @@
 
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
 
-#include "dist_array.h"
-#include "dev_array.h"
-#include "toeplitz.h"
-#include "machine.h"
-#include "tomocam.h"
+#include "core/tomocam.h"
+#include "memory/array_ops.h"
+#include "memory/dev_array.h"
+#include "memory/dist_array.h"
+#include "transforms/toeplitz.h"
+#include "utils/machine.h"
+#include "utils/random.h"
+#include "utils/timer.h"
 
-#include "timer.h"
-
+using tomocam::utils::NPRandom;
+using tomocam::utils::Timer;
+using tomocam::utils::Machine::config;
 int main(int argc, char **argv) {
 
     const int nslices = 16;
@@ -23,12 +28,9 @@ int main(int argc, char **argv) {
 
     // create data
     tomocam::DArray<float> xcurr(tomocam::dim3_t{nslices, npixel, npixel});
-    for (int i = 0; i < xcurr.size(); i++) {
-        xcurr[i] = rng.rand<float>();
-    }
-    auto xcurr_norm = xcurr.norm();
-    std::cout << "|| x ||_2 " << xcurr_norm << std::endl;
-
+    for (int i = 0; i < xcurr.size(); i++) { xcurr[i] = rng.rand<float>(); }
+    auto xcurr_norm = tomocam::array::norm2(xcurr);
+    std::cout << "|x|_2 " << xcurr_norm << std::endl;
 
     /// measure time to transfor array to device
     Timer time_to_device;
@@ -38,7 +40,7 @@ int main(int argc, char **argv) {
     time_to_device.stop();
     std::cout << "Time to device: " << time_to_device.ms() << " ms" << std::endl;
 
-    tomocam::Machine::config.barrier();
+    config.barrier();
     // allocate solution array
     tomocam::DArray<float> xprev(xcurr.dims());
     xprev.init(1.f);
@@ -46,7 +48,7 @@ int main(int argc, char **argv) {
     // error 1
     Timer time1;
     time1.start();
-    auto err1 = (xcurr - xprev).norm();
+    auto err1 = tomocam::array::norm2(xcurr - xprev);
     time1.stop();
 
     // error 2

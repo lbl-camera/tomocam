@@ -18,42 +18,55 @@
 #---------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.20)
+
+# Default to clang++ for C++ and CUDA if not already set
+if(NOT CMAKE_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER clang++)
+endif()
+if(NOT CMAKE_CUDA_COMPILER)
+    set(CMAKE_CUDA_COMPILER nvcc)
+endif()
+
 project(tomocam LANGUAGES CXX CUDA)
 set(tomocam_VERSION_MAJOR 3) 
 set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
-set(CMAKE_CXX_STANDARD 23) 
-set(CMAKE_CUDA_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20) 
+set(CMAKE_CUDA_STANDARD 20)
 
 # debug flags
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
-set(CMAKE_CUDA_FLAGS_DEBUG "-G -DDEBUG ${CMAKE_CUDA_FLAGS_DEBUG}")
 
 #  local CMake modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 # Source files
 set(SRC 
-    ${PROJECT_SOURCE_DIR}/src/backward.cpp 
-    ${PROJECT_SOURCE_DIR}/src/iradon.cpp
-    ${PROJECT_SOURCE_DIR}/src/forward.cpp
-    ${PROJECT_SOURCE_DIR}/src/radon.cpp
-    ${PROJECT_SOURCE_DIR}/src/error.cpp
-    ${PROJECT_SOURCE_DIR}/src/error2.cpp
-    ${PROJECT_SOURCE_DIR}/src/xerror.cpp
-    ${PROJECT_SOURCE_DIR}/src/gradient.cpp
-    ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
-    ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
+    # Core algorithms
+    ${PROJECT_SOURCE_DIR}/src/core/backward.cpp 
+    ${PROJECT_SOURCE_DIR}/src/core/iradon.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/forward.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/radon.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/gradient.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/gradient2.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/error.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/error2.cpp
+    ${PROJECT_SOURCE_DIR}/src/core/xerror.cpp
+    
+    # Reconstruction algorithms
+    ${PROJECT_SOURCE_DIR}/src/reconstruction/mbir.cpp
+    ${PROJECT_SOURCE_DIR}/src/reconstruction/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/reconstruction/tv_update.cpp
+    
+    # Preprocessing
+    ${PROJECT_SOURCE_DIR}/src/preprocessing/postproc.cpp
+    ${PROJECT_SOURCE_DIR}/src/preprocessing/preproc.cpp
+    ${PROJECT_SOURCE_DIR}/src/preprocessing/padding.cpp
+    
+    
+    # GPU kernels
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTV2.cu
-    ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
-    ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
-    ${PROJECT_SOURCE_DIR}/src/mbir.cpp
-    ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
-    ${PROJECT_SOURCE_DIR}/src/postproc.cpp
-    ${PROJECT_SOURCE_DIR}/src/preproc.cpp
-    ${PROJECT_SOURCE_DIR}/src/padding.cpp
-    ${PROJECT_SOURCE_DIR}/src/gpu/tv_hessian.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/gpu_ops.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/padding.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/fftshift.cu
@@ -79,12 +92,12 @@ target_link_libraries(tomocam::deps INTERFACE stdc++exp)
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cudart)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cufft)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cuda_driver)
+target_compile_definitions(tomocam::deps INTERFACE CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
 # openmp
 find_package(OpenMP) 
@@ -118,7 +131,7 @@ find_package(finufft REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
 
 # TRY the official package
-find_package(hdf5 REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C)
 target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
 
 
@@ -129,7 +142,7 @@ target_link_libraries(tomocam::deps INTERFACE TBB::tbb)
 add_library(tomocam_objs OBJECT ${SRC})
 set_target_properties(tomocam_objs PROPERTIES 
                       POSITION_INDEPENDENT_CODE ON)
-target_compile_features(tomocam_objs PUBLIC cxx_std_23)
+target_compile_features(tomocam_objs PUBLIC cxx_std_20)
 target_link_libraries(tomocam_objs PUBLIC tomocam::deps)
 
 # build shared library
@@ -138,7 +151,7 @@ set_target_properties(tomocam PROPERTIES
                       VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR} 
                       SOVERSION ${tomocam_VERSION_MAJOR})
 target_link_libraries(tomocam PUBLIC tomocam::deps)
-target_compile_features(tomocam PUBLIC cxx_std_23)
+target_compile_features(tomocam PUBLIC cxx_std_20)
 
 option(ENABLE_PYTHON "Enable python module" OFF)
 if (ENABLE_PYTHON)
@@ -156,13 +169,13 @@ if (ENABLE_PYTHON)
 
 
     # build python module
-    add_library(cTomocam MODULE src/pyTomocam.cpp $<TARGET_OBJECTS:tomocam_objs>)
+    add_library(cTomocam MODULE src/bindings/pyTomocam.cpp $<TARGET_OBJECTS:tomocam_objs>)
     set_target_properties(cTomocam PROPERTIES 
                           CXX_VISIBILITY_PRESET "hidden" 
                           PREFIX "${PYTHON_MODULE_PREFIX}" 
                           SUFFIX "${PYTHON_MODULE_EXTENSION}")
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
-    target_compile_features(cTomocam PUBLIC cxx_std_23)
+    target_compile_features(cTomocam PUBLIC cxx_std_20)
     install(TARGETS cTomocam DESTINATION tomocam)
 
 else()
@@ -180,3 +193,8 @@ else()
     message("-- Tests are disabled")
     message("-- To enable tests, run cmake with -DENABLE_TESTS:BOOL=ON")
 endif()
+
+# Build recon executable
+add_executable(recon ${PROJECT_SOURCE_DIR}/src/recon.cpp)
+target_link_libraries(recon PUBLIC tomocam PRIVATE tomocam::deps)
+target_compile_features(recon PUBLIC cxx_std_20)

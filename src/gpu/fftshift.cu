@@ -21,7 +21,7 @@
 #include "gpu/dev_memory.cuh"
 #include "gpu/utils.cuh"
 
-#include "dev_array.h"
+#include "memory/dev_array.h"
 
 namespace tomocam {
     namespace gpu {

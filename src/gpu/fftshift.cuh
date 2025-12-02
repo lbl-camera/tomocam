@@ -18,70 +18,69 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <cuda/std/complex>
-
-#include "dev_array.h"
-
-#ifndef TOMOCAM_GPU_OPS_CUH 
+#ifndef TOMOCAM_GPU_OPS_CUH
 #define TOMOCAM_GPU_OPS_CUH
 
-namespace tomocam {
-    namespace gpu {
+#include <cuda/std/complex>
 
-        /** roll
-         * Shifts the elements of the array by a specified number of positions.
-         *
-         * @param in input array
-         * @param shift number of pixels to shift
-         * @return shifted array
-         */
-        template <typename T>
-        DeviceArray<T> roll(const DeviceArray<T> &, int);
+#include "memory/dev_array.h"
 
-        /** roll2
-         * Shifts the the elements of the array by a specified number of positions
-         *
-         * @param in input array
-         * @param shfit numper of pixels to shift
-         *
-         * @return shifted array
-         */
-        template <typename T>
-        DeviceArray<T> roll2(const DeviceArray<T> &, int, int);
+using tomocam::DeviceArray;
 
+namespace tomocam::gpu {
 
-        /** fftshift
-         * Shifts the zero-frequency component to the center of the spectrum.
-         *
-         * @param in input array
-         * @return shifted array
-         */
-        template <typename T>
-        DeviceArray<T> fftshift(const DeviceArray<T> &in) {
-            auto shfit = in.ncols() / 2;
-            return roll(in, -shfit);
-        }
+    /** roll
+     * Shifts the elements of the array by a specified number of positions.
+     *
+     * @param in input array
+     * @param shift number of pixels to shift
+     * @return shifted array
+     */
+    template <typename T>
+    DeviceArray<T> roll(const DeviceArray<T> &, int);
 
-        template <typename T>
-        DeviceArray<T> fftshift2(const DeviceArray<T> &in) {
-            auto shfit = in.ncols() / 2;
-            auto shfit2 = in.nrows() / 2;
-            return roll2(in, -shfit, -shfit2);
-        }
+    /** roll2
+     * Shifts the the elements of the array by a specified number of positions
+     *
+     * @param in input array
+     * @param shfit numper of pixels to shift
+     *
+     * @return shifted array
+     */
+    template <typename T>
+    DeviceArray<T> roll2(const DeviceArray<T> &, int, int);
 
-        template <typename T>
-        DeviceArray<T> ifftshift(const DeviceArray<T> &in) {
-            auto shfit = in.ncols() / 2;
-            return roll(in, shfit);
-        }
+    /** fftshift
+     * Shifts the zero-frequency component to the center of the spectrum.
+     *
+     * @param in input array
+     * @return shifted array
+     */
+    template <typename T>
+    DeviceArray<T> fftshift(const DeviceArray<T> &in) {
+        auto shfit = in.ncols() / 2;
+        return roll(in, -shfit);
+    }
 
-        template <typename T>
-        DeviceArray<T> ifftshift2(const DeviceArray<T> &in) {
-            auto shfit = in.ncols() / 2;
-            auto shfit2 = in.nrows() / 2;
-            return roll2(in, shfit, shfit2);
-        }
+    template <typename T>
+    DeviceArray<T> fftshift2(const DeviceArray<T> &in) {
+        auto shfit = in.ncols() / 2;
+        auto shfit2 = in.nrows() / 2;
+        return roll2(in, -shfit, -shfit2);
+    }
 
-    } // namespace gpu
-} // namespace tomocam
+    template <typename T>
+    DeviceArray<T> ifftshift(const DeviceArray<T> &in) {
+        auto shfit = in.ncols() / 2;
+        return roll(in, shfit);
+    }
+
+    template <typename T>
+    DeviceArray<T> ifftshift2(const DeviceArray<T> &in) {
+        auto shfit = in.ncols() / 2;
+        auto shfit2 = in.nrows() / 2;
+        return roll2(in, shfit, shfit2);
+    }
+
+} // namespace tomocam::gpu
 #endif // TOMOCAM_GPU_OPS_CUH
