@@ -40,7 +40,7 @@ def MBIR(sinogram, angles, center, num_iters = 50, smoothness=0.01, tol=1.0E-04,
     return cTomocam.mbir(sinogram, angles, center, num_iters, sigma, tol, xtol)
 
 
-def MBIR_MPI(sinogram, angles, center, num_iters = 50, smoothness=0.01, tol=1.0E-04, xtol=1.0E-04, file_write=False, output_file=""):
+def MBIR_MPI(sinogram, angles, center, num_iters = 50, smoothness=0.01, tol=1.0E-05, xtol=1.0E-05, file_write=False, output_file=""):
     """Computes the Model-based Iterative reconstruction using nufft with MPI support.
 
     Parameters
