@@ -108,7 +108,7 @@ RUN git clone https://github.com/flatironinstitute/finufft.git && \
         -DFINUFFT_BUILD_PYTHON:BOOL=OFF && \
     cmake --build build && cmake --install build && \
     cp -r include/finufft_common /usr/local/include/
-RUN rm -rf finufft
+RUN rm -rf finufft && ldconfig
 
 # Install tomocam from GitHub (perlmutter branch)
 RUN git clone -b perlmutter https://github.com/lbl-camera/tomocam.git && \
