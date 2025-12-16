@@ -15,8 +15,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     build-essential \
-    clang \
-    libomp-dev \
+    libgomp1 \
     ninja-build \
     libopenblas-dev \
     gfortran \
@@ -26,20 +25,47 @@ RUN apt-get update && apt-get install -y \
     libhdf5-dev \
     libfftw3-dev \
     pybind11-dev \
-    libopenmpi-dev \
     libtbb-dev \
     libc++-dev \
     libc++abi-dev \
+    libpmix-dev \
+    python3-numpy \
+    python3-skbuild \
+    python3-pyfftw \
+    python3-pywt \
+    python3-scipy \
+    python3-six \
+    python3-numexpr \
+    python3-skimage \
+    python3-skimage-lib \
+    python3-tifffile \
+    python3-h5py \
+    python3-importlib-metadata \
+    python3-opencv \
+    python3-pandas \
     && rm -rf /var/lib/apt/lists/* && apt-get clean
+
+# Install OpenMPI with Slurm and PMIx support
+RUN OPENMPI_VERSION=4.1.6 && \
+    wget -q https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OPENMPI_VERSION}.tar.gz && \
+    tar xzf openmpi-${OPENMPI_VERSION}.tar.gz && \
+    cd openmpi-${OPENMPI_VERSION} && \
+    ./configure --prefix=/usr/local \
+        --with-slurm \
+        --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2 \
+        --enable-mpi \
+        --enable-mpi-cxx \
+        --disable-debug && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf openmpi-${OPENMPI_VERSION} openmpi-${OPENMPI_VERSION}.tar.gz && \
+    ldconfig
 
 # Install newer CMake version
 RUN wget -O cmake.sh https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.sh && \
     sh cmake.sh --prefix=/usr/local --skip-license && \
     rm cmake.sh
-
-# Set clang as the default C/C++ compiler using update-alternatives
-RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
 # Add library paths to ld.conf and update ld cache
 RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/local.conf && \
@@ -48,8 +74,6 @@ RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/local.conf && \
 
 # Install pip for Python 3.11
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-
-# Set Python 3.11 as the default python3 and upgrade pip
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     python3.11 -m pip install --upgrade pip
 
@@ -122,6 +146,8 @@ WORKDIR /data
 
 # Copy the entrypoint script
 COPY ./scripts/run.py /usr/local/bin/run.py
+
+ENV LD_PRELOAD=/usr/local/lib/libmpi_cxx.so
 
 # Set the entrypoint to use Python 3.11 explicitly
 ENTRYPOINT ["python3.11", "/usr/local/bin/run.py"]
