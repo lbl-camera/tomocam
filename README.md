@@ -2,6 +2,8 @@
 
 Model-Based Iterative Reconstruction (MBIR) for synchrotron tomography data using Non-Uniform Fast Fourier Transforms (NUFFT) on GPUs.
 
+![Container Build](https://github.com/lbl-camera/tomocam/actions/workflows/build-container.yml/badge.svg)
+
 ## Features
 
 - GPU-accelerated reconstruction using CUDA and NUFFT
