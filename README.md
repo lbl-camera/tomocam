@@ -50,7 +50,7 @@ The Docker image includes all dependencies and an MPI-enabled reconstruction pip
 
 ```bash
 # Pull the image
-podman-hpc pull dkumar13/tomocam:perlmutter
+podman-hpc pull ghcr.io/lbl-camera/tomocam:latest
 
 # Run reconstruction
 srun -n 2 --mpi=pmi2 podman-hpc run --rm --openmpi-pmi2 --gpu \
