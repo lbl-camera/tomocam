@@ -7,6 +7,7 @@
 
 **tomoCAM** is a fast, GPU-accelerated **Model-Based Iterative Reconstruction (MBIR)** framework for synchrotron tomography data, utilizing **Non-Uniform Fast Fourier Transforms (NUFFT)** for advanced computational imaging applications.
 
+![Container Build](https://github.com/lbl-camera/tomocam/actions/workflows/build-container.yml/badge.svg)
 ---
 
 ## Table of Contents
