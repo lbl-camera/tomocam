@@ -31,11 +31,10 @@
 
 namespace tomocam {
     template <typename T>
-    DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid) {
+    DeviceArray<T> project(const DeviceArray<T> &input, const nufft::Grid<T> &grid) {
 
         // cast to complex
-        auto in2 = complex(input);
+        auto in2 = to_complex<T>(input);
 
         // nufft type 2
         auto out = nufft2d2(in2, grid);
@@ -47,13 +46,13 @@ namespace tomocam {
 
         T scale = static_cast<T>(input.ncols() * input.ncols());
         // cast to real
-        return (real(out) / scale);
+        return (to_real<T>(out) / scale);
     }
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &); 
+                                               const nufft::Grid<float> &);
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &); 
+                                                 const nufft::Grid<double> &);
 
 } // namespace tomocam

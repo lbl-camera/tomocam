@@ -29,22 +29,21 @@
 #include "nufft.h"
 #include "types.h"
 
-#include "gpu/padding.cuh"
 #include "gpu/filters.cuh"
+#include "gpu/padding.cuh"
 
 #ifdef DEBUG
 #include "debug.h"
 #endif
 
-
 namespace tomocam {
 
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
-        const NUFFT::Grid<T> &grid, bool fbp) {
+                               const nufft::Grid<T> &grid, bool fbp) {
 
         // cast to complex
-        auto in2 = complex(sino);
+        auto in2 = to_complex<T>(sino);
 
         /* back-project */
         // shift 0-frequency to corner
@@ -61,13 +60,13 @@ namespace tomocam {
         auto out = nufft2d1(in2, grid);
 
         // return real part
-        T scale =  static_cast<T>(sino.ncols() * sino.ncols());
-        return (real(out) / scale);
+        T scale = static_cast<T>(sino.ncols() * sino.ncols());
+        return (to_real<T>(out) / scale);
     }
 
     // explicit instantiation
     template DeviceArray<float> backproject(const DeviceArray<float> &,
-        NUFFT::Grid<float> const &, bool);
+                                            nufft::Grid<float> const &, bool);
     template DeviceArray<double> backproject(const DeviceArray<double> &,
-        NUFFT::Grid<double> const &, bool);
+                                             nufft::Grid<double> const &, bool);
 } // namespace tomocam

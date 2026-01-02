@@ -34,7 +34,7 @@ namespace tomocam {
 
     template <typename T>
     void gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const NUFFT::Grid<T> &nugrid, int device_id) {
+                   const nufft::Grid<T> &nugrid, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
@@ -56,12 +56,12 @@ namespace tomocam {
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto[idx, d_f, d_sinoT] = work.value();
+                auto [idx, d_f, d_sinoT] = work.value();
 
-                auto t1 = complex(d_f);
-                auto t2 = nufft2d2(t1, nugrid);
-                auto t3 = nufft2d1(t2, nugrid);
-                auto t4 = real(t3) / scale;
+                auto t1 = to_complex<T>(d_f);
+                auto t2 = nufft2d2_cache(t1, nugrid);
+                auto t3 = nufft2d1_cache(t2, nugrid);
+                auto t4 = to_real<T>(t3) / scale;
                 auto d_g = t4 - d_sinoT;
 
                 // copy gradient to host
@@ -73,7 +73,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<NUFFT::Grid<T>> &nugrids) {
+                       const std::vector<nufft::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -88,8 +88,8 @@ namespace tomocam {
         // create a vector std::threads to launch the gradient function
         std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i], 
-                    std::cref(nugrids[i]), i);
+            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i],
+                                     std::cref(nugrids[i]), i);
         }
 
         // waht for all threads to join
@@ -100,9 +100,9 @@ namespace tomocam {
     }
 
     // Explicit instantiation
-    template DArray<float> gradient(DArray<float> &, DArray<float> &, 
-            const std::vector<NUFFT::Grid<float>> &);
-    template DArray<double> gradient(DArray<double> &, DArray<double> &, 
-            const std::vector<NUFFT::Grid<double>> &);
+    template DArray<float> gradient(DArray<float> &, DArray<float> &,
+                                    const std::vector<nufft::Grid<float>> &);
+    template DArray<double> gradient(DArray<double> &, DArray<double> &,
+                                     const std::vector<nufft::Grid<double>> &);
 
 } // namespace tomocam
