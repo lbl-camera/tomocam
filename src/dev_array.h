@@ -42,17 +42,18 @@ namespace tomocam {
 
     namespace gpuMem {
 
-        static constexpr size_t TWOGB = 1LL << 31; 
+        static constexpr size_t TWOGB = 1LL << 31;
         struct cudaDeleter {
             void operator()(void *ptr) const {
-                if (ptr)
-                    SAFE_CALL(cudaFree(ptr));
+                if (ptr) SAFE_CALL(cudaFree(ptr));
             }
         };
 
-        template <class T> using cuniquePtr = std::unique_ptr<T, cudaDeleter>;
+        template <class T>
+        using cuniquePtr = std::unique_ptr<T, cudaDeleter>;
 
-        template <class T> cuniquePtr<T> make_cuniquePtr(size_t num_elems) {
+        template <class T>
+        cuniquePtr<T> make_cuniquePtr(size_t num_elems) {
             if (num_elems > TWOGB / sizeof(T)) {
                 throw std::runtime_error("over the top allocation");
             }
@@ -65,7 +66,8 @@ namespace tomocam {
 
     } // namespace gpuMem
 
-    template <typename T> class DeviceArray {
+    template <typename T>
+    class DeviceArray {
       protected:
         dim3_t dims_;
         size_t size_;
@@ -91,9 +93,10 @@ namespace tomocam {
 
         /* create device array from partition */
         DeviceArray(const Partition<T> &rhs)
-            : dims_(rhs.dims()), halo_(make_int2(rhs.halo()[0], rhs.halo()[1])), size_(rhs.size()),
-              dev_ptr_(gpuMem::make_cuniquePtr<T>(rhs.size())) {
-            SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.begin(), rhs.bytes(), cudaMemcpyHostToDevice));
+            : dims_(rhs.dims()), halo_(make_int2(rhs.halo()[0], rhs.halo()[1])),
+              size_(rhs.size()), dev_ptr_(gpuMem::make_cuniquePtr<T>(rhs.size())) {
+            SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.begin(), rhs.bytes(),
+                                 cudaMemcpyHostToDevice));
         }
 
         // cuniquePtr makes destructor redundant
@@ -170,24 +173,27 @@ namespace tomocam {
         // copy to partition
         void copy_to(Partition<T> &rhs) const {
             if (dims_ == rhs.dims()) {
-                SAFE_CALL(
-                    cudaMemcpy(rhs.begin(), dev_ptr_.get(), rhs.bytes(), cudaMemcpyDeviceToHost));
+                SAFE_CALL(cudaMemcpy(rhs.begin(), dev_ptr_.get(), rhs.bytes(),
+                                     cudaMemcpyDeviceToHost));
             } else {
-                throw std::runtime_error("Partition and DeviceArray dimensions do not match");
+                throw std::runtime_error(
+                    "Partition and DeviceArray dimensions do not match");
             }
         }
 
         // copy to host
         std::vector<T> copy_to_host() const {
             std::vector<T> h_ptr(size_);
-            SAFE_CALL(cudaMemcpy(h_ptr.data(), dev_ptr_.get(), bytes(), cudaMemcpyDeviceToHost));
+            SAFE_CALL(cudaMemcpy(h_ptr.data(), dev_ptr_.get(), bytes(),
+                                 cudaMemcpyDeviceToHost));
             return h_ptr;
         }
 
         // operator overloading
         DeviceArray<T> operator*(const DeviceArray<T> &rhs) const {
             DeviceArray<T> res(dims_);
-            gpu::multiply_arrays<T>(dev_ptr_.get(), rhs.dev_ptr_.get(), res.dev_ptr_.get(), size_);
+            gpu::multiply_arrays<T>(dev_ptr_.get(), rhs.dev_ptr_.get(),
+                                    res.dev_ptr_.get(), size_);
             return res;
         }
 
@@ -195,10 +201,11 @@ namespace tomocam {
         DeviceArray<T> multiply(const DeviceArray<T> &arr) const {
 
             DeviceArray<T> res(dims_);
-            if ((arr.dims_.x != 1) || (arr.dims_.y != dims_.y) || (arr.dims_.z != dims_.z))
+            if ((arr.dims_.x != 1) || (arr.dims_.y != dims_.y) ||
+                (arr.dims_.z != dims_.z))
                 throw std::runtime_error("Array is not a point spread function");
-            gpu::broadcast_multiply<T>(dev_ptr_.get(), arr.dev_ptr_.get(), res.dev_ptr_.get(),
-                                       dims_);
+            gpu::broadcast_multiply<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                                       res.dev_ptr_.get(), dims_);
             return res;
         }
 
@@ -227,7 +234,8 @@ namespace tomocam {
         DeviceArray<T> operator+(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
-                gpu::add_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(), res.dev_ptr_.get(), size_);
+                gpu::add_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                                   res.dev_ptr_.get(), size_);
             else
                 throw std::runtime_error("Array dimensions do not match in +");
             return res;
@@ -237,11 +245,9 @@ namespace tomocam {
         DeviceArray<T> operator-(const DeviceArray<T> &arr) const {
             DeviceArray<T> res(dims_);
             if (dims_ == arr.dims_)
-                gpu::subtract_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(), res.dev_ptr_.get(),
-                                        size_);
-            else {
-                throw std::runtime_error("Array dimensions do not match in -");
-            }
+                gpu::subtract_arrays<T>(dev_ptr_.get(), arr.dev_ptr_.get(),
+                                        res.dev_ptr_.get(), size_);
+            else { throw std::runtime_error("Array dimensions do not match in -"); }
             return res;
         }
 
@@ -253,7 +259,9 @@ namespace tomocam {
         }
 
         // norm2
-        T norm2() const { return gpu::dot<T>(dev_ptr_.get(), dev_ptr_.get(), size_); }
+        T norm2() const {
+            return gpu::dot<T>(dev_ptr_.get(), dev_ptr_.get(), size_);
+        }
     };
 
     typedef DeviceArray<float> DeviceArrayf;
@@ -262,14 +270,16 @@ namespace tomocam {
     typedef DeviceArray<gpu::complex_t<double>> DeviceArraycd;
 
     // conversion from complex to real
-    template <typename T> DeviceArray<T> real(const DeviceArray<gpu::complex_t<T>> &arr) {
+    template <typename T>
+    DeviceArray<T> to_real(const DeviceArray<gpu::complex_t<T>> &arr) {
         DeviceArray<T> res(arr.dims());
         gpu::cast_array_to_real<T>(arr.dev_ptr(), res.dev_ptr(), arr.size());
         return res;
     }
 
     // conversion from real to complex
-    template <typename T> DeviceArray<gpu::complex_t<T>> complex(const DeviceArray<T> &arr) {
+    template <typename T>
+    DeviceArray<gpu::complex_t<T>> to_complex(const DeviceArray<T> &arr) {
         DeviceArray<gpu::complex_t<T>> res(arr.dims());
         gpu::cast_array_to_complex<T>(arr.dev_ptr(), res.dev_ptr(), arr.size());
         return res;

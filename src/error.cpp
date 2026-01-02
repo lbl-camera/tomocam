@@ -35,7 +35,7 @@ namespace tomocam {
 
     template <typename T>
     T funcval(Partition<T> recon, Partition<T> sino,
-        const NUFFT::Grid<T> &nugrid, int device_id) {
+        const nufft::Grid<T> &nugrid, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -65,7 +65,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     T function_value(DArray<T> &recon, DArray<T> &sino,
-        const std::vector<NUFFT::Grid<T>> &nugrids) {
+        const std::vector<nufft::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
@@ -89,7 +89,7 @@ namespace tomocam {
 
     // explicit instantiation
     template float function_value(DArray<float> &, DArray<float> &,
-        const std::vector<NUFFT::Grid<float>> &);
+        const std::vector<nufft::Grid<float>> &);
     template double function_value(DArray<double> &, DArray<double> &,
-        const std::vector<NUFFT::Grid<double>> &);
+        const std::vector<nufft::Grid<double>> &);
 } // namespace tomocam
