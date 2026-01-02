@@ -74,9 +74,9 @@ namespace tomocam {
         // calculate nonuniform grid for each device
         int current_dev = 0;
         SAFE_CALL(cudaGetDevice(&current_dev));
-        std::vector<NUFFT::Grid<T>> grids(ndevice);
+        std::vector<nufft::Grid<T>> grids(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            grids[dev_id] = NUFFT::Grid<T>(nproj, ncols, angles.data(), dev_id);
+            grids[dev_id] = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
         }
         SAFE_CALL(cudaSetDevice(current_dev));
 
