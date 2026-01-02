@@ -21,369 +21,142 @@
 #include <iostream>
 
 #include <cuda.h>
-#include <cufinufft.h>
 
 #include "common.h"
 #include "dev_array.h"
+#include "finufft_plan_cache.h"
 #include "gpu/utils.cuh"
+#include "grid.h"
 
-// clang-format off
-#ifndef NUFFT__H
-#define NUFFT__H
+#ifndef NUFFT_H
+#define NUFFT_H
 
-#define NUFFT_CALL(ans){ nufft_check((ans), __FILE__, __LINE__); }
-// clang-format on
+namespace tomocam::nufft {
 
-inline void nufft_check(int code, const char *file, int line) {
-    if (code != 0) {
-        std::cerr << "nufft error at: " << file << ":" << line << std::endl;
-        exit(code);
-    }
-}
+    // 2-dimensional NUFFT from non-uniform to uniform grid (with caching)
+    template <typename T>
+    DeviceArray<cuda::std::complex<T>>
+    nufft2d1_cache(DeviceArray<cuda::std::complex<T>> &c, const Grid<T> &nugrid,
+                   dim3_t dims = {0, 0, 0}) {
 
+        // check if device id is same as the one used for the grid
+        int dev_id;
+        SAFE_CALL(cudaGetDevice(&dev_id));
+        if (dev_id != nugrid.dev_id()) {
+            throw std::runtime_error("Device id mismatch");
+        }
 
-namespace tomocam {
-    namespace NUFFT {
-
-        /*! \brief A class to store the non-uniform grid points on the device
-         *
-         *  The class is templated on the type of the grid points (float or
-         * double). The class is used to store the polar grid points on the
-         * device. One instance of the class is created for each device.
-         */
-        template <typename T>
-        class Grid {
-          private:
-            int device_id_;
-            int num_projs_;
-            int num_pixels_;
-            T *x_;
-            T *y_;
-
-          public:
-            // default constructor
-            Grid() : x_(nullptr), y_(nullptr) {}
-
-            /*! \brief Constructor to create the non-uniform grid on the device
-             *
-             *  The constructor creates the non-uniform (polar) grid on the
-             * device. The grid is created using the make_nugrid function in the
-             * gpu namespace. The grid is created for a given number of
-             * projections, number of pixels per detector row, and the angles of
-             * the projections.
-             *
-             *  \param nproj Number of projections
-             *  \param npixel Number of pixels per detector row
-             *  \param angles Angles of the projections
-             *  \param id Device id
-             */
-            Grid(int nproj, int npixel, const T *angles, int id) :
-                num_projs_(nproj), num_pixels_(npixel), device_id_(id) {
-
-                // set device
-                SAFE_CALL(cudaSetDevice(device_id_));
-
-                // allocate memory for the non-uniform points on the device
-                size_t bytes = sizeof(T) * num_projs_ * num_pixels_;
-                SAFE_CALL(cudaMalloc(&x_, bytes));
-                SAFE_CALL(cudaMalloc(&y_, bytes));
-                gpu::make_nugrid<T>(num_pixels_, num_projs_, x_, y_, angles);
-                cudaDeviceSynchronize();
-            }
-
-            // destructor
-            ~Grid() {
-                SAFE_CALL(cudaSetDevice(device_id_));
-                if (x_) SAFE_CALL(cudaFree(x_));
-                if (y_) SAFE_CALL(cudaFree(y_));
-            }
-
-            // copy constructor
-            Grid(const Grid &g) {
-                num_projs_ = g.num_projs_;
-                num_pixels_ = g.num_pixels_;
-                device_id_ = g.device_id_;
-
-                // set device
-                SAFE_CALL(cudaSetDevice(device_id_));
-
-                // allocate memory for the non-uniform points on the device
-                size_t bytes = num_projs_ * num_pixels_ * sizeof(T);
-                SAFE_CALL(cudaMalloc(&x_, bytes));
-                SAFE_CALL(cudaMalloc(&y_, bytes));
-
-                // copy the data
-                SAFE_CALL(
-                    cudaMemcpy(x_, g.x_, bytes, cudaMemcpyDeviceToDevice));
-                SAFE_CALL(
-                    cudaMemcpy(y_, g.y_, bytes, cudaMemcpyDeviceToDevice));
-            }
-
-            // assignment operator
-            Grid &operator=(const Grid &g) {
-                if (this != &g) {
-                    num_projs_ = g.num_projs_;
-                    num_pixels_ = g.num_pixels_;
-                    device_id_ = g.device_id_;
-
-                    // set device
-                    SAFE_CALL(cudaSetDevice(device_id_));
-
-                    // free the memory if it is already allocated
-                    if (x_) SAFE_CALL(cudaFree(x_));
-                    if (y_) SAFE_CALL(cudaFree(y_));
-
-                    // allocate memory for the non-uniform points on the device
-                    size_t bytes = num_projs_ * num_pixels_ * sizeof(T);
-                    SAFE_CALL(cudaMalloc(&x_, bytes));
-                    SAFE_CALL(cudaMalloc(&y_, bytes));
-
-                    // copy the data
-                    SAFE_CALL(
-                        cudaMemcpy(x_, g.x_, bytes, cudaMemcpyDeviceToDevice));
-                    SAFE_CALL(
-                        cudaMemcpy(y_, g.y_, bytes, cudaMemcpyDeviceToDevice));
-                }
-                return *this;
-            }
-
-            // move constructor
-            Grid(Grid &&g) {
-                num_projs_ = g.num_projs_;
-                num_pixels_ = g.num_pixels_;
-                device_id_ = g.device_id_;
-                x_ = g.x_;
-                y_ = g.y_;
-                g.x_ = nullptr;
-                g.y_ = nullptr;
-            }
-
-            // move assignment
-            Grid &operator=(Grid &&g) {
-                if (this != &g) {
-                    num_projs_ = g.num_projs_;
-                    num_pixels_ = g.num_pixels_;
-                    device_id_ = g.device_id_;
-                    x_ = g.x_;
-                    y_ = g.y_;
-                    g.x_ = nullptr;
-                    g.y_ = nullptr;
-                }
-                return *this;
-            }
-
-            // size of non-uniform grid
-            int size() const { return num_projs_ * num_pixels_; }
-
-            // number of projections
-            int nprojs() const { return num_projs_; }
-
-            // number of pixels
-            int npixels() const { return num_pixels_; }
-
-            // get the device id
-            int dev_id() const { return device_id_; }
-
-            // get the x coordinates
-            T *x() const { return x_; }
-
-            // get the y coordinates
-            T *y() const { return y_; }
+        // allocate return array
+        if (dims.isNULL()) {
+            dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
+        }
+        DeviceArray<cuda::std::complex<T>> fk(dims);
+        std::array<int64_t, 2> n_modes = {
+            static_cast<int64_t>(fk.dims().y),
+            static_cast<int64_t>(fk.dims().z),
         };
 
+        auto &plan = tomocam::nufft::plans::cache<T>.get_plan(1, 2, n_modes, 1);
 
-        // create a plan for the NUFFT (single precision)
-        inline void nufftPlan(dim3_t dims, int type, int iflag, int device_id,
-            cufinufftf_plan &plan) {
+        // set the non-uniform points
+        plan.set_points(nugrid.size(), nugrid.x(), nugrid.y());
 
-            int ndim = 2;
-            int64_t nmodes[] = {dims.z, dims.z};
-            int ntransf = dims.x;
-            float tol = 1.2e-7;
+        // execute the plan
+        plan.execute(c.dev_ptr(), fk.dev_ptr());
+        return fk;
+    }
 
-            // create cufinufft_opts
-            cufinufft_opts opts;
-            cufinufft_default_opts(&opts);
-            opts.gpu_device_id = device_id;
-            NUFFT_CALL(cufinufftf_makeplan(
-                type, ndim, nmodes, iflag, ntransf, tol, &plan, &opts));
+    // 2-dimensional NUFFT from non-uniform to uniform grid
+    template <typename T>
+    DeviceArray<cuda::std::complex<T>>
+    nufft2d1(DeviceArray<cuda::std::complex<T>> &c, const Grid<T> &nugrid,
+             dim3_t dims = {0, 0, 0}) {
+
+        // check if device id is same as the one used for the grid
+        int dev_id;
+        SAFE_CALL(cudaGetDevice(&dev_id));
+        if (dev_id != nugrid.dev_id()) {
+            throw std::runtime_error("Device id mismatch");
         }
 
-        // create a plan for the NUFFT (double precision)
-        inline void nufftPlan(dim3_t dims, int type, int iflag, int device_id,
-            cufinufft_plan &plan) {
+        // allocate return array
+        if (dims.isNULL()) {
+            dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
+        }
+        DeviceArray<cuda::std::complex<T>> fk(dims);
+        std::array<int64_t, 2> n_modes = {
+            static_cast<int64_t>(fk.dims().y),
+            static_cast<int64_t>(fk.dims().z),
+        };
 
-            int ndim = 2;
-            int64_t nmodes[] = {dims.z, dims.z};
-            int ntransf = dims.x;
-            double tol = 1.e-15;
+        FinufftPlanWrapper<T> plan;
+        plan.make_plan(1, 2, n_modes.data(), 1);
+        plan.set_points(nugrid.size(), nugrid.x(), nugrid.y());
+        plan.execute(c.dev_ptr(), fk.dev_ptr());
 
-            // create cufinufft_opts
-            cufinufft_opts opts;
-            cufinufft_default_opts(&opts);
-            opts.gpu_device_id = device_id;
-            NUFFT_CALL(cufinufft_makeplan(
-                type, ndim, nmodes, iflag, ntransf, tol, &plan, &opts));
+        return fk;
+    }
+
+    // 2-dimensional NUFFT Uniform -> Non-uniform (with caching)
+    template <typename T>
+    DeviceArray<cuda::std::complex<T>>
+    nufft2d2_cache(DeviceArray<cuda::std::complex<T>> &fk, const Grid<T> &nugrid) {
+
+        // check if device id is same as the one used for the grid
+        int dev_id;
+        SAFE_CALL(cudaGetDevice(&dev_id));
+        if (dev_id != nugrid.dev_id()) {
+            std::cerr << "Device id mismatch" << std::endl;
+            exit(1);
         }
 
-        // 2-dimensional NUFFT from non-uniform to uniform grid (single precision)
-        inline DeviceArraycf nufft2d1(DeviceArraycf &c,
-            const Grid<float> &nugrid, dim3_t dims = {0, 0, 0}) {
+        // allocate return array
+        dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
+        DeviceArray<cuda::std::complex<T>> c(dims);
 
-            // check if device id is same as the one used for the grid
-            int dev_id;
-            SAFE_CALL(cudaGetDevice(&dev_id));
-            if (dev_id != nugrid.dev_id()) {
-                std::cerr << "Device id mismatch" << std::endl;
-                exit(1);
-            }
+        std::array<int64_t, 2> n_modes = {
+            static_cast<int64_t>(fk.dims().y),
+            static_cast<int64_t>(fk.dims().z),
+        };
 
-            // allocate return array
-            if (dims.isNULL()) {
-                dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
-            }
-            DeviceArraycf fk(dims);
+        auto &plan = tomocam::nufft::plans::cache<T>.get_plan(2, 2, n_modes, -1);
 
-            // create finufft plan
-            cufinufftf_plan plan;
-            int type = 1;
-            int iflag = 1;
-            nufftPlan(fk.dims(), type, iflag, dev_id, plan);
+        // set the non-uniform points
+        plan.set_points(nugrid.size(), nugrid.x(), nugrid.y());
 
-            // set the non-uniform points
-            NUFFT_CALL(cufinufftf_setpts(plan, nugrid.size(), nugrid.x(),
-                nugrid.y(), nullptr, 0, nullptr, nullptr, nullptr));
+        // execute the plan
+        plan.execute(c.dev_ptr(), fk.dev_ptr());
+        return c;
+    }
 
-            // cast the data to cuFloatComplex
-            cuFloatComplex *nu_data =
-                reinterpret_cast<cuFloatComplex *>(c.dev_ptr());
-            cuFloatComplex *uniform_data =
-                reinterpret_cast<cuFloatComplex *>(fk.dev_ptr());
+    // 2-dimensional NUFFT Uniform -> Non-uniform
+    template <typename T>
+    DeviceArray<cuda::std::complex<T>>
+    nufft2d2(DeviceArray<cuda::std::complex<T>> &fk, const Grid<T> &nugrid) {
 
-            // execute the plan
-            NUFFT_CALL(cufinufftf_execute(plan, nu_data, uniform_data));
-            NUFFT_CALL(cufinufftf_destroy(plan));
-            return fk;
+        // check if device id is same as the one used for the grid
+        int dev_id;
+        SAFE_CALL(cudaGetDevice(&dev_id));
+        if (dev_id != nugrid.dev_id()) {
+            std::cerr << "Device id mismatch" << std::endl;
+            exit(1);
         }
 
-        // 2-dimensional NUFFT from non-uniform to uniform grid (double
-        // precision)
-        inline DeviceArraycd nufft2d1(DeviceArraycd &c,
-            const Grid<double> &nugrid, dim3_t dims = {0, 0, 0}) {
+        // allocate return array
+        dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
+        DeviceArray<cuda::std::complex<T>> c(dims);
 
-            // check if device id is same as the one used for the grid
-            int dev_id;
-            SAFE_CALL(cudaGetDevice(&dev_id));
-            if (dev_id != nugrid.dev_id()) {
-                std::cerr << "Device id mismatch" << std::endl;
-                exit(1);
-            }
+        std::array<int64_t, 2> n_modes = {
+            static_cast<int64_t>(fk.dims().y),
+            static_cast<int64_t>(fk.dims().z),
+        };
 
-            // allocate return array
-            if (dims.isNULL()) {
-                dims = dim3_t{c.nslices(), nugrid.npixels(), nugrid.npixels()};
-            }
-            DeviceArraycd fk(dims);
+        FinufftPlanWrapper<T> plan;
+        plan.make_plan(2, 2, n_modes.data(), -1);
+        plan.set_points(nugrid.size(), nugrid.x(), nugrid.y());
+        plan.execute(c.dev_ptr(), fk.dev_ptr());
+        return c;
+    }
+} // namespace tomocam::nufft
 
-            // create finufft plan
-            cufinufft_plan plan;
-            int type = 1;
-            int iflag = 1;
-            nufftPlan(fk.dims(), type, iflag, dev_id, plan);
-
-            // set the non-uniform points
-            NUFFT_CALL(cufinufft_setpts(plan, nugrid.size(), nugrid.x(),
-                nugrid.y(), nullptr, 0, nullptr, nullptr, nullptr));
-
-            // cast the data to cuDoubleComplex
-            cuDoubleComplex *nu_data =
-                reinterpret_cast<cuDoubleComplex *>(c.dev_ptr());
-            cuDoubleComplex *uniform_data =
-                reinterpret_cast<cuDoubleComplex *>(fk.dev_ptr());
-
-            // execute the plan
-            NUFFT_CALL(cufinufft_execute(plan, nu_data, uniform_data));
-            NUFFT_CALL(cufinufft_destroy(plan));
-            return fk;
-        }
-
-        // 2-dimensional NUFFT Uniform -> Non-uniform (single precision)
-        inline DeviceArraycf nufft2d2(DeviceArraycf &fk,
-            const Grid<float> &nugrid) {
-
-            // check if device id is same as the one used for the grid
-            int dev_id;
-            SAFE_CALL(cudaGetDevice(&dev_id));
-            if (dev_id != nugrid.dev_id()) {
-                std::cerr << "Device id mismatch" << std::endl;
-                exit(1);
-            }
-
-            // allocate return array
-            dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
-            DeviceArraycf c(dims);
-
-            // make the plan
-            cufinufftf_plan plan;
-            int type = 2;
-            int iflag = -1;
-            nufftPlan(fk.dims(), type, iflag, dev_id, plan);
-
-            // set the non-uniform points
-            NUFFT_CALL(cufinufftf_setpts(plan, nugrid.size(), nugrid.x(),
-                nugrid.y(), nullptr, 0, nullptr, nullptr, nullptr));
-
-            // cast the data to cuFloatComplex
-            cuFloatComplex *nu_data =
-                reinterpret_cast<cuFloatComplex *>(c.dev_ptr());
-            cuFloatComplex *uniform_data =
-                reinterpret_cast<cuFloatComplex *>(fk.dev_ptr());
-
-            // execute the plan
-            NUFFT_CALL(cufinufftf_execute(plan, nu_data, uniform_data));
-            NUFFT_CALL(cufinufftf_destroy(plan));
-            return c;
-        }
-
-        // 2-dimensional NUFFT Uniform -> Non-uniform (double precision)
-        inline DeviceArraycd nufft2d2(DeviceArraycd &fk,
-            const Grid<double> &nugrid) {
-
-            // check if device id is same as the one used for the grid
-            int dev_id;
-            SAFE_CALL(cudaGetDevice(&dev_id));
-            if (dev_id != nugrid.dev_id()) {
-                std::cerr << "Device id mismatch" << std::endl;
-                exit(1);
-            }
-
-            // allocate return array
-            dim3_t dims = {fk.nslices(), nugrid.nprojs(), nugrid.npixels()};
-            DeviceArraycd c(dims);
-
-            // make the plan
-            cufinufft_plan plan;
-            int type = 2;
-            int iflag = -1;
-            nufftPlan(fk.dims(), type, iflag, dev_id, plan);
-
-            // set the non-uniform points
-            NUFFT_CALL(cufinufft_setpts(plan, nugrid.size(), nugrid.x(),
-                nugrid.y(), nullptr, 0, nullptr, nullptr, nullptr));
-
-            // cast the data to cuDoubleComplex
-            cuDoubleComplex *nu_data =
-                reinterpret_cast<cuDoubleComplex *>(c.dev_ptr());
-            cuDoubleComplex *uniform_data =
-                reinterpret_cast<cuDoubleComplex *>(fk.dev_ptr());
-
-            // execute the plan
-            NUFFT_CALL(cufinufft_execute(plan, nu_data, uniform_data));
-            NUFFT_CALL(cufinufft_destroy(plan));
-            return c;
-        }
-
-    } // namespace NUFFT
-} // namespace tomocam
-
-#endif // NUFFT__H
+#endif // NUFFT_H
