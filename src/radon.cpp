@@ -41,7 +41,7 @@ namespace tomocam {
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
         int ncols = input.ncols();
-        auto nugrid = NUFFT::Grid(nproj, ncols, angles.data(), device);
+        auto nugrid = nufft::Grid(nproj, ncols, angles.data(), device);
 
         // create subpartitions
         int nparts =

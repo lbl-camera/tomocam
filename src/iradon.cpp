@@ -42,7 +42,7 @@ namespace tomocam {
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
         int ncols = sino.ncols();
-        auto grid = NUFFT::Grid<T>(nproj, ncols, angles.data(), device);
+        auto grid = nufft::Grid<T>(nproj, ncols, angles.data(), device);
 
         // create a data shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
