@@ -23,17 +23,13 @@ int main(int argc, char **argv) {
 
     // create data
     tomocam::DArray<float> sino(tomocam::dim3_t{nslices, nprojs, npixel});
-    for (int i = 0; i < sino.size(); i++) {
-        sino[i] = rng.rand<float>();
-    }
+    for (int i = 0; i < sino.size(); i++) { sino[i] = rng.rand<float>(); }
     auto sino_norm = sino.norm();
     std::cout << "|| sino ||\x00b2 " << sino_norm << std::endl;
 
     // create angles
     std::vector<float> angs(nprojs);
-    for (int i = 0; i < nprojs; i++) {
-        angs[i] = i * M_PI / nprojs;
-    }
+    for (int i = 0; i < nprojs; i++) { angs[i] = i * M_PI / nprojs; }
 
     // allocate solution array
     tomocam::dim3_t dims = {nslices, npixel, npixel};
@@ -50,12 +46,11 @@ int main(int argc, char **argv) {
     time1.stop();
 
     // error 2
-    // create NUFFT grids
-    std::vector<tomocam::NUFFT::Grid<float>> grids(4);
+    // create nufft grids
+    std::vector<tomocam::nufft::Grid<float>> grids(4);
     std::vector<tomocam::PointSpreadFunction<float>> psfs(4);
     for (int i = 0; i < 4; i++) {
-        tomocam::NUFFT::Grid<float> grid(sino.nrows(), sino.ncols(),
-            angs.data(), i);
+        tomocam::nufft::Grid<float> grid(sino.nrows(), sino.ncols(), angs.data(), i);
         grids[i] = grid;
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
         psfs[i].create_plans(4);

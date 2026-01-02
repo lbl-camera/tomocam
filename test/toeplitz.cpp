@@ -1,17 +1,17 @@
-#include <iostream>
-#include <fstream>
-#include <ctime>
 #include <array>
+#include <ctime>
+#include <fstream>
+#include <iostream>
 #include <random>
 
-#include <cuda_runtime.h>
-#include "timer.h"
 #include "dist_array.h"
 #include "hdf5/writer.h"
-#include "toeplitz.h"
-
-#include "tomocam.h"
 #include "timer.h"
+#include "toeplitz.h"
+#include <cuda_runtime.h>
+
+#include "timer.h"
+#include "tomocam.h"
 
 #define USE_DOUBLE
 
@@ -48,9 +48,9 @@ int main(int argc, char **argv) {
 
     // create a nugrid and psfs
     int ndevices = 4;
-    std::vector<tomocam::NUFFT::Grid<real_t>> nugrids(ndevices);
+    std::vector<tomocam::nufft::Grid<real_t>> nugrids(ndevices);
     for (int i = 0; i < ndevices; i++)
-        nugrids[i] = tomocam::NUFFT::Grid<real_t>(nproj, ncols, theta.data(), i);
+        nugrids[i] = tomocam::nufft::Grid<real_t>(nproj, ncols, theta.data(), i);
 
     std::vector<tomocam::PointSpreadFunction<real_t>> psfs(ndevices);
     for (int i = 0; i < ndevices; i++)
@@ -79,10 +79,8 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Time taken(ms): regular method: %d\n", t1.ms());
     fprintf(stdout, "Time taken(ms): toeplitz method: %d\n", t2.ms());
 
-
     // compare the two gradients
     auto err = std::sqrt((g1 - g2).norm()) / std::sqrt(g1.norm());
     std::cout << "Relative error: " << err << std::endl;
     return 0;
 }
-

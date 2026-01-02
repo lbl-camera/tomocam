@@ -1,19 +1,18 @@
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
-#include <format>
 #include <nlohmann/json.hpp>
 
 #include "dist_array.h"
 #include "hdf5/writer.h"
 #include "toeplitz.h"
 #include "tomocam.h"
-//#include "timer.h"
+// #include "timer.h"
 
 using json = nlohmann::json;
 int main(int argc, char **argv) {
-
 
     // define size of the reconstruction
     int nslices = 16;
@@ -32,9 +31,7 @@ int main(int argc, char **argv) {
     auto x2 = x1;
 
     std::vector<float> angs(nprojs);
-    for (int i = 0; i < nprojs; i++) {
-        angs[i] = i * M_PI / nprojs;
-    }
+    for (int i = 0; i < nprojs; i++) { angs[i] = i * M_PI / nprojs; }
 
     // gradient 1
     tomocam::Timer t1;
@@ -44,11 +41,11 @@ int main(int argc, char **argv) {
     auto dt1 = t1.elapsed();
 
     // gradient 2
-    // create NUFFT grids
-    std::vector<tomocam::NUFFT::Grid<float>> nugrids(4);
+    // create nufft grids
+    std::vector<tomocam::nufft::Grid<float>> nugrids(4);
     std::vector<tomocam::PointSpreadFunction<float>> psfs(4);
     for (int i = 0; i < 4; i++) {
-        tomocam::NUFFT::Grid<float> grid(nprojs, npixel, angs.data(), i);
+        tomocam::nufft::Grid<float> grid(nprojs, npixel, angs.data(), i);
         nugrids[i] = grid;
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
         psfs[i].create_plans(4);
@@ -60,14 +57,14 @@ int main(int argc, char **argv) {
     auto g2 = tomocam::gradient(x2, yT, nugrids);
     auto dt2 = t2.elapsed();
 
-
     tomocam::Timer t3;
     t3.start();
     auto g3 = tomocam::gradient2(x1, yT, psfs);
     auto dt3 = t3.elapsed();
 
     // report time
-    std::cout << std::format("Gradient computation times (ms): g1: {}, g2: {}, g3: {}\n", dt1, dt2, dt3);
+    std::cout << std::format(
+        "Gradient computation times (ms): g1: {}, g2: {}, g3: {}\n", dt1, dt2, dt3);
 
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");
