@@ -68,7 +68,7 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+        const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -90,13 +90,13 @@ namespace tomocam {
      * solution
      *
      * @param current solution.
-     * @param std::vector of NUFFT::Grid types per device
+     * @param std::vector of nufft::Grid types per device
      *
      * @return the value of the objective function
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+        const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -191,7 +191,7 @@ namespace tomocam {
      */
     template <typename T>
     T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+        const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Zero pad the sinogram by a factor of \sqrt{2}
