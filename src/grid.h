@@ -21,6 +21,7 @@
 #define NUFFT_GRID_H
 
 #include "common.h"
+#include "dev_array.h"
 #include "gpu/utils.cuh"
 #include <cuda.h>
 
@@ -38,12 +39,14 @@ namespace tomocam::nufft {
         int device_id_;
         int num_projs_;
         int num_pixels_;
-        T *x_;
-        T *y_;
+        gpuMem::cuniquePtr<T> x_;
+        gpuMem::cuniquePtr<T> y_;
 
       public:
         // default constructor
-        Grid() : x_(nullptr), y_(nullptr) {}
+        explicit Grid()
+            : x_(nullptr), y_(nullptr), device_id_(-1), num_projs_(0),
+              num_pixels_(0) {}
 
         /*! \brief Constructor to create the non-uniform grid on the device
          *
@@ -58,81 +61,31 @@ namespace tomocam::nufft {
          *  \param angles Angles of the projections
          *  \param id Device id
          */
-        Grid(int nproj, int npixel, const T *angles, int id)
+        explicit Grid(int nproj, int npixel, const T *angles, int id)
             : num_projs_(nproj), num_pixels_(npixel), device_id_(id) {
 
             // set device
             SAFE_CALL(cudaSetDevice(device_id_));
 
             // allocate memory for the non-uniform points on the device
-            size_t bytes = sizeof(T) * num_projs_ * num_pixels_;
-            SAFE_CALL(cudaMalloc(&x_, bytes));
-            SAFE_CALL(cudaMalloc(&y_, bytes));
-            gpu::make_nugrid<T>(num_pixels_, num_projs_, x_, y_, angles);
-            cudaDeviceSynchronize();
+            size_t npts = num_projs_ * num_pixels_;
+            x_ = gpuMem::make_cuniquePtr<T>(npts);
+            y_ = gpuMem::make_cuniquePtr<T>(npts);
+            gpu::make_nugrid<T>(num_pixels_, num_projs_, x_.get(), y_.get(), angles);
+            SAFE_CALL(cudaGetLastError()); // Check for kernel launch errors
+            SAFE_CALL(cudaDeviceSynchronize());
         }
 
-        // destructor
-        ~Grid() {
-            SAFE_CALL(cudaSetDevice(device_id_));
-            if (x_) SAFE_CALL(cudaFree(x_));
-            if (y_) SAFE_CALL(cudaFree(y_));
-        }
-
-        // copy constructor
-        Grid(const Grid &g) {
-            num_projs_ = g.num_projs_;
-            num_pixels_ = g.num_pixels_;
-            device_id_ = g.device_id_;
-
-            // set device
-            SAFE_CALL(cudaSetDevice(device_id_));
-
-            // allocate memory for the non-uniform points on the device
-            size_t bytes = num_projs_ * num_pixels_ * sizeof(T);
-            SAFE_CALL(cudaMalloc(&x_, bytes));
-            SAFE_CALL(cudaMalloc(&y_, bytes));
-
-            // copy the data
-            SAFE_CALL(cudaMemcpy(x_, g.x_, bytes, cudaMemcpyDeviceToDevice));
-            SAFE_CALL(cudaMemcpy(y_, g.y_, bytes, cudaMemcpyDeviceToDevice));
-        }
-
-        // assignment operator
-        Grid &operator=(const Grid &g) {
-            if (this != &g) {
-                num_projs_ = g.num_projs_;
-                num_pixels_ = g.num_pixels_;
-                device_id_ = g.device_id_;
-
-                // set device
-                SAFE_CALL(cudaSetDevice(device_id_));
-
-                // free the memory if it is already allocated
-                if (x_) SAFE_CALL(cudaFree(x_));
-                if (y_) SAFE_CALL(cudaFree(y_));
-
-                // allocate memory for the non-uniform points on the device
-                size_t bytes = num_projs_ * num_pixels_ * sizeof(T);
-                SAFE_CALL(cudaMalloc(&x_, bytes));
-                SAFE_CALL(cudaMalloc(&y_, bytes));
-
-                // copy the data
-                SAFE_CALL(cudaMemcpy(x_, g.x_, bytes, cudaMemcpyDeviceToDevice));
-                SAFE_CALL(cudaMemcpy(y_, g.y_, bytes, cudaMemcpyDeviceToDevice));
-            }
-            return *this;
-        }
+        // delete copy constructor and assignment operator
+        Grid(const Grid &g) = delete;
+        Grid &operator=(const Grid &g) = delete;
 
         // move constructor
-        Grid(Grid &&g) noexcept {
-            num_projs_ = g.num_projs_;
-            num_pixels_ = g.num_pixels_;
-            device_id_ = g.device_id_;
-            x_ = g.x_;
-            y_ = g.y_;
-            g.x_ = nullptr;
-            g.y_ = nullptr;
+        Grid(Grid &&g) noexcept
+            : num_projs_(g.num_projs_), num_pixels_(g.num_pixels_),
+              device_id_(g.device_id_) {
+            x_ = std::move(g.x_);
+            y_ = std::move(g.y_);
         }
 
         // move assignment operator
@@ -141,28 +94,20 @@ namespace tomocam::nufft {
                 num_projs_ = g.num_projs_;
                 num_pixels_ = g.num_pixels_;
                 device_id_ = g.device_id_;
-
-                // free the memory if it is already allocated
-                if (x_) SAFE_CALL(cudaFree(x_));
-                if (y_) SAFE_CALL(cudaFree(y_));
-
-                x_ = g.x_;
-                y_ = g.y_;
-                g.x_ = nullptr;
-                g.y_ = nullptr;
+                x_ = std::move(g.x_);
+                y_ = std::move(g.y_);
             }
             return *this;
         }
 
         // getters
         int nprojs() const { return num_projs_; }
+        int size() const { return num_projs_ * num_pixels_; }
         int npixels() const { return num_pixels_; }
         int dev_id() const { return device_id_; }
-        T *x() const { return x_; }
-        T *y() const { return y_; }
-        int size() const { return num_projs_ * num_pixels_; }
+        T *x() const { return x_.get(); }
+        T *y() const { return y_.get(); }
     };
-
 } // namespace tomocam::nufft
 
-#endif // GRID__H
+#endif // NUFFT_GRID_H

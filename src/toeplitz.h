@@ -17,35 +17,25 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
+#ifndef TOEPLITZ__H
+#define TOEPLITZ__H
 
 #include "dev_array.h"
 #include "fft.h"
-#include "internals.h"
-#include "types.h"
-
 #include "gpu/padding.cuh"
-
-#ifndef TOEPLITZ__H
-#define TOEPLITZ__H
+#include "nufft.h"
+#include "types.h"
 
 namespace tomocam {
 
     template <typename T>
     class PointSpreadFunction {
       private:
-        int batch_size_;
-        bool initialized_ = false;
-        cufftHandle r2c_;
-        cufftHandle c2r_;
         DeviceArray<gpu::complex_t<T>> psf_;
-        mutable DeviceArray<T> xpad_;
 
       public:
-        PointSpreadFunction()
-            : batch_size_(0), r2c_(0), c2r_(0), initialized_(false) {}
-
-        PointSpreadFunction(const nufft::Grid<T> &grid)
-            : batch_size_(0), r2c_(0), c2r_(0), initialized_(false) {
+        PointSpreadFunction() = default;
+        PointSpreadFunction(const nufft::Grid<T> &grid) {
 
             // compute the size of the psf
             int nproj = grid.nprojs();
@@ -59,7 +49,8 @@ namespace tomocam {
 
             // compute nufft type 1
             dim3_t out_dims(1, N1, N1);
-            auto temp = nufft::nufft2d1(ones, grid, out_dims);
+            DeviceArray<gpu::complex_t<T>> temp(out_dims);
+            nufft::nufft2d1(ones, temp, grid);
 
             // get the real part
             auto psf = to_real<T>(temp);
@@ -68,38 +59,7 @@ namespace tomocam {
             psf_ = rfft2D(psf);
         }
 
-        ~PointSpreadFunction() {
-            // destroy plans
-            if (initialized_) {
-                SAFE_CALL(cufftDestroy(r2c_));
-                SAFE_CALL(cufftDestroy(c2r_));
-            }
-        }
-
-        void create_plans(int batch_size) {
-            // create plans
-            auto dims = dim3_t(batch_size, psf_.nrows(), psf_.nrows());
-            batch_size_ = batch_size;
-            r2c_ = fftPlan2D(dims, CUFFT_R2C);
-            c2r_ = fftPlan2D(dims, CUFFT_C2R);
-            xpad_ = DeviceArray<T>(dims);
-            // set the initialized flag
-            initialized_ = true;
-        }
-
-        // single entry point for convolution1 and convolution2
         DeviceArray<T> convolve(const DeviceArray<T> &x) const {
-            if ((initialized_) && (x.nslices() == batch_size_)) {
-                return convolve2(x);
-            } else {
-                return convolve1(x);
-            }
-        }
-
-        int batch_size() const { return batch_size_; }
-
-      private:
-        DeviceArray<T> convolve1(const DeviceArray<T> &x) const {
 
             // scale for normalization
             T scale1 = std::pow(x.nrows(), 3);
@@ -119,33 +79,6 @@ namespace tomocam {
 
             // ifft(g * x) complex -> real
             auto tmp2 = irfft2D<T>(xft_psf);
-
-            // remove padding
-            auto g = gpu::unpad2d<T>(tmp2, padding, PadType::LEFT);
-
-            return g / (scale1 * scale2);
-        }
-
-        DeviceArray<T> convolve2(const DeviceArray<T> &x) const {
-
-            // scale for normalization
-            T scale1 = std::pow(x.nrows(), 3);
-
-            // pad x to match the size of the psf
-            int padding = psf_.nrows() - x.nrows();
-
-            // zero pad
-            gpu::pad2d<T>(xpad_, x, padding, PadType::RIGHT);
-            T scale2 = static_cast<T>(xpad_.nrows() * xpad_.ncols());
-
-            // fft(x) Real -> complex
-            auto xft = rfft2D<T>(r2c_, xpad_);
-
-            // broadcast-multiply
-            auto xft_psf = xft.multiply(psf_);
-
-            // ifft(g * x) complex -> real
-            auto tmp2 = irfft2D<T>(c2r_, xft_psf);
 
             // remove padding
             auto g = gpu::unpad2d<T>(tmp2, padding, PadType::LEFT);
