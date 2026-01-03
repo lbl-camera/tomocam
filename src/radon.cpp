@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <thread>
 #include <vector>
 
 #include "dev_array.h"
@@ -33,7 +32,7 @@ namespace tomocam {
 
     template <typename T>
     void project_(Partition<T> input, Partition<T> sino,
-        const std::vector<T> &angles, int device) {
+                  const std::vector<T> &angles, int device) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device));
@@ -44,8 +43,7 @@ namespace tomocam {
         auto nugrid = nufft::Grid(nproj, ncols, angles.data(), device);
 
         // create subpartitions
-        int nparts =
-            Machine::config.num_of_partitions(input.dims(), input.bytes());
+        int nparts = Machine::config.num_of_partitions(input.dims(), input.bytes());
         auto sub_ins = create_partitions(input, nparts);
         auto sub_outs = create_partitions(sino, nparts);
 
@@ -57,11 +55,11 @@ namespace tomocam {
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto [idx, d_input] = work.value();
+                auto &&[idx, d_input] = std::move(work.value());
                 auto d_sino = project(d_input, nugrid);
 
                 // copy the result to the output
-                shipper.push(sub_outs[idx], d_sino);
+                shipper.push(sub_outs[idx], std::move(d_sino));
             }
         }
     }
@@ -82,16 +80,10 @@ namespace tomocam {
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
 
-        std::vector<std::thread> threads(nDevice);
-        for (int i = 0; i < nDevice; i++) {
-            threads[i] = std::thread(project_<T>, 
-                    p1[i], p2[i], std::cref(angles), i);
-        }
+#pragma omp parallel for num_threads(nDevice)
+        for (int i = 0; i < nDevice; i++) { project_<T>(p1[i], p2[i], angles, i); }
 
         Machine::config.barrier();
-        // wait for threads to finish 
-        for (auto &t: threads) { t.join(); }
- 
         return output;
     }
 

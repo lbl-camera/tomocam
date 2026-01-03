@@ -42,6 +42,9 @@ namespace tomocam {
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
                                const nufft::Grid<T> &grid, bool fbp) {
 
+        // verify device matches grid
+        CHECK_DEVICE(grid.dev_id());
+
         // cast to complex
         auto in2 = to_complex<T>(sino);
 
@@ -57,7 +60,9 @@ namespace tomocam {
         if (fbp) gpu::apply_filter(in2);
 
         // nufft type 1
-        auto out = nufft2d1(in2, grid);
+        dim3_t out_dims = {in2.nslices(), in2.ncols(), in2.ncols()};
+        DeviceArray<gpu::complex_t<T>> out(out_dims);
+        nufft::nufft2d1(in2, out, grid);
 
         // return real part
         T scale = static_cast<T>(sino.ncols() * sino.ncols());
