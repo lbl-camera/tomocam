@@ -18,8 +18,8 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <cuda_runtime.h>
 #include <cuda.h>
+#include <cuda_runtime.h>
 #include <omp.h>
 
 #include "dev_array.h"
@@ -45,7 +45,7 @@ namespace tomocam {
         SAFE_CALL(cudaSetDevice(device));
 
         // create sub-partitions with halo
-        auto nparts =Machine::config.num_of_partitions(grad.dims(), grad.bytes());
+        auto nparts = Machine::config.num_of_partitions(grad.dims(), grad.bytes());
         auto sub_sols = create_partitions(sol, nparts, 1);
         auto sub_grads = create_partitions(grad, nparts);
 
@@ -53,20 +53,20 @@ namespace tomocam {
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
 
         // create scheduler
-        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(
-            sub_sols, sub_grads);
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(sub_sols,
+                                                                          sub_grads);
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
 
                 // unpack the data
-                auto[idx, d_s, d_g] = work.value();
+                auto &&[idx, d_s, d_g] = std::move(work.value());
 
                 // update the total variation
                 gpu::add_total_var2<T>(d_s, d_g, sigma, p);
 
                 // d_g.copy_to(sub_grads[idx], out_s);
-                shipper.push(sub_grads[idx], d_g);
+                shipper.push(sub_grads[idx], std::move(d_g));
             }
         }
     }
@@ -79,7 +79,7 @@ namespace tomocam {
         if (nDevice > sol.nslices()) nDevice = sol.nslices();
 
         dim3_t dims = sol.dims();
-        #ifdef MULTIPROC
+#ifdef MULTIPROC
         int myrank = multiproc::mp.myrank();
         int size = multiproc::mp.nprocs();
         if (myrank > 0) dims.x += 1;
@@ -91,9 +91,9 @@ namespace tomocam {
         std::copy(sol.begin(), sol.end(), sol2.slice(start));
         sol2.update_neigh_proc();
         auto p1 = create_partitions(sol2, nDevice, 1);
-        #else
+#else
         auto p1 = create_partitions(sol, nDevice, 1);
-        #endif
+#endif
 
         auto p2 = create_partitions(grad, nDevice);
 
@@ -102,11 +102,13 @@ namespace tomocam {
             threads[i] = std::thread(total_var2<T>, p1[i], p2[i], sigma, p, i);
         }
         Machine::config.barrier();
-        for (auto &t: threads) { t.join(); }
+        for (auto &t : threads) { t.join(); }
     }
 
     // explicit instantiation
-    template void add_total_var2<float>(DArray<float> &, DArray<float> &, float, float);
-    template void add_total_var2<double>(DArray<double> &, DArray<double> &, double, double);
+    template void add_total_var2<float>(DArray<float> &, DArray<float> &, float,
+                                        float);
+    template void add_total_var2<double>(DArray<double> &, DArray<double> &, double,
+                                         double);
 
 } // namespace tomocam

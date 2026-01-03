@@ -35,14 +35,14 @@
 namespace tomocam {
 
     template <typename T>
-    void pad2d_(Partition<T> arr, Partition<T> arr2, int npad, PadType type, int device) {
+    void pad2d_(Partition<T> arr, Partition<T> arr2, int npad, PadType type,
+                int device) {
 
         // set the device
         SAFE_CALL(cudaSetDevice(device));
 
         // create subpartitions
-        int nparts =
-            Machine::config.num_of_partitions(arr.dims(), arr.bytes());
+        int nparts = Machine::config.num_of_partitions(arr.dims(), arr.bytes());
         auto p1 = create_partitions<T>(arr, nparts);
         auto p2 = create_partitions<T>(arr2, nparts);
 
@@ -54,13 +54,13 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto[idx, d_arr] = work.value();
+                auto &&[idx, d_arr] = std::move(work.value());
 
                 // pad the sinogram
                 auto d_arr2 = gpu::pad2d(d_arr, npad, PadType::SYMMETRIC);
 
                 // copy data to partition
-                shipper.push(p2[idx], d_arr2);
+                shipper.push(p2[idx], std::move(d_arr2));
             }
         }
     }
@@ -86,7 +86,7 @@ namespace tomocam {
         }
         Machine::config.barrier();
         for (auto &t : threads) { t.join(); }
-        
+
         return arr2;
     }
 

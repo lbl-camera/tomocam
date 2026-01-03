@@ -37,14 +37,13 @@ namespace tomocam {
 
     template <typename T>
     void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int offset,
-        int device) {
+                  int device) {
 
         // set the device
         SAFE_CALL(cudaSetDevice(device));
 
         // create subpartitions
-        int nparts =
-            Machine::config.num_of_partitions(sino2.dims(), sino2.bytes());
+        int nparts = Machine::config.num_of_partitions(sino2.dims(), sino2.bytes());
         auto p1 = create_partitions<T>(sino, nparts);
         auto p2 = create_partitions<T>(sino2, nparts);
 
@@ -56,7 +55,7 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto [idx, d_sino] = work.value();
+                auto &&[idx, d_sino] = std::move(work.value());
 
                 // pad the sinogram
                 auto d_sino2 = gpu::pad1d(d_sino, 2 * npad, PadType::SYMMETRIC);
@@ -65,7 +64,7 @@ namespace tomocam {
                 d_sino2 = gpu::roll(d_sino2, offset);
 
                 // copy data to partition
-                shipper.push(p2[idx], d_sino2);
+                shipper.push(p2[idx], std::move(d_sino2));
             }
         }
     }
@@ -98,8 +97,7 @@ namespace tomocam {
 
         std::vector<std::thread> threads(ndevices);
         for (int i = 0; i < ndevices; i++) {
-            threads[i] =
-                std::thread(preproc_<T>, p1[i], p2[i], npad, cen_offset, i);
+            threads[i] = std::thread(preproc_<T>, p1[i], p2[i], npad, cen_offset, i);
         }
         Machine::config.barrier();
         for (auto &t : threads) { t.join(); }
