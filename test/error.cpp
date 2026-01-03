@@ -51,9 +51,8 @@ int main(int argc, char **argv) {
     std::vector<tomocam::PointSpreadFunction<float>> psfs(4);
     for (int i = 0; i < 4; i++) {
         tomocam::nufft::Grid<float> grid(sino.nrows(), sino.ncols(), angs.data(), i);
-        grids[i] = grid;
+        grids[i] = std::move(grid);
         psfs[i] = tomocam::PointSpreadFunction<float>(grid);
-        psfs[i].create_plans(4);
     }
 
     // error 2

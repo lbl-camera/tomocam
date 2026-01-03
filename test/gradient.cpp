@@ -7,6 +7,7 @@
 
 #include "dist_array.h"
 #include "hdf5/writer.h"
+#include "machine.h"
 #include "toeplitz.h"
 #include "tomocam.h"
 // #include "timer.h"
@@ -42,14 +43,20 @@ int main(int argc, char **argv) {
 
     // gradient 2
     // create nufft grids
-    std::vector<tomocam::nufft::Grid<float>> nugrids(4);
-    std::vector<tomocam::PointSpreadFunction<float>> psfs(4);
-    for (int i = 0; i < 4; i++) {
-        tomocam::nufft::Grid<float> grid(nprojs, npixel, angs.data(), i);
-        nugrids[i] = grid;
-        psfs[i] = tomocam::PointSpreadFunction<float>(grid);
-        psfs[i].create_plans(4);
+
+    std::vector<tomocam::nufft::Grid<float>> nugrids;
+    std::vector<tomocam::PointSpreadFunction<float>> psfs;
+    int ndevices = tomocam::Machine::config.num_of_gpus();
+    int current_device = 0;
+    cudaGetDevice(&current_device);
+    for (int i = 0; i < ndevices; i++) {
+        cudaSetDevice(i);
+        auto grid = tomocam::nufft::Grid<float>(nprojs, npixel, angs.data(), i);
+        auto psf = tomocam::PointSpreadFunction<float>(grid);
+        psfs.emplace_back(std::move(psf));
+        nugrids.emplace_back(std::move(grid));
     }
+    cudaSetDevice(current_device);
 
     // compute gradient
     tomocam::Timer t2;
@@ -63,21 +70,24 @@ int main(int argc, char **argv) {
     auto dt3 = t3.elapsed();
 
     // report time
-    std::cout << std::format(
-        "Gradient computation times (ms): g1: {}, g2: {}, g3: {}\n", dt1, dt2, dt3);
-
+    std::cout << std::format("Gradient computation times (ms): direct-method: {}, "
+                             "nufft_cached: {}, toeplitz: {}\n",
+                             dt1, dt2, dt3);
     // write to HDF5
     tomocam::h5::Writer h5fw("gradient.h5");
-    h5fw.write("g1", g1);
-    h5fw.write("g2", g2);
+    h5fw.write("direct_method", g1);
+    h5fw.write("nufft_cached", g2);
 
     // compare
     auto e = g1 - g2;
     auto e2 = g1 - g3;
-    std::cout << "g1: " << g1.norm() << std::endl;
-    std::cout << "g2: " << g2.norm() << std::endl;
-    std::cout << "g3: " << g3.norm() << std::endl;
-    std::cout << "Error1: " << e.norm() / g1.norm() << std::endl;
-    std::cout << "Error2: " << e2.norm() / g1.norm() << std::endl;
+    std::cout << "direct_method: " << g1.norm() << std::endl;
+    std::cout << "nufft_cached: " << g2.norm() << std::endl;
+    std::cout << "toeplitz: " << g3.norm() << std::endl;
+    std::cout << "Error1 (direct-nufft_cached).norm() / direct.norm(): "
+              << e.norm() / g1.norm() << std::endl;
+    std::cout << "Error2:(direct-toeplitz).norm() / direct.norm() "
+              << e2.norm() / g1.norm() << std::endl;
+
     return 0;
 }
