@@ -66,6 +66,9 @@ namespace tomocam {
 
             // calculate grid-positions
             nugrid_kernel<T><<<blocks, threads>>>(ncols, nproj, x, y, d_angles);
+            
+            // synchronize before freeing
+            SAFE_CALL(cudaDeviceSynchronize());
 
             // free device angles
             SAFE_CALL(cudaFree(d_angles));
