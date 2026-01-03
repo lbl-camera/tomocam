@@ -35,14 +35,13 @@ namespace tomocam {
 
     template <typename T>
     void gradient2_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const PointSpreadFunction<T> &psf, int device_id) {
+                    const PointSpreadFunction<T> &psf, int device_id) {
 
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
 
         // sub-partitions
-        int nparts =
-            Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
+        int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);
@@ -56,13 +55,13 @@ namespace tomocam {
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto [idx, d_f, d_sinoT] = work.value();
+                auto &&[idx, d_f, d_sinoT] = std::move(work.value());
 
                 // compute gradient
                 auto d_g = psf.convolve(d_f) - d_sinoT;
 
                 // copy gradient to host
-                shipper.push(p3[idx], d_g);
+                shipper.push(p3[idx], std::move(d_g));
             }
         }
     }
@@ -70,7 +69,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient2(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<PointSpreadFunction<T>> &psfs) {
+                        const std::vector<PointSpreadFunction<T>> &psfs) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -86,7 +85,7 @@ namespace tomocam {
         std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
             threads[i] = std::thread(gradient2_<T>, p1[i], p2[i], p3[i],
-                std::cref(psfs[i]), i);
+                                     std::cref(psfs[i]), i);
         }
 
         // wait for all devices to finish
@@ -100,12 +99,12 @@ namespace tomocam {
     }
 
     // specialization for float
-    template DArray<float> gradient2<float>(DArray<float> &solution,
-        DArray<float> &sinoT,
-        const std::vector<PointSpreadFunction<float>> &psfs);
+    template DArray<float>
+    gradient2<float>(DArray<float> &solution, DArray<float> &sinoT,
+                     const std::vector<PointSpreadFunction<float>> &psfs);
     // specialization for double
-    template DArray<double> gradient2<double>(DArray<double> &solution,
-        DArray<double> &sinoT,
-        const std::vector<PointSpreadFunction<double>> &psfs);
+    template DArray<double>
+    gradient2<double>(DArray<double> &solution, DArray<double> &sinoT,
+                      const std::vector<PointSpreadFunction<double>> &psfs);
 
 } // namespace tomocam

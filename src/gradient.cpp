@@ -53,19 +53,29 @@ namespace tomocam {
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
+
+        // cache FINUFFT plans, and reuse them
+        bool cache_plans = true;
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto [idx, d_f, d_sinoT] = work.value();
+                auto &&[idx, d_f, d_sinoT] = std::move(work.value());
 
-                auto t1 = to_complex<T>(d_f);
-                auto t2 = nufft2d2_cache(t1, nugrid);
-                auto t3 = nufft2d1_cache(t2, nugrid);
-                auto t4 = to_real<T>(t3) / scale;
-                auto d_g = t4 - d_sinoT;
+                // allocate intermediate array
+                dim3_t proj_dims = {d_f.nslices(), nugrid.nprojs(),
+                                    nugrid.npixels()};
+                auto temp = DeviceArray<cuda::std::complex<T>>(proj_dims);
+                auto d_gcmplx = DeviceArray<gpu::complex_t<T>>(d_f.dims());
+
+                auto d_fcmplx = to_complex<T>(d_f);
+                // call NUFFT operations, set cache_plans to true
+                nufft::nufft2d2(temp, d_fcmplx, nugrid, cache_plans);
+                nufft::nufft2d1(temp, d_gcmplx, nugrid, cache_plans);
+                auto d_g = to_real<T>(d_gcmplx);
+                d_g = (d_g - d_sinoT) / scale;
 
                 // copy gradient to host
-                shipper.push(p3[idx], d_g);
+                shipper.push(p3[idx], std::move(d_g));
             }
         }
     }
