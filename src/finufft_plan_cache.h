@@ -61,12 +61,13 @@ namespace tomocam::nufft {
         FinufftPlanCache &operator=(FinufftPlanCache &&) = delete;
 
         FinufftPlanWrapper<T> &get_plan(int type, int dim,
-                                        std::array<int64_t, 2> n_modes, int iflag) {
+                                        std::array<int64_t, 2> n_modes, int iflag,
+                                        int device_id) {
             PlanParams params{dim, n_modes, iflag};
 
             if (type == 1) {
                 std::call_once(type1_init_flag_, [&]() {
-                    type1_plan_.make_plan(1, dim, n_modes.data(), iflag);
+                    type1_plan_.make_plan(1, dim, n_modes, iflag, device_id);
                     type1_params_ = params;
                 });
                 if (type1_params_ && !(*type1_params_ == params)) {
@@ -76,7 +77,7 @@ namespace tomocam::nufft {
                 return type1_plan_;
             } else if (type == 2) {
                 std::call_once(type2_init_flag_, [&]() {
-                    type2_plan_.make_plan(2, dim, n_modes.data(), iflag);
+                    type2_plan_.make_plan(2, dim, n_modes, iflag, device_id);
                     type2_params_ = params;
                 });
                 if (type2_params_ && !(*type2_params_ == params)) {

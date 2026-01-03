@@ -21,9 +21,9 @@
 #ifndef FINUFFT_PLAN__H
 #define FINUFFT_PLAN__H
 
-#include <complex>
+#include <array>
+#include <cuda/std/complex>
 #include <cufinufft.h>
-#include <type_traits>
 
 namespace tomocam::nufft {
 
@@ -35,12 +35,13 @@ namespace tomocam::nufft {
         using plan_type = cufinufft_plan;
         using complex_type = cuda::std::complex<double>;
 
-        static int makeplan(int type, int dim, int64_t *n_modes, int iflag,
-                            int ntrans, plan_type *plan, cufinufft_opts *opts) {
+        static int makeplan(int type, int dim, std::array<int64_t, 2> n_modes,
+                            int iflag, int ntrans, plan_type *plan,
+                            cufinufft_opts *opts) {
 
             double tol = 1.0e-14;
-            return cufinufft_makeplan(type, dim, n_modes, iflag, ntrans, tol, plan,
-                                      opts);
+            return cufinufft_makeplan(type, dim, n_modes.data(), iflag, ntrans, tol,
+                                      plan, opts);
         }
 
         static int setpts(plan_type plan, int64_t npts, double *x, double *y,
@@ -63,11 +64,12 @@ namespace tomocam::nufft {
         using plan_type = cufinufftf_plan;
         using complex_type = cuda::std::complex<float>;
 
-        static int makeplan(int type, int dim, int64_t *n_modes, int iflag,
-                            int ntrans, plan_type *plan, cufinufft_opts *opts) {
+        static int makeplan(int type, int dim, std::array<int64_t, 2> n_modes,
+                            int iflag, int ntrans, plan_type *plan,
+                            cufinufft_opts *opts) {
             float tol = 1.2e-6f;
-            return cufinufftf_makeplan(type, dim, n_modes, iflag, ntrans, tol, plan,
-                                       opts);
+            return cufinufftf_makeplan(type, dim, n_modes.data(), iflag, ntrans, tol,
+                                       plan, opts);
         }
 
         static int setpts(plan_type plan, int64_t npts, float *x, float *y, float *z,
@@ -95,10 +97,12 @@ namespace tomocam::nufft {
       public:
         FinufftPlanWrapper() = default;
 
-        void make_plan(int type, int dim, int64_t *n_modes, int iflag) {
+        void make_plan(int type, int dim, std::array<int64_t, 2> n_modes, int iflag,
+                       int device_id) {
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
             opts.upsampfac = 2.0;
+            opts.gpu_device_id = device_id;
             int ierr = Traits::makeplan(type, dim, n_modes, iflag, 1, &plan, &opts);
             if (ierr != 0) {
                 throw std::runtime_error("Error in cufinufft_makeplan");
