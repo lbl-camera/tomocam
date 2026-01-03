@@ -18,10 +18,10 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
-#include <vector>
 #include <future>
+#include <iostream>
 #include <thread>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -39,7 +39,7 @@ namespace tomocam {
 
     template <typename T>
     T funcval2(Partition<T> recon, Partition<T> sinoT,
-        const PointSpreadFunction<T> &psf, int device_id) {
+               const PointSpreadFunction<T> &psf, int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -56,7 +56,7 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto[idx, d_recon, d_sinoT] = work.value();
+                auto &&[idx, d_recon, d_sinoT] = std::move(work.value());
                 auto t1 = psf.convolve(d_recon);
                 auto t2 = d_recon.dot(t1);
                 auto t3 = d_recon.dot(d_sinoT);
@@ -69,7 +69,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     T function_value2(DArray<T> &recon, DArray<T> &sinoT,
-        const std::vector<PointSpreadFunction<T>> &psf, T sino_sq) {
+                      const std::vector<PointSpreadFunction<T>> &psf, T sino_sq) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
@@ -77,11 +77,10 @@ namespace tomocam {
         auto p1 = create_partitions(recon, nDevice);
         auto p2 = create_partitions(sinoT, nDevice);
 
-
         std::vector<std::future<T>> results(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            results[i] = std::async(std::launch::async, funcval2<T>, 
-                    p1[i], p2[i], std::cref(psf[i]), i);
+            results[i] = std::async(std::launch::async, funcval2<T>, p1[i], p2[i],
+                                    std::cref(psf[i]), i);
         }
 
         // wait for all the devices to finish
@@ -89,13 +88,15 @@ namespace tomocam {
 
         // sum up the results
         T fval = sino_sq;
-       for (auto &f: results) { fval += f.get(); }
+        for (auto &f : results) { fval += f.get(); }
         return fval;
     }
 
     // explicit instantiation
     template float function_value2(DArray<float> &, DArray<float> &,
-        const std::vector<PointSpreadFunction<float>> &, float);
+                                   const std::vector<PointSpreadFunction<float>> &,
+                                   float);
     template double function_value2(DArray<double> &, DArray<double> &,
-        const std::vector<PointSpreadFunction<double>> &, double);
+                                    const std::vector<PointSpreadFunction<double>> &,
+                                    double);
 } // namespace tomocam

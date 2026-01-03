@@ -18,10 +18,10 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <iostream>
 #include <future>
-#include <vector>
+#include <iostream>
 #include <thread>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
@@ -34,8 +34,8 @@
 namespace tomocam {
 
     template <typename T>
-    T funcval(Partition<T> recon, Partition<T> sino,
-        const nufft::Grid<T> &nugrid, int device_id) {
+    T funcval(Partition<T> recon, Partition<T> sino, const nufft::Grid<T> &nugrid,
+              int device_id) {
 
         // set device
         cudaSetDevice(device_id);
@@ -47,13 +47,12 @@ namespace tomocam {
         T sum = 0;
 
         // create a scheduler
-        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1,
-            p2);
+        Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> scheduler(p1, p2);
 
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto[idx, d_recon, d_sino] = work.value();
+                auto &&[idx, d_recon, d_sino] = std::move(work.value());
                 auto t1 = project(d_recon, nugrid);
                 auto t2 = t1 - d_sino;
                 sum += t2.dot(t2);
@@ -65,7 +64,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     T function_value(DArray<T> &recon, DArray<T> &sino,
-        const std::vector<nufft::Grid<T>> &nugrids) {
+                     const std::vector<nufft::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > recon.nslices()) nDevice = recon.nslices();
@@ -76,20 +75,20 @@ namespace tomocam {
 
         std::vector<std::future<T>> results(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            results[i] = std::async(std::launch::async, funcval<T>, 
-                    p1[i], p2[i],  std::cref(nugrids[i]), i);
+            results[i] = std::async(std::launch::async, funcval<T>, p1[i], p2[i],
+                                    std::cref(nugrids[i]), i);
         }
         Machine::config.barrier();
 
         // wait for devices to finish
         T fval = 0;
-        for (auto &f: results) { fval += f.get(); }
+        for (auto &f : results) { fval += f.get(); }
         return fval;
     }
 
     // explicit instantiation
     template float function_value(DArray<float> &, DArray<float> &,
-        const std::vector<nufft::Grid<float>> &);
+                                  const std::vector<nufft::Grid<float>> &);
     template double function_value(DArray<double> &, DArray<double> &,
-        const std::vector<nufft::Grid<double>> &);
+                                   const std::vector<nufft::Grid<double>> &);
 } // namespace tomocam

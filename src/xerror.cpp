@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #include <future>
 #include <vector>
 
@@ -26,8 +25,8 @@
 
 #include "dev_array.h"
 #include "dist_array.h"
-#include "partition.h"
 #include "machine.h"
+#include "partition.h"
 #include "scheduler.h"
 
 #include "timer.h"
@@ -52,7 +51,7 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto[idx, d_curr, d_prev] = work.value();
+                auto &&[idx, d_curr, d_prev] = std::move(work.value());
                 auto diff = d_curr - d_prev;
                 sum += diff.norm2();
             }
@@ -78,9 +77,7 @@ namespace tomocam {
 
         Machine::config.barrier();
         T xerr = 0;
-        for (int i = 0; i < nDevice; i++) {
-            xerr += results[i].get();
-        }
+        for (int i = 0; i < nDevice; i++) { xerr += results[i].get(); }
         return xerr;
     }
 
