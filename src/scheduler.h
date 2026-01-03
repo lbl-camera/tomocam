@@ -69,7 +69,7 @@ namespace tomocam {
                 cv_.notify_one();
                 return std::nullopt;
             }
-            auto work = pending_work_.front();
+            auto work = std::move(pending_work_.front());
             pending_work_.pop();
             cv_.notify_one();
             return work;
@@ -85,22 +85,29 @@ namespace tomocam {
         // enqueue one std::vector of Host_t
         void enqueue(std::vector<Host_t> h_arr) {
             std::thread([this, h_arr]() {
-                for (int i = 0; i < h_arr.size(); i++) {
+                for (size_t i = 0; i < h_arr.size(); i++) {
                     Device_t d_arr(h_arr[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
                     cv_.wait(lock, [this]() {
                         return this->pending_work_.size() < MAX_QUEUE_SIZE;
                     });
-                    this->pending_work_.push(std::make_tuple(i, d_arr));
+                    this->pending_work_.push(std::make_tuple(i, std::move(d_arr)));
                 }
-                this->all_done_ = true;
+                {
+                    std::lock_guard<std::mutex> lock(this->m_);
+                    this->all_done_ = true;
+                }
+                cv_.notify_all();
             }).detach();
         }
 
         // enqueue two std::vectors of Host_t
         void enqueue(std::vector<Host_t> h_arr1, std::vector<Host_t> h_arr2) {
+            if (h_arr1.size() != h_arr2.size()) {
+                throw std::invalid_argument("h_arr1 and h_arr2 must have same size");
+            }
             std::thread([this, h_arr1, h_arr2]() {
-                for (int i = 0; i < h_arr1.size(); i++) {
+                for (size_t i = 0; i < h_arr1.size(); i++) {
                     Device_t d_arr1(h_arr1[i]);
                     Device_t d_arr2(h_arr2[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
@@ -108,9 +115,13 @@ namespace tomocam {
                         return this->pending_work_.size() < MAX_QUEUE_SIZE;
                     });
                     this->pending_work_.push(
-                        std::make_tuple(i, d_arr1, d_arr2));
+                        std::make_tuple(i, std::move(d_arr1), std::move(d_arr2)));
                 }
-                this->all_done_ = true;
+                {
+                    std::lock_guard<std::mutex> lock(this->m_);
+                    this->all_done_ = true;
+                }
+                cv_.notify_all();
             }).detach();
         }
     };

@@ -35,9 +35,7 @@ namespace tomocam {
       public:
         MachineConfig() {
             cudaGetDeviceCount(&ndevice_);
-            #ifdef DEBUG
-            ndevice_ = 1; // for debugging
-            #endif
+            ndevice_ = 1;       // for debugging
             slcsPerStream_ = 4; // slices
         }
 
@@ -45,11 +43,12 @@ namespace tomocam {
         MachineConfig &operator=(const MachineConfig &) = delete;
 
         // setters
-        void num_of_gpus(int ndev)  {
+        void num_of_gpus(int ndev) {
             if ((ndev > 0) && (ndev <= ndevice_)) {
                 ndevice_ = ndev;
             } else {
-                std::cerr << "Invalid number of GPUs. Using default: " << ndevice_ << std::endl;
+                std::cerr << "Invalid number of GPUs. Using default: " << ndevice_
+                          << std::endl;
             }
         }
 

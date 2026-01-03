@@ -42,7 +42,7 @@ namespace tomocam {
                 while (!queue_.empty() || !stop_) {
                     auto item = pop();
                     if (item.has_value()) {
-                        auto [h, d] = item.value();
+                        auto &&[h, d] = std::move(item.value());
                         d.copy_to(h);
                     }
                 }
@@ -54,9 +54,9 @@ namespace tomocam {
             thread_.join();
         }
 
-        void push(Host_t h, Device_t d) {
+        void push(Host_t h, Device_t &&d) {
             std::lock_guard<std::mutex> lock(mutex_);
-            queue_.push(std::make_tuple(h, d));
+            queue_.push(std::make_tuple(h, std::move(d)));
         }
 
       private:
@@ -68,7 +68,7 @@ namespace tomocam {
         std::optional<std::tuple<Host_t, Device_t>> pop() {
             std::lock_guard<std::mutex> lock(mutex_);
             if (queue_.empty()) return std::nullopt;
-            auto item = queue_.front();
+            auto item = std::move(queue_.front());
             queue_.pop();
             return item;
         }
