@@ -39,6 +39,27 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
     }
 }
 
+#define CHECK_DEVICE(device_id) { checkDevice((device_id), __FILE__, __LINE__); }
+inline void checkDevice(int device_id, const char *file, int line) {
+    int current_device;
+    cudaError_t err = cudaGetDevice(&current_device);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Device check failed: %s %s %d\n",
+            cudaGetErrorString(err),
+            file,
+            line);
+        exit(err);
+    }
+    if (current_device != device_id) {
+        fprintf(stderr, "Device mismatch: expected %d, current %d %s %d\n",
+            device_id,
+            current_device,
+            file,
+            line);
+        exit(cudaErrorInvalidDevice);
+    }
+}
+
 #define __deviceI__ __forceinline__ __device__
 #define __devhstI__ __forceinline__ __device__ __host__
 

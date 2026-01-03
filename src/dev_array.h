@@ -102,7 +102,21 @@ namespace tomocam {
         // cuniquePtr makes destructor redundant
         ~DeviceArray() = default;
 
+        // delete copy constructor and assignment operator
+        DeviceArray(const DeviceArray<T> &rhs) = delete;
+        DeviceArray<T> &operator=(const DeviceArray<T> &rhs) = delete;
+
+        // clone method
+        DeviceArray<T> clone() const {
+            DeviceArray<T> copy(dims_);
+            copy.halo_ = halo_;
+            copy.size_ = size_;
+            SAFE_CALL(cudaMemcpy(copy.dev_ptr_.get(), dev_ptr_.get(), bytes(),
+                                 cudaMemcpyDeviceToDevice));
+            return copy;
+        }
         //  copy constructor
+        /***
         DeviceArray(const DeviceArray<T> &rhs)
             : dims_(rhs.dims_), halo_(rhs.halo_), size_(rhs.size_),
               dev_ptr_(gpuMem::make_cuniquePtr<T>(size_)) {
@@ -123,6 +137,7 @@ namespace tomocam {
             }
             return *this;
         }
+        ***/
 
         // move constructor
         DeviceArray(DeviceArray<T> &&rhs) = default;
