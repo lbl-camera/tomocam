@@ -1,19 +1,19 @@
-#include <iostream>
-#include <fstream>
-#include <ctime>
 #include <array>
+#include <ctime>
+#include <fstream>
+#include <iostream>
 #include <random>
 
-#include <cuda_runtime.h>
-#include "timer.h"
 #include "dist_array.h"
 #include "hdf5/writer.h"
-#include "toeplitz.h"
-
-#include "tomocam.h"
 #include "timer.h"
+#include "toeplitz.h"
+#include <cuda_runtime.h>
 
-#define USE_DOUBLE
+#include "timer.h"
+#include "tomocam.h"
+
+// #define USE_DOUBLE
 
 #ifdef USE_DOUBLE
 typedef double real_t;
@@ -24,14 +24,22 @@ typedef float real_t;
 int main(int argc, char **argv) {
 
     // read data
-    int nproj = 360;
-    int ncols = 2047;
+    int nproj = 180;
+    int ncols = 511;
+    if (argc > 1) {
+        int nc = std::atoi(argv[1]);
+        ncols = std::max(511, nc);
+        nproj = std::max(180, ncols / 10);
+    }
     real_t center = static_cast<real_t>(ncols) / 2;
 
-    // create a hdf5 writer
-    tomocam::h5::Writer fp("test_toeplitz.h5");
-    tomocam::dim3_t dim1 = {1, nproj, ncols};
-    tomocam::dim3_t dim2 = {1, ncols, ncols};
+    // curr gpu device
+    int cuda_device = 0;
+    cudaGetDevice(&cuda_device);
+
+    // dimensions of data and solution
+    tomocam::dim3_t dim1 = {16, nproj, ncols};
+    tomocam::dim3_t dim2 = {16, ncols, ncols};
 
     // generate random data
     auto rng = NPRandom();
@@ -49,22 +57,27 @@ int main(int argc, char **argv) {
     // create a nugrid and psfs
     int ndevices = 4;
     std::vector<tomocam::NUFFT::Grid<real_t>> nugrids(ndevices);
-    for (int i = 0; i < ndevices; i++)
+    for (int i = 0; i < ndevices; i++) {
+        cudaSetDevice(i);
         nugrids[i] = tomocam::NUFFT::Grid<real_t>(nproj, ncols, theta.data(), i);
+    }
+    cudaSetDevice(cuda_device);
 
     std::vector<tomocam::PointSpreadFunction<real_t>> psfs(ndevices);
-    for (int i = 0; i < ndevices; i++)
+    for (int i = 0; i < ndevices; i++) {
+        cudaSetDevice(i);
         psfs[i] = tomocam::PointSpreadFunction<real_t>(nugrids[i]);
+    }
+    cudaSetDevice(cuda_device);
 
     // calculate backprojection of data
     auto yT = tomocam::backproject(y, theta, false);
 
+    // calculate gradient using direct method
     Timer t1;
     t1.start();
-
-    // calculate classical gradient
-    auto g1 = tomocam::gradient(f, yT, nugrids);
-
+    auto e1 = tomocam::project(f, theta) - y;
+    auto g1 = tomocam::backproject(e1, theta, false);
     t1.stop();
 
     // calculate gradient using toeplitz matrix
@@ -76,13 +89,11 @@ int main(int argc, char **argv) {
     std::cout << "g1.norm(): " << g1.norm() << std::endl;
     std::cout << "g2.norm(): " << g2.norm() << std::endl;
 
-    fprintf(stdout, "Time taken(ms): regular method: %d\n", t1.ms());
+    fprintf(stdout, "Time taken(ms): direct method: %d\n", t1.ms());
     fprintf(stdout, "Time taken(ms): toeplitz method: %d\n", t2.ms());
-
 
     // compare the two gradients
     auto err = std::sqrt((g1 - g2).norm()) / std::sqrt(g1.norm());
     std::cout << "Relative error: " << err << std::endl;
     return 0;
 }
-

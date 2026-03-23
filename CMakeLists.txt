@@ -118,7 +118,7 @@ find_package(finufft REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
 
 # TRY the official package
-find_package(hdf5 REQUIRED)
+find_package(HDF5 REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
 
 

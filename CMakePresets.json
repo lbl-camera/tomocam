@@ -8,6 +8,9 @@
             "binaryDir": "${sourceDir}/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -24,6 +27,9 @@
             "binaryDir": "${sourceDir}/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
