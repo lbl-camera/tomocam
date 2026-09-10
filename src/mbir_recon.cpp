@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 
     tomocam::DArray<float> x0({0,0,0});
     // run MBIR
-    Timer t2;
+    tomocam::Timer t2;
     t2.start();
     auto recon2 = tomocam::mbir2(x0, sino, angs, cen, max_iters, sigma, tol, xtol);
     t2.stop();
