@@ -50,23 +50,28 @@ namespace tomocam {
 
         // preprocess
         int nrays = sino.ncols();
-        auto sino2 = preproc(sino, center);
-        int npad = (sino2.ncols() - x0.ncols());
-        x0 = pad2d(x0, npad, PadType::SYMMETRIC);
+        auto sino2 = preproc(sino);
+
+        // preproc pads symmetrically, so the rotation center shifts by
+        // the padding added on each side
+        int npad = (sino2.ncols() - nrays) / 2;
+        center += static_cast<T>(npad);
+
+        // check for initial guess
+        if (x0.size() == 0) {
+            x0 = backproject(sino2, angles, center, true);
+        } else {
+            int npad2 = (sino2.ncols() - x0.ncols());
+            x0 = pad2d(x0, npad2, PadType::SYMMETRIC);
+        }
 
         // recon dimensions
         int nslcs = sino2.nslices();
         int nproj = sino2.nrows();
         int ncols = sino2.ncols();
 
-        // check for initial guess
-        if (x0.size() == 0) { x0 = backproject(sino2, angles, true); }
-
         // backproject sinogram
-        auto sinoT = backproject(sino2, angles);
-
-        // sinogram dot sinogram
-        T sino_norm = sino2.norm();
+        auto sinoT = backproject(sino2, angles, center, false);
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
@@ -74,12 +79,16 @@ namespace tomocam {
         // calculate non-uniform grid for each device
         int current_dev = 0;
         SAFE_CALL(cudaGetDevice(&current_dev));
-        std::vector<PointSpreadFunction<T>> psfs(ndevice);
+        std::vector<PointSpreadFunction<T>> psfs;
+        std::vector<nufft::Grid<T>> grids;
+        psfs.reserve(ndevice);
+        grids.reserve(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
             SAFE_CALL(cudaSetDevice(dev_id));
             auto g = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
             auto psf = PointSpreadFunction<T>(g);
             psfs.emplace_back(std::move(psf));
+            grids.emplace_back(std::move(g));
         }
 
         // compute Lipschitz constant
@@ -105,20 +114,17 @@ namespace tomocam {
             return g;
         };
 
-        auto calc_error = [&sinoT, &psfs, sino_norm](DArray<T> &x) -> T {
-            auto e = function_value2(x, sinoT, psfs, sino_norm);
+        auto calc_error = [&sino2, &grids](DArray<T> &x) -> T {
+            auto e = function_value(x, sino2, grids);
 #ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
 #endif
             return std::sqrt(e);
         };
 
-        // create optimizer
-        Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)> opt(
-            calc_gradient, calc_error);
-
         // run optimization
-        auto rec = opt.run2(x0, num_iters, step_size, tol, xtol);
+        Params params{static_cast<size_t>(num_iters), tol, xtol};
+        auto rec = nagopt<T>(calc_gradient, calc_error, x0, step_size, params);
         return postproc(rec, nrays);
     }
 
