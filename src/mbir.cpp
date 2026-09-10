@@ -19,11 +19,12 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <functional>
 #include <iostream>
 #include <utility>
-#include <functional>
 
 #include "dist_array.h"
+#include "internals.h"
 #include "machine.h"
 #include "nufft.h"
 #include "optimize.h"
@@ -38,15 +39,15 @@ namespace tomocam {
 
     template <typename T>
     DArray<T> mbir(DArray<T> &x0, DArray<T> &sino, std::vector<T> angles, T center,
-        int num_iters, T sigma, T tol, T xtol) {
+                   int num_iters, T sigma, T tol, T xtol) {
 
         // normalize
         auto maxv = sino.max();
         auto minv = sino.min();
-        #ifdef MULTIPROC
+#ifdef MULTIPROC
         maxv = multiproc::mp.MaxReduce(maxv);
         minv = multiproc::mp.MinReduce(minv);
-        #endif
+#endif
         if (maxv == minv) {
             std::cerr << "Error: sinogram has no variation" << std::endl;
             return x0;
@@ -55,7 +56,7 @@ namespace tomocam {
 
         // pad and center
         int nrays = sino.ncols();
-        sino2 = preproc(sino2, center);
+        sino2 = preproc(sino2);
         int npad = (sino2.ncols() - x0.ncols());
         x0 = pad2d(x0, npad, PadType::SYMMETRIC);
 
@@ -65,18 +66,26 @@ namespace tomocam {
         int ncols = sino2.ncols();
 
         // backproject sinogram
-        auto sinoT = backproject(sino2, angles);
+        auto sinoT = backproject(sino2, angles, center);
 
         // number of gpus available
         int ndevice = Machine::config.num_of_gpus();
         if (ndevice > nslcs) { ndevice = nslcs; }
 
-        // calculate nonuniform grid for each device
+        // calculate nonuniform grid for each device, and the corresponding
+        // point-spread-function for the Toeplitz-based gradient2
         int current_dev = 0;
         SAFE_CALL(cudaGetDevice(&current_dev));
-        std::vector<nufft::Grid<T>> grids(ndevice);
+        std::vector<nufft::Grid<T>> grids;
+        std::vector<PointSpreadFunction<T>> psfs;
+        grids.reserve(ndevice);
+        psfs.reserve(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            grids[dev_id] = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
+            SAFE_CALL(cudaSetDevice(dev_id));
+            auto g = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
+            auto psf = PointSpreadFunction<T>(g);
+            psfs.emplace_back(std::move(psf));
+            grids.emplace_back(std::move(g));
         }
         SAFE_CALL(cudaSetDevice(current_dev));
 
@@ -85,43 +94,41 @@ namespace tomocam {
         DArray<T> ytmp(dim3_t(1, ncols, ncols));
         xtmp.init(1);
         ytmp.init(0);
-        auto g = gradient(xtmp, ytmp, grids);
+        auto g = gradient2(xtmp, ytmp, psfs);
         gpu::add_tv_hessian(g, sigma);
         T L = g.max();
-        #ifdef MULTIPROC
+#ifdef MULTIPROC
         L = multiproc::mp.MaxReduce(L);
-        #endif
+#endif
         T step_size = 1 / L;
         if (step_size > 1) step_size = 1;
         T p = 1.2;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &grids, sigma, p](DArray<T> &x) -> DArray<T> {
-            auto g = gradient(x, sinoT, grids);
+        auto calc_gradient = [&sinoT, &psfs, sigma, p](DArray<T> &x) -> DArray<T> {
+            auto g = gradient2(x, sinoT, psfs);
             add_total_var2(x, g, sigma, p);
             return g;
         };
 
         auto calc_error = [&sino2, &grids](DArray<T> &x) -> T {
             T e = function_value(x, sino2, grids);
-            #ifdef MULTIPROC
+#ifdef MULTIPROC
             e = multiproc::mp.SumReduce(e);
-            #endif
+#endif
             return std::sqrt(e);
         };
 
-        // create optimizer
-        Optimizer<T, DArray, decltype(calc_gradient), decltype(calc_error)>
-        opt(calc_gradient, calc_error);
-
         // run optimization
-        auto recon = opt.run2(x0, num_iters, step_size, tol, xtol);
+        Params params{static_cast<size_t>(num_iters), tol, xtol};
+        auto recon = nagopt<T>(calc_gradient, calc_error, x0, step_size, params);
         return postproc(recon, nrays);
     }
 
-// explicit instantiation
-    template DArray<float> mbir(DArray<float> &, DArray<float> &, std::vector<float>, float,
-        int, float, float, float);
-    template DArray<double> mbir(DArray<double> &, DArray<double> &, std::vector<double>,
-        double, int, double, double, double);
+    // explicit instantiation
+    template DArray<float> mbir(DArray<float> &, DArray<float> &, std::vector<float>,
+                                float, int, float, float, float);
+    template DArray<double> mbir(DArray<double> &, DArray<double> &,
+                                 std::vector<double>, double, int, double, double,
+                                 double);
 } // namespace tomocam
