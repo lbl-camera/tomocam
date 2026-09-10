@@ -9,6 +9,11 @@ target_link_libraries(padding PRIVATE ${HDF5_LIBRARIES})
 target_link_libraries(padding PRIVATE nlohmann_json::nlohmann_json)
 add_test(NAME padding_test COMMAND padding)
 
+# regression test: NUFFT plan batching (ntrans) correctness
+add_executable(nufft_batch nufft_batch.cpp)
+target_link_libraries(nufft_batch PRIVATE tomocam)
+add_test(NAME nufft_batch_test COMMAND nufft_batch)
+
 
 add_executable(partition partition.cpp)
 target_link_libraries(partition PRIVATE tomocam)
@@ -72,19 +77,25 @@ add_executable(xerror xerror.cpp)
 target_link_libraries(xerror PRIVATE tomocam)
 add_test(NAME xerror_test COMMAND xerror)
 
+# manual benchmark: chunk-count overhead vs. bandwidth in dist_array_ops.h
+# (not registered with add_test -- run manually, not part of ctest)
+add_executable(bench_chunking bench_chunking.cpp)
+target_link_libraries(bench_chunking PRIVATE tomocam)
 
-# MBIR
-add_executable(mbir mbir.cpp)
-target_link_libraries(mbir tomocam)
-target_link_libraries(mbir ${HDF5_LIBRARIES})
-target_link_libraries(mbir nlohmann_json::nlohmann_json)
-target_link_libraries(mbir ${MPI_C_LIBRARIES})
-add_test(NAME mbir_test COMMAND mbir)
+# manual benchmark: chunk-count overhead for gradient2 (compute-bound,
+# Toeplitz/FFT-based, unlike the memory-bound bench_chunking ops)
+add_executable(bench_gradient2 bench_gradient2.cpp)
+target_link_libraries(bench_gradient2 PRIVATE tomocam)
 
-# MBIR2
-add_executable(mbir2 mbir2.cpp)
-target_link_libraries(mbir2 tomocam)
-target_link_libraries(mbir2 ${HDF5_LIBRARIES})
-target_link_libraries(mbir2 nlohmann_json::nlohmann_json)
-target_link_libraries(mbir2 ${MPI_C_LIBRARIES})
-add_test(NAME mbir2_test COMMAND mbir2)
+# manual benchmark: chunk-count overhead for function_value2
+add_executable(bench_function_value2 bench_function_value2.cpp)
+target_link_libraries(bench_function_value2 PRIVATE tomocam)
+
+# manual benchmark: chunk-count overhead for add_total_var2 (halo-partitioned)
+add_executable(bench_add_total_var2 bench_add_total_var2.cpp)
+target_link_libraries(bench_add_total_var2 PRIVATE tomocam)
+
+# manual benchmark: chunk-count overhead for function_value (direct NUFFT
+# projection, non-Toeplitz sibling of function_value2)
+add_executable(bench_function_value bench_function_value.cpp)
+target_link_libraries(bench_function_value PRIVATE tomocam)
