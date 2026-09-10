@@ -23,7 +23,8 @@ set(tomocam_VERSION_MAJOR 3)
 set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
-set(CMAKE_CXX_STANDARD 20) 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CUDA_STANDARD 20)
 
 # debug flags
@@ -48,6 +49,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/nagopt.cpp
     ${PROJECT_SOURCE_DIR}/src/pyMBIR.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
@@ -124,20 +126,28 @@ target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
 find_package(TBB REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE TBB::tbb)
 
+find_package(nlohmann_json 3.2.0 REQUIRED)
+
 # build ojbect library
 add_library(tomocam_objs OBJECT ${SRC})
-set_target_properties(tomocam_objs PROPERTIES 
-                      POSITION_INDEPENDENT_CODE ON)
-target_compile_features(tomocam_objs PUBLIC cxx_std_20)
+set_target_properties(tomocam_objs PROPERTIES
+                      POSITION_INDEPENDENT_CODE ON
+                      CXX_STANDARD 20)
 target_link_libraries(tomocam_objs PUBLIC tomocam::deps)
 
 # build shared library
 add_library(tomocam SHARED $<TARGET_OBJECTS:tomocam_objs>)
-set_target_properties(tomocam PROPERTIES 
-                      VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR} 
-                      SOVERSION ${tomocam_VERSION_MAJOR})
+set_target_properties(tomocam PROPERTIES
+                      VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR}
+                      SOVERSION ${tomocam_VERSION_MAJOR}
+                      CXX_STANDARD 20)
 target_link_libraries(tomocam PUBLIC tomocam::deps)
-target_compile_features(tomocam PUBLIC cxx_std_20)
+
+# MBIR reconstruction executable
+add_executable(mbir_recon ${PROJECT_SOURCE_DIR}/src/mbir_recon.cpp)
+set_target_properties(mbir_recon PROPERTIES CXX_STANDARD 20)
+target_link_libraries(mbir_recon PRIVATE tomocam)
+target_link_libraries(mbir_recon PRIVATE nlohmann_json::nlohmann_json)
 
 option(ENABLE_PYTHON "Enable python module" OFF)
 if (ENABLE_PYTHON)
@@ -156,13 +166,14 @@ if (ENABLE_PYTHON)
 
     # build python module
     add_library(cTomocam MODULE src/pyTomocam.cpp $<TARGET_OBJECTS:tomocam_objs>)
-    set_target_properties(cTomocam PROPERTIES 
-                          CXX_VISIBILITY_PRESET "hidden" 
-                          PREFIX "${PYTHON_MODULE_PREFIX}" 
-                          SUFFIX "${PYTHON_MODULE_EXTENSION}")
+    set_target_properties(cTomocam PROPERTIES
+                          CXX_VISIBILITY_PRESET "hidden"
+                          PREFIX "${PYTHON_MODULE_PREFIX}"
+                          SUFFIX "${PYTHON_MODULE_EXTENSION}"
+                          CXX_STANDARD 20
+                          CXX_STANDARD_REQUIRED ON)
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
     target_link_libraries(cTomocam PUBLIC pybind11::headers)
-    target_compile_features(cTomocam PUBLIC cxx_std_20)
     install(TARGETS cTomocam DESTINATION tomocam)
 
 else()
