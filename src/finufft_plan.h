@@ -98,12 +98,13 @@ namespace tomocam::nufft {
         FinufftPlanWrapper() = default;
 
         void make_plan(int type, int dim, std::array<int64_t, 2> n_modes, int iflag,
-                       int device_id) {
+                       int ntrans, int device_id) {
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
             opts.upsampfac = 2.0;
             opts.gpu_device_id = device_id;
-            int ierr = Traits::makeplan(type, dim, n_modes, iflag, 1, &plan, &opts);
+            int ierr =
+                Traits::makeplan(type, dim, n_modes, iflag, ntrans, &plan, &opts);
             if (ierr != 0) {
                 throw std::runtime_error("Error in cufinufft_makeplan");
             }

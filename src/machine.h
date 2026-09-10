@@ -62,11 +62,14 @@ namespace tomocam {
             size_t total_mem = 0;
             size_t free_mem = 0;
             cudaMemGetInfo(&free_mem, &total_mem);
-            size_t max_allowed = 0.05 * free_mem;
+            constexpr size_t target_chunk_bytes = 2ULL * 1024 * 1024 * 1024; // 2 GB
+            size_t max_allowed =
+                std::min(target_chunk_bytes, static_cast<size_t>(0.5 * free_mem));
 
-            size_t bytes_per_slice = bytes / dims.x;
-            int slcs_per_partition = max_allowed / bytes_per_slice;
-            int slcs = std::min(slcsPerStream_, slcs_per_partition);
+            double bytes_per_slice = static_cast<double>(bytes) / dims.x;
+            int slcs_per_partition =
+                static_cast<int>(static_cast<double>(max_allowed) / bytes_per_slice);
+            int slcs = std::max(1, slcs_per_partition);
 
             // number of partions
             int n_partitions = dims.x / slcs;

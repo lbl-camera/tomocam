@@ -43,15 +43,16 @@ namespace tomocam::nufft {
             static_cast<int64_t>(f.dims().y),
             static_cast<int64_t>(f.dims().z),
         };
+        int ntrans = static_cast<int>(f.dims().x);
 
         if (use_cache) {
-            auto &plan = tomocam::nufft::plans::cache<T>.get_plan(1, 2, n_modes, 1,
-                                                                  pg.dev_id());
+            auto &plan = tomocam::nufft::plans::cache<T>.get_plan(
+                1, 2, n_modes, 1, ntrans, pg.dev_id());
             plan.set_points(pg.size(), pg.x(), pg.y());
             plan.execute(c.dev_ptr(), f.dev_ptr());
         } else {
             FinufftPlanWrapper<T> plan;
-            plan.make_plan(1, 2, n_modes, 1, pg.dev_id());
+            plan.make_plan(1, 2, n_modes, 1, ntrans, pg.dev_id());
             plan.set_points(pg.size(), pg.x(), pg.y());
             plan.execute(c.dev_ptr(), f.dev_ptr());
         }
@@ -69,15 +70,16 @@ namespace tomocam::nufft {
             static_cast<int64_t>(f.dims().y),
             static_cast<int64_t>(f.dims().z),
         };
+        int ntrans = static_cast<int>(f.dims().x);
 
         if (use_cache) {
-            auto &plan = tomocam::nufft::plans::cache<T>.get_plan(2, 2, n_modes, -1,
-                                                                  pg.dev_id());
+            auto &plan = tomocam::nufft::plans::cache<T>.get_plan(
+                2, 2, n_modes, -1, ntrans, pg.dev_id());
             plan.set_points(pg.size(), pg.x(), pg.y());
             plan.execute(c.dev_ptr(), f.dev_ptr());
         } else {
             FinufftPlanWrapper<T> plan;
-            plan.make_plan(2, 2, n_modes, -1, pg.dev_id());
+            plan.make_plan(2, 2, n_modes, -1, ntrans, pg.dev_id());
             plan.set_points(pg.size(), pg.x(), pg.y());
             plan.execute(c.dev_ptr(), f.dev_ptr());
         }

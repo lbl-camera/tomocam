@@ -44,8 +44,12 @@ namespace tomocam {
         // set device
         cudaSetDevice(device_id);
 
-        // sub-partitions
-        int nslcs = Machine::config.num_of_partitions(recon.dims(), recon.bytes());
+        // sub-partitions -- size chunks against convolve()'s real peak
+        // memory per slice (padded FFT buffers), not recon's plain bytes,
+        // which undercounts by the padding/multi-buffer factor
+        size_t conv_bytes =
+            psf.convolve_peak_bytes_per_slice() * static_cast<size_t>(recon.dims().x);
+        int nslcs = Machine::config.num_of_partitions(recon.dims(), conv_bytes);
         auto p1 = create_partitions(recon, nslcs);
         auto p2 = create_partitions(sinoT, nslcs);
         T sum = 0;

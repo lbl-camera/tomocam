@@ -37,17 +37,20 @@ namespace tomocam::nufft {
             int dim;
             std::array<int64_t, 2> n_modes;
             int iflag;
+            int ntrans;
+            int device_id;
 
             bool operator==(const PlanParams &other) const {
                 return dim == other.dim && n_modes == other.n_modes &&
-                       iflag == other.iflag;
+                       iflag == other.iflag && ntrans == other.ntrans &&
+                       device_id == other.device_id;
             }
         };
 
         FinufftPlanWrapper<T> type1_plan_;
         FinufftPlanWrapper<T> type2_plan_;
-        std::once_flag type1_init_flag_;
-        std::once_flag type2_init_flag_;
+        std::mutex type1_mutex_;
+        std::mutex type2_mutex_;
         std::optional<PlanParams> type1_params_;
         std::optional<PlanParams> type2_params_;
 
@@ -60,29 +63,28 @@ namespace tomocam::nufft {
         FinufftPlanCache(FinufftPlanCache &&) = delete;
         FinufftPlanCache &operator=(FinufftPlanCache &&) = delete;
 
+        // NOTE: the returned plan is only valid to use while no other call
+        // with different params can race with it. Safe as long as each
+        // device is only ever driven by a single host thread (true for
+        // every current caller), since then a rebuild for device N can
+        // never race with an in-flight use of device N's own plan.
         FinufftPlanWrapper<T> &get_plan(int type, int dim,
                                         std::array<int64_t, 2> n_modes, int iflag,
-                                        int device_id) {
-            PlanParams params{dim, n_modes, iflag};
+                                        int ntrans, int device_id) {
+            PlanParams params{dim, n_modes, iflag, ntrans, device_id};
 
             if (type == 1) {
-                std::call_once(type1_init_flag_, [&]() {
-                    type1_plan_.make_plan(1, dim, n_modes, iflag, device_id);
+                std::lock_guard<std::mutex> lock(type1_mutex_);
+                if (!type1_params_ || !(*type1_params_ == params)) {
+                    type1_plan_.make_plan(1, dim, n_modes, iflag, ntrans, device_id);
                     type1_params_ = params;
-                });
-                if (type1_params_ && !(*type1_params_ == params)) {
-                    throw std::invalid_argument(
-                        "Type 1 plan already cached with different parameters");
                 }
                 return type1_plan_;
             } else if (type == 2) {
-                std::call_once(type2_init_flag_, [&]() {
-                    type2_plan_.make_plan(2, dim, n_modes, iflag, device_id);
+                std::lock_guard<std::mutex> lock(type2_mutex_);
+                if (!type2_params_ || !(*type2_params_ == params)) {
+                    type2_plan_.make_plan(2, dim, n_modes, iflag, ntrans, device_id);
                     type2_params_ = params;
-                });
-                if (type2_params_ && !(*type2_params_ == params)) {
-                    throw std::invalid_argument(
-                        "Type 2 plan already cached with different parameters");
                 }
                 return type2_plan_;
             } else {

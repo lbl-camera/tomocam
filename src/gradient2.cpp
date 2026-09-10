@@ -40,8 +40,12 @@ namespace tomocam {
         // set device
         SAFE_CALL(cudaSetDevice(device_id));
 
-        // sub-partitions
-        int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
+        // sub-partitions -- size chunks against convolve()'s real peak
+        // memory per slice (padded FFT buffers), not sinoT's plain bytes,
+        // which undercounts by the padding/multi-buffer factor
+        size_t conv_bytes =
+            psf.convolve_peak_bytes_per_slice() * static_cast<size_t>(sinoT.dims().x);
+        int nparts = Machine::config.num_of_partitions(sinoT.dims(), conv_bytes);
         auto p1 = create_partitions(f, nparts);
         auto p2 = create_partitions(sinoT, nparts);
         auto p3 = create_partitions(df, nparts);

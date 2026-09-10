@@ -59,6 +59,22 @@ namespace tomocam {
             psf_ = rfft2D(psf);
         }
 
+        // Peak GPU memory convolve() needs per slice. convolve() zero-pads
+        // each slice from ncols x ncols up to the PSF's N1 x N1 before the
+        // FFT-based convolution, and keeps two padded real buffers (xpad,
+        // tmp2) and two padded complex buffers (xft, xft_psf) alive at
+        // once -- callers that chunk their input before calling convolve()
+        // (gradient2_(), funcval2()) should size chunks against this, not
+        // against the plain input array's bytes, which undercounts by the
+        // padding/multi-buffer factor (~16-17x for typical N1 ~= 2*ncols).
+        size_t convolve_peak_bytes_per_slice() const {
+            size_t N1 = psf_.nrows();
+            size_t N1c = psf_.ncols(); // N1/2 + 1, from the rfft2D output
+            size_t real_buf = N1 * N1 * sizeof(T);                     // xpad, tmp2
+            size_t complex_buf = N1 * N1c * sizeof(gpu::complex_t<T>); // xft, xft_psf
+            return 2 * real_buf + 2 * complex_buf;
+        }
+
         DeviceArray<T> convolve(const DeviceArray<T> &x) const {
 
             // scale for normalization
