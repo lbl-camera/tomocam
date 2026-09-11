@@ -1,3 +1,23 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ * IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ * the U.S. Government has been granted for itself and others acting on its
+ * behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ * to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -17,7 +37,7 @@ namespace tomocam {
     template <typename T>
     DArray<T> nagopt(std::function<DArray<T>(DArray<T> &)> gradient,
                      std::function<T(DArray<T> &)> loss, const DArray<T> &x0,
-                     T step_size, const Params &params) {
+                     T step_size, const ReconParams &params) {
 
         DArray<T> sol = x0;
         DArray<T> x = sol;
@@ -32,8 +52,7 @@ namespace tomocam {
             // update theta
             T beta = tnew * (1 / t - 1);
             tnew = static_cast<T>(0.5) *
-                   (std::sqrt(std::pow(t, 4) + 4 * std::pow(t, 2)) -
-                    std::pow(t, 2));
+                   (std::sqrt(std::pow(t, 4) + 4 * std::pow(t, 2)) - std::pow(t, 2));
 
             // update y = sol + beta * (sol - x), on the GPU
             // y, g and fy don't depend on step_size, so they're
@@ -77,18 +96,18 @@ namespace tomocam {
             if (multiproc::mp.first())
 #endif
                 // ensure that output prints in nice columns
-                fprintf(stdout, "iter: %4zu, error: %5.4e, x-err: %5.4e\n", iter,
-                        e, std::sqrt(xerr));
+                fprintf(stdout, "iter: %4zu, error: %5.4e, x-err: %5.4e\n", iter, e,
+                        std::sqrt(xerr));
         }
         return sol;
     }
 
     // explicit instantiation
     template DArray<float> nagopt(std::function<DArray<float>(DArray<float> &)>,
-        std::function<float(DArray<float> &)>, const DArray<float> &, float,
-        const Params &);
+                                  std::function<float(DArray<float> &)>,
+                                  const DArray<float> &, float, const ReconParams &);
     template DArray<double> nagopt(std::function<DArray<double>(DArray<double> &)>,
-        std::function<double(DArray<double> &)>, const DArray<double> &, double,
-        const Params &);
+                                   std::function<double(DArray<double> &)>,
+                                   const DArray<double> &, double, const ReconParams &);
 
 } // namespace tomocam

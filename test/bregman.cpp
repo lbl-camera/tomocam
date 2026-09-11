@@ -27,13 +27,13 @@ int main() {
     // for this data (confirmed by sweeping lambda from 0 to 0.05: err_after
     // is best around lambda ~ 1e-3 to 5e-3, and gets worse than the noisy
     // baseline above lambda ~ 1e-2).
-    tomocam::Params params;
-    params.max_iters = 50; // CG inner-loop cap
+    tomocam::ReconParams params;
+    params.max_iters = 60;   // split-Bregman outer iterations
+    params.inner_iters = 50; // CG inner-loop cap
     params.tol = 1e-8;
     params.xtol = 1e-8;
     params.mu = 1.0;
     params.lambda = 0.001;
-    params.outer_max = 60;
 
     auto x0 = noisy;
     auto rec = tomocam::split_bregman<float>(A, noisy, x0, params);

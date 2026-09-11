@@ -129,8 +129,13 @@ np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
 
     // get data pointer to angles
     auto angles = getVec<float>(np_angles);
-    tomocam::DArray<float> recon =
-        tomocam::mbir(x0, sino, angles, center, num_iters, sigma, tol, xtol);
+
+    tomocam::ReconParams params;
+    params.max_iters = num_iters;
+    params.sigma = sigma;
+    params.tol = tol;
+    params.xtol = xtol;
+    tomocam::DArray<float> recon = tomocam::mbir2(x0, sino, angles, center, params);
 
     // return numpy array
     return to_numpy<float>(recon);

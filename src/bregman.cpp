@@ -1,3 +1,23 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ * IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ * the U.S. Government has been granted for itself and others acting on its
+ * behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ * to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -20,7 +40,7 @@ namespace tomocam {
     template <typename T>
     DArray<T> split_bregman(std::function<DArray<T>(DArray<T> &)> A,
                             const DArray<T> &b, const DArray<T> &x0,
-                            const Params &params, Precond<T> *precond) {
+                            const ReconParams &params, Precond<T> *precond) {
 
         // if no preconditioner is provided, use the identity
         IPrecond<T> identity;
@@ -46,8 +66,6 @@ namespace tomocam {
         std::array<DArray<T>, 3> d{zeros(), zeros(), zeros()};
         std::array<DArray<T>, 3> bregman_b{zeros(), zeros(), zeros()};
 
-        Timer t0, t1, t2, t3, t4;
-
         // update A^TA to add laplacian of x
         // Ap  = (A^TA  +   mu * (-laplacian)) u   [laplacian = div(grad(u))]
         // cgsolver calls A(x)/A(p) with a non-const DArray<T>&, so the
@@ -62,7 +80,7 @@ namespace tomocam {
             return array::axpy(std::move(lap), -mu, Au); // -mu*lap + Au
         };
 
-        for (size_t iter = 0; iter < params.outer_max; ++iter) {
+        for (size_t iter = 0; iter < params.max_iters; ++iter) {
 
             // x-update: solve (A^TA + mu*(-laplacian))x = b - mu*divergence(d -
             // bregman_b)
@@ -77,7 +95,6 @@ namespace tomocam {
             // signs used here and in the Ap operator below.
             // d_b = d - bregman_b and rhs = b - mu*divergence(d_b), via
             // array::axpy (GPU-resident) instead of DArray's host operator-/*
-            t0.start();
             std::array<DArray<T>, 3> d_b{
                 array::axpy(bregman_b[0], static_cast<T>(-1), d[0]),
                 array::axpy(bregman_b[1], static_cast<T>(-1), d[1]),
@@ -85,29 +102,17 @@ namespace tomocam {
             auto div_db = array::divergence(d_b);
             // div_db is dead after this -- move, not copy
             DArray<T> rhs = array::axpy(std::move(div_db), -mu, b); // -mu*div_db + b
-            t0.pause();
 
             // use conjugate gradient to solve the linear system
-            t1.start();
             x = cgsolver<T>(Ap, rhs, x, params, precond);
-            t1.pause();
 
             // isotropic TV shrinkage + Bregman update, fully on GPU
-            t2.start();
             auto dx = array::grad_u(x);
-            t2.pause();
-            t3.start();
             array::shrinkage(dx, bregman_b, d, lambda_mu, static_cast<T>(EPSILON));
-            t3.pause();
 
-            // report convergence -- (x - x_old).norm() via array::axpy/dot
-            // (GPU-resident) instead of DArray's host operator-/.norm().
-            // x_old is unconditionally overwritten below, so move it in
-            // rather than pay for a full host copy.
-            t4.start();
+            // TODO: fuse the following two kernels
             auto x_diff = array::axpy(std::move(x_old), static_cast<T>(-1), x);
             T norm_diff = array::dot(x_diff, x_diff); // squared L2 norm
-            t4.pause();
 
             fprintf(stdout, "split_bregman iter: %zu, norm_diff: %.4e\n", iter,
                     static_cast<double>(norm_diff));
@@ -118,26 +123,17 @@ namespace tomocam {
             }
             x_old = x;
         }
-        double d_iter = static_cast<double>(params.outer_max);
-        std::cout << std::format("time to update rhs: {:.2f} ms\n",
-                                 t0.ms() / d_iter);
-        std::cout << std::format("time to solve linear system: {:.2f} ms\n",
-                                 t1.ms() / d_iter);
-        std::cout << std::format("time to update dx: {:.2f} ms\n", t2.ms() / d_iter);
-        std::cout << std::format("time to update d: {:.2f} ms\n", t3.ms() / d_iter);
-        std::cout << std::format("time to compute norm_diff: {:.2f} ms\n",
-                                 t4.ms() / d_iter);
         return x;
     }
 
     // explicit instantiation
     template DArray<float>
     split_bregman(std::function<DArray<float>(DArray<float> &)>,
-                  const DArray<float> &, const DArray<float> &, const Params &,
+                  const DArray<float> &, const DArray<float> &, const ReconParams &,
                   Precond<float> *);
     template DArray<double>
     split_bregman(std::function<DArray<double>(DArray<double> &)>,
-                  const DArray<double> &, const DArray<double> &, const Params &,
+                  const DArray<double> &, const DArray<double> &, const ReconParams &,
                   Precond<double> *);
 
 } // namespace tomocam

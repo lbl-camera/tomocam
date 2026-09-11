@@ -64,7 +64,12 @@ namespace tomocam {
         auto x0 = fbp_helper(sino, angles, center);
         x0.normalize();
 
-        auto recon = mbir(x0, sino, angles, center, num_iters, sigma, tol, xtol);
+        ReconParams params;
+        params.max_iters = num_iters;
+        params.sigma = sigma;
+        params.tol = tol;
+        params.xtol = xtol;
+        auto recon = mbir2(x0, sino, angles, center, params);
 
 #ifdef MULTIPROC
         int nrows = sino.nrows();

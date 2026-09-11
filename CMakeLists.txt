@@ -47,7 +47,6 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTV2.cu
     ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
-    ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir_bregman.cpp
     ${PROJECT_SOURCE_DIR}/src/nagopt.cpp

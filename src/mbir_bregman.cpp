@@ -42,9 +42,8 @@ namespace tomocam {
     // Toeplitz PSF trick already used by gradient2) and the backprojected
     // sinogram (A^T b), rather than FISTA/nagopt.
     template <typename T>
-    DArray<T> mbir_bregman(DArray<T> &x0, DArray<T> &sino,
-                           std::vector<T> angles, T center, int num_iters,
-                           T tol, T xtol) {
+    DArray<T> mbir_bregman(DArray<T> &x0, DArray<T> &sino, std::vector<T> angles,
+                           T center, const ReconParams &params) {
 
         // normalize
         auto maxv = sino.max();
@@ -91,7 +90,7 @@ namespace tomocam {
         std::vector<PointSpreadFunction<T>> psfs;
         psfs.reserve(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            SAFE_CALL(cudaSetDevice(dev_id));
+            DeviceGuard guard(dev_id);
             auto g = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
             psfs.emplace_back(PointSpreadFunction<T>(g));
         }
@@ -102,25 +101,15 @@ namespace tomocam {
             return gradient2(x, zeros, psfs);
         };
 
-        // split-Bregman / CG parameters. CG is capped at a single inner
-        // iteration per outer step (linearized-Bregman style), so `tol`
-        // never gets a chance to trigger early exit -- kept for parity
-        // with mbir2's CLI parameters.
-        Params params;
-        params.max_iters = 1;
-        params.tol = tol;
-        params.xtol = xtol;
-        params.outer_max = static_cast<size_t>(num_iters);
-
         auto rec = split_bregman<T>(Anorm, sinoT, x0, params);
         return postproc(rec, nrays);
     }
 
     // explicit instantiation
     template DArray<float> mbir_bregman(DArray<float> &, DArray<float> &,
-                                        std::vector<float>, float, int, float,
-                                        float);
+                                        std::vector<float>, float,
+                                        const ReconParams &);
     template DArray<double> mbir_bregman(DArray<double> &, DArray<double> &,
-                                         std::vector<double>, double, int,
-                                         double, double);
+                                         std::vector<double>, double,
+                                         const ReconParams &);
 } // namespace tomocam

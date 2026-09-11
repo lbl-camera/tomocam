@@ -39,7 +39,7 @@ namespace tomocam {
 
     template <typename T>
     DArray<T> mbir2(DArray<T> &x0, DArray<T> &sino, std::vector<T> angles, T center,
-                    int num_iters, T sigma, T tol, T xtol) {
+                    const ReconParams &params) {
 
         // normalize
         auto maxv = sino.max();
@@ -84,7 +84,7 @@ namespace tomocam {
         psfs.reserve(ndevice);
         grids.reserve(ndevice);
         for (int dev_id = 0; dev_id < ndevice; dev_id++) {
-            SAFE_CALL(cudaSetDevice(dev_id));
+            DeviceGuard guard(dev_id);
             auto g = nufft::Grid<T>(nproj, ncols, angles.data(), dev_id);
             auto psf = PointSpreadFunction<T>(g);
             psfs.emplace_back(std::move(psf));
@@ -97,7 +97,7 @@ namespace tomocam {
         xtmp.init(1);
         ytmp.init(0);
         auto g = gradient2(xtmp, ytmp, psfs);
-        gpu::add_tv_hessian(g, sigma);
+        gpu::add_tv_hessian(g, params.sigma);
 
         T L = g.max();
 #ifdef MULTIPROC
@@ -108,9 +108,9 @@ namespace tomocam {
         T p = 1.2;
 
         // create callable functions for optimization
-        auto calc_gradient = [&sinoT, &psfs, sigma, p](DArray<T> &x) -> DArray<T> {
+        auto calc_gradient = [&sinoT, &psfs, &params, p](DArray<T> &x) -> DArray<T> {
             auto g = gradient2(x, sinoT, psfs);
-            add_total_var2(x, g, sigma, p);
+            add_total_var2(x, g, static_cast<T>(params.sigma), p);
             return g;
         };
 
@@ -123,17 +123,14 @@ namespace tomocam {
         };
 
         // run optimization
-        Params params{static_cast<size_t>(num_iters), tol, xtol};
         auto rec = nagopt<T>(calc_gradient, calc_error, x0, step_size, params);
         return postproc(rec, nrays);
     }
 
     // explicit instantiation
     template DArray<float> mbir2(DArray<float> &, DArray<float> &,
-                                 std::vector<float>, float, int, float, float,
-                                 float);
+                                 std::vector<float>, float, const ReconParams &);
 
     template DArray<double> mbir2(DArray<double> &, DArray<double> &,
-                                  std::vector<double>, double, int, double, double,
-                                  double);
+                                  std::vector<double>, double, const ReconParams &);
 } // namespace tomocam

@@ -33,15 +33,6 @@
 #define TOMOCAM_OPTIMIZE__H
 
 namespace tomocam {
-    struct Params {
-        size_t max_iters;
-        double tol;
-        double xtol;
-        double mu = 10.0;      // split-Bregman quadratic penalty weight
-        double lambda = 0.1;   // TV shrinkage weight
-        size_t outer_max = 50; // split-Bregman outer iteration cap
-    };
-
     // abstract preconditioner interface for cgsolver
     template <typename T>
     class Precond {
@@ -60,14 +51,14 @@ namespace tomocam {
 
     template <typename T>
     DArray<T> cgsolver(std::function<DArray<T>(DArray<T> &)> A, const DArray<T> &b,
-                       const DArray<T> &x0, const Params &params,
+                       const DArray<T> &x0, const ReconParams &params,
                        Precond<T> *precond = nullptr);
 
     // FISTA-style solver with backtracking line search and step-size reset
     template <typename T>
     DArray<T> nagopt(std::function<DArray<T>(DArray<T> &)> gradient,
                      std::function<T(DArray<T> &)> loss, const DArray<T> &x0,
-                     T step_size, const Params &params);
+                     T step_size, const ReconParams &params);
 
     // split-Bregman TV-regularized solver: minimizes
     //   argmin_x  ||A x - b||^2 + lambda * TV(x)
@@ -75,7 +66,7 @@ namespace tomocam {
     template <typename T>
     DArray<T> split_bregman(std::function<DArray<T>(DArray<T> &)> A,
                             const DArray<T> &b, const DArray<T> &x0,
-                            const Params &params, Precond<T> *precond = nullptr);
+                            const ReconParams &params, Precond<T> *precond = nullptr);
 
 } // namespace tomocam
 
