@@ -21,7 +21,7 @@
 #include <chrono>
 #include <iostream>
 
-#ifndef TIMERS__H 
+#ifndef TIMERS__H
 #define TIMERS__H
 
 namespace tomocam {
@@ -37,6 +37,7 @@ namespace tomocam {
         }
 
         void start() {
+            elapsed_time_ += std::chrono::high_resolution_clock::now() - start_time_;
             start_time_ = std::chrono::high_resolution_clock::now();
         }
 
@@ -45,36 +46,21 @@ namespace tomocam {
             elapsed_time_ += tnow - start_time_;
         }
 
-        uint64_t elapsed() {
-            elapsed_time_ = std::chrono::high_resolution_clock::now() - start_time_;
-            return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_).count();
+        void pause() {
+            auto tnow = std::chrono::high_resolution_clock::now();
+            elapsed_time_ += tnow - start_time_;
         }
 
         double ms() const {
             return std::chrono::duration_cast<std::chrono::milliseconds>(
-                elapsed_time_)
-                .count();
-        }
-
-        double us() const {
-            return std::chrono::duration_cast<std::chrono::microseconds>(
-                elapsed_time_)
+                       elapsed_time_)
                 .count();
         }
 
         double seconds() const {
-            return std::chrono::duration_cast<std::chrono::seconds>(
-                elapsed_time_)
+            return std::chrono::duration_cast<std::chrono::seconds>(elapsed_time_)
                 .count();
         }
-
-        uint64_t now() const {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now().time_since_epoch())
-                .count();
-        }
-
-        void reset() { elapsed_time_ = std::chrono::duration<double>(0); }
     };
 
 } // namespace tomocam

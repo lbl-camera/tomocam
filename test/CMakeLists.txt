@@ -54,6 +54,21 @@ add_executable(tv tvd.cpp)
 target_link_libraries(tv PRIVATE tomocam)
 add_test(NAME tv_test COMMAND tv)
 
+# finite-difference gradient/divergence adjoint + laplacian sanity check
+add_executable(finitdiff finitdiff.cpp)
+target_link_libraries(finitdiff PRIVATE tomocam)
+add_test(NAME finitdiff_test COMMAND finitdiff)
+
+# split-Bregman TV denoiser smoke test (A = identity)
+add_executable(bregman bregman.cpp)
+target_link_libraries(bregman PRIVATE tomocam)
+add_test(NAME bregman_test COMMAND bregman)
+
+# GPU isotropic-TV shrinkage kernel vs. reference CPU formula
+add_executable(shrinkage shrinkage.cpp)
+target_link_libraries(shrinkage PRIVATE tomocam)
+add_test(NAME shrinkage_test COMMAND shrinkage)
+
 # test for the forward projection
 add_executable(forward forward.cpp)
 target_link_libraries(forward PRIVATE tomocam)

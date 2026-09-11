@@ -59,7 +59,13 @@ int main(int argc, char **argv) {
     float cen = static_cast<float>(center);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto sino2 = tomocam::preproc(sino, cen);
+    auto sino2 = tomocam::preproc(sino);
+
+    // preproc pads symmetrically, so the rotation center shifts by
+    // the padding added on each side
+    int npad = (sino2.ncols() - sino.ncols()) / 2;
+    cen += static_cast<float>(npad);
+
     auto recn2 = tomocam::backproject(sino2, angs, cen);
     auto recn = tomocam::postproc(recn2, sino.ncols());
 

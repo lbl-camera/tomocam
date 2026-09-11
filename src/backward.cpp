@@ -29,6 +29,7 @@
 #include "nufft.h"
 #include "types.h"
 
+#include "gpu/fftshift.cuh"
 #include "gpu/filters.cuh"
 #include "gpu/padding.cuh"
 
@@ -40,7 +41,7 @@ namespace tomocam {
 
     template <typename T>
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
-                               const nufft::Grid<T> &grid, bool fbp) {
+                               const nufft::Grid<T> &grid, T offset, bool fbp) {
 
         // verify device matches grid
         CHECK_DEVICE(grid.dev_id());
@@ -49,13 +50,17 @@ namespace tomocam {
         auto in2 = to_complex<T>(sino);
 
         /* back-project */
-        // shift 0-frequency to corner
-        in2 = gpu::ifftshift(in2);
-
-        // forward FFT in radial direction
+        // forward FFT in radial direction. Note: no explicit ifftshift here —
+        // its effect (an exact phase per the DFT shift theorem) is folded
+        // into gpu::phase_shift below, saving a kernel launch + array.
         in2 = fft1D(in2);
+
         // shift 0-frequency  to center
         in2 = gpu::fftshift(in2);
+
+        // phase-shift by offset between center of projection and center of rotation
+        // (also cancels the missing ifftshift above, see gpu::phase_shift)
+        gpu::phase_shift(in2, offset);
 
         if (fbp) gpu::apply_filter(in2);
 
@@ -71,7 +76,8 @@ namespace tomocam {
 
     // explicit instantiation
     template DeviceArray<float> backproject(const DeviceArray<float> &,
-                                            nufft::Grid<float> const &, bool);
+                                            nufft::Grid<float> const &, float, bool);
     template DeviceArray<double> backproject(const DeviceArray<double> &,
-                                             nufft::Grid<double> const &, bool);
+                                             nufft::Grid<double> const &, double,
+                                             bool);
 } // namespace tomocam

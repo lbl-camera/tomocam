@@ -9,8 +9,8 @@
 #include "hdf5/writer.h"
 #include "machine.h"
 #include "toeplitz.h"
+#include "timer.h"
 #include "tomocam.h"
-// #include "timer.h"
 
 using json = nlohmann::json;
 int main(int argc, char **argv) {
@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
     int nslices = 16;
     int nrows = 2047;
     int ncols = 2047;
+    float center = (float)ncols / 2;
 
     // allocate solution array
     int nprojs = 220;
@@ -38,8 +39,9 @@ int main(int argc, char **argv) {
     tomocam::Timer t1;
     t1.start();
     auto tmp = tomocam::project(x1, angs);
-    auto g1 = tomocam::backproject(tmp, angs, false);
-    auto dt1 = t1.elapsed();
+    auto g1 = tomocam::backproject(tmp, angs, center, false);
+    t1.stop();
+    auto dt1 = t1.ms();
 
     // gradient 2
     // create nufft grids
@@ -62,12 +64,14 @@ int main(int argc, char **argv) {
     tomocam::Timer t2;
     t2.start();
     auto g2 = tomocam::gradient(x2, yT, nugrids);
-    auto dt2 = t2.elapsed();
+    t2.stop();
+    auto dt2 = t2.ms();
 
     tomocam::Timer t3;
     t3.start();
     auto g3 = tomocam::gradient2(x1, yT, psfs);
-    auto dt3 = t3.elapsed();
+    t3.stop();
+    auto dt3 = t3.ms();
 
     // report time
     std::cout << std::format("Gradient computation times (ms): direct-method: {}, "

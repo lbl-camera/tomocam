@@ -27,16 +27,14 @@
 namespace tomocam {
 
     /**
-     * @brief Zero pad the sinogram by a factor of \sqrt{2} and, 
-     * shifts center of rotation to center of the sinogram
+     * @brief Zero pad the sinogram by a factor of \sqrt{2}
      *
      * @param sinogram
-     * @param center of rotation
      *
      * @return zero padded sinogram
      */
     template <typename T>
-    DArray<T> preproc(DArray<T> &, T);
+    DArray<T> preproc(DArray<T> &);
 
 
 

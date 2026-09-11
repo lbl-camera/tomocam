@@ -33,10 +33,16 @@
 namespace tomocam {
 
     template <typename T>
-    DArray<T> fbp_helper(DArray<T> &sino, std::vector<T> &angs, int center) {
+    DArray<T> fbp_helper(DArray<T> &sino, std::vector<T> &angs, T center) {
         int nrays = sino.ncols();
-        auto sino2 = preproc(sino, static_cast<T>(center));
-        auto recon = backproject(sino2, angs, true);
+        auto sino2 = preproc(sino);
+
+        // preproc pads symmetrically, so the rotation center shifts by
+        // the padding added on each side
+        int npad = (sino2.ncols() - nrays) / 2;
+        center += static_cast<T>(npad);
+
+        auto recon = backproject(sino2, angs, center, true);
         return postproc(recon, nrays);
     }
 
@@ -55,7 +61,7 @@ namespace tomocam {
 
         if (sino.ncols() % 2 == 0) { sino.dropcol(); }
 
-        auto x0 = fbp_helper(sino, angles, static_cast<int>(center));
+        auto x0 = fbp_helper(sino, angles, center);
         x0.normalize();
 
         auto recon = mbir(x0, sino, angles, center, num_iters, sigma, tol, xtol);

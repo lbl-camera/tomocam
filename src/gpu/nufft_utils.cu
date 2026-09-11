@@ -29,15 +29,15 @@ namespace tomocam {
 
         // kernel to calculate grid-positions (single precision)
         template <typename T>
-        __global__ void nugrid_kernel(int ncols, int nproj, T *x, T *y, const T *angles) {
+        __global__ void nugrid_kernel(int ncols, int nproj, T *x, T *y,
+                                      const T *angles) {
 
             int jp = blockDim.x * blockIdx.x + threadIdx.x;
             int jc = blockDim.y * blockIdx.y + threadIdx.y;
 
-            int center = ncols / 2;
-            T s = static_cast<T>(TWO_PI) / (ncols - 1);
+            T dX = static_cast<T>(TWO_PI / ncols);
             if ((jp < nproj) && (jc < ncols)) {
-                T r = s * static_cast<T>(jc - center);
+                T r = static_cast<T>(jc + 0.5) * dX - CUDART_PI;
                 x[jp * ncols + jc] = r * cos(angles[jp]);
                 y[jp * ncols + jc] = r * sin(angles[jp]);
             }
@@ -50,23 +50,18 @@ namespace tomocam {
             // copy angles to device
             T *d_angles;
             SAFE_CALL(cudaMalloc(&d_angles, sizeof(T) * nproj));
-            SAFE_CALL(cudaMemcpy(d_angles, angles, sizeof(T) * nproj, cudaMemcpyHostToDevice));
-
-            auto ceil = [](int a, int b) {
-                if (a % b) return a / b + 1;
-                else
-                    return a / b;
-            };
+            SAFE_CALL(cudaMemcpy(d_angles, angles, sizeof(T) * nproj,
+                                 cudaMemcpyHostToDevice));
 
             // prepare of launch cuda-kernel
-            int n1 = ceil(nproj, 32);
-            int n2 = ceil(ncols, 32);
-            dim3 threads(32, 32, 1);
-            dim3 blocks(n1, n2, 1);
+            int n1 = 16;
+            int n2 = 32;
+            dim3 threads(n1, n2, 1);
+            dim3 blocks((nproj + n1 - 1) / n1, (ncols + n2 - 1) / n2, 1);
 
             // calculate grid-positions
             nugrid_kernel<T><<<blocks, threads>>>(ncols, nproj, x, y, d_angles);
-            
+
             // synchronize before freeing
             SAFE_CALL(cudaDeviceSynchronize());
 
@@ -75,10 +70,9 @@ namespace tomocam {
         }
 
         // explicit instantiation
-        template void make_nugrid<float>(int, int, float *, float *,
-            const float *);
+        template void make_nugrid<float>(int, int, float *, float *, const float *);
         template void make_nugrid<double>(int, int, double *, double *,
-            const double *);
+                                          const double *);
 
     } // namespace gpu
 } // namespace tomocam

@@ -64,6 +64,14 @@ namespace tomocam {
             // get array dims
             __host__ __device__ dim3_t dims() const { return dims_; }
 
+            // halo depth on the low/high side of the x-axis (the only axis
+            // ever partitioned across GPUs in this codebase) -- 0 means this
+            // partition truly sits at that side's global domain edge; a
+            // nonzero value means a real neighboring partition's data is
+            // present there instead.
+            __host__ __device__ int halo_lo() const { return halo_.x; }
+            __host__ __device__ int halo_hi() const { return halo_.y; }
+
             __device__ T &operator[](int i) { return dev_ptr_[i]; }
 
             // indexing 3-D

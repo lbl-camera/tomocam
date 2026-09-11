@@ -28,7 +28,13 @@
 namespace tomocam {
     namespace gpu {
 
-        /** Add device arrays 
+        template <typename T>
+        void axpy(T *x, T a, const T *y, int n);
+
+        template <typename T>
+        void xpay(T *x, T a, const T *y, int n);
+
+        /** Add device arrays
          * @param[in] a - first array
          * @param[in] b - second array
          * @param[out] c - output array
@@ -37,7 +43,7 @@ namespace tomocam {
         template <typename T>
         void add_arrays(const T *, const T *, T *, int);
 
-        /** subtract device arrays 
+        /** subtract device arrays
          * @param[in] a - first array
          * @param[in] b - second array
          * @param[out] c - output array
@@ -56,46 +62,46 @@ namespace tomocam {
         void multiply_arrays(const T *, const T *, T *, int);
 
         /** broadcast and multiply device arrays *
-          * @param[in] a - first array
-          * @param[in] b - second array
-          * @param[out] c - output array
-          * @param[in] n - number of elements in the array
-          */
+         * @param[in] a - first array
+         * @param[in] b - second array
+         * @param[out] c - output array
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
         void broadcast_multiply(const T *, const T *, T *, dim3_t);
 
         /** divide device arrays
-          * @param[in] a - first array
-          * @param[in] b - second array
-          * @param[out] c - output array
-          * @param[in] n - number of elements in the array
-          */
+         * @param[in] a - first array
+         * @param[in] b - second array
+         * @param[out] c - output array
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
         void divide_arrays(const T *, const T *, T *, int);
 
         /** multiply array with scalar
-          * @param[in] a - input array
-          * @param[in] scalar - scalar
-          * @param[out] c - output array
-          * @param[in] n - number of elements in the array
-          */
+         * @param[in] a - input array
+         * @param[in] scalar - scalar
+         * @param[out] c - output array
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
         void scale_array(const T *, T, T *, int);
 
-        /** add array and a scalar 
-          * @param[in] a - input array
-          * @param[in] scalar - scalar
-          * @param[out] c - output array
-          * @param[in] n - number of elements in the array
-          */
+        /** add array and a scalar
+         * @param[in] a - input array
+         * @param[in] scalar - scalar
+         * @param[out] c - output array
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
         void shift_array(const T *, T, T *, int);
 
         /** initialize device array *
-          * @param[in] a - input array
-          * @param[in] scalar - scalar
-          * @param[in] n - number of elements in the array
-          */
+         * @param[in] a - input array
+         * @param[in] scalar - scalar
+         * @param[in] n - number of elements in the array
+         */
         template <typename T>
         void init_array(T *, T, int);
 

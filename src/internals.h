@@ -18,8 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
-
 #ifndef TOMOCAM_INTERNALS__H
 #define TOMOCAM_INTERNALS__H
 
@@ -49,12 +47,13 @@ namespace tomocam {
      *
      * @param DeviceArray<T> sinogram space
      * @param nufft::Grid non-unifrom grid on which NUFFT is computed
+     * @param T offset between center of image and center of rotation
      * @param boolean flag to indicate whether to apply the filter
      * @return DeviceArray<T> Image space
      */
     template <typename T>
-    DeviceArray<T> backproject(const DeviceArray<T> &, const nufft::Grid<T> &,
-        bool);
+    DeviceArray<T> backproject(const DeviceArray<T> &, const nufft::Grid<T> &, T,
+                               bool);
 
     /**
      * Computes forward projection from a stack of images using NUFFT
@@ -77,7 +76,7 @@ namespace tomocam {
      */
     template <typename T>
     DeviceArray<T> gradient(DeviceArray<T> &, DeviceArray<T> &,
-        const nufft::Grid<T> &);
+                            const nufft::Grid<T> &);
 
     /**
      * Parital calculation of the gradient of the objective function
@@ -89,7 +88,7 @@ namespace tomocam {
 
     template <typename T>
     DeviceArray<T> gradient2(DeviceArray<T> &, DeviceArray<T> &,
-        const PointSpreadFunction<T> &);
+                             const PointSpreadFunction<T> &);
 
 } // namespace tomocam
 

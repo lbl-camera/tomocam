@@ -1,4 +1,7 @@
 
+#include <array>
+
+#include "dev_array.h"
 #include "dist_array.h"
 #include "gpu/gpu_ops.cuh"
 #include "scheduler.h"
@@ -100,5 +103,28 @@ namespace tomocam::array {
         for (int i = 0; i < n_dev; ++i) { xpay(p1[i], alpha, p2[i]); }
         Machine::config.barrier();
     }
+
+    // forward-difference gradient: {du/dx, du/dy, du/dz}
+    // (defined in finitdiff_ops.cpp)
+    template <typename T>
+    std::array<DArray<T>, 3> grad_u(const DArray<T> &u);
+
+    // backward-difference divergence, exact adjoint of grad_u
+    // (defined in finitdiff_ops.cpp)
+    template <typename T>
+    DArray<T> divergence(const std::array<DArray<T>, 3> &d);
+
+    // laplacian(u) = divergence(grad_u(u)) (defined in finitdiff_ops.cpp)
+    template <typename T>
+    DArray<T> laplacian(const DArray<T> &u);
+
+    // isotropic TV shrinkage + in-place Bregman update (defined in
+    // finitdiff_ops.cpp). dx = grad_u(x) (read-only); bregman_b updated in
+    // place; d receives the new auxiliary TV variable.
+    // lambda_mu = params.lambda / params.mu.
+    template <typename T>
+    void shrinkage(const std::array<DArray<T>, 3> &dx,
+        std::array<DArray<T>, 3> &bregman_b, std::array<DArray<T>, 3> &d,
+        T lambda_mu, T epsilon);
 
 } // namespace tomocam::array

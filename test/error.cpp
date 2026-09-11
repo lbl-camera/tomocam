@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     const int nslices = 16;
     const int nprojs = 360;
     const int npixel = 2047;
-    const int center = npixel / 2;
+    float center = (float)(npixel / 2);
 
     auto rng = NPRandom();
 
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     time2.stop();
 
     // compute error
-    auto y = tomocam::backproject<float>(sino, angs, false);
+    auto y = tomocam::backproject<float>(sino, angs, center, false);
     Timer time3;
     time3.start();
     auto err3 = tomocam::function_value2(x2, y, psfs, sino_norm);

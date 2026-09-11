@@ -107,6 +107,26 @@ namespace tomocam {
          */
         template <typename T>
         void unpad2d(DeviceArray<T> &, const DeviceArray<T> &, int, PadType);
+
+        /**
+         * @brief Crop a square out_size x out_size window out of a 2D array,
+         * starting at (shift, shift) in both row and column. Unlike
+         * unpad2d's PadType-based shift conventions (0, in-out size
+         * difference, or half that difference), this takes the offset
+         * directly -- needed when the crop offset isn't tied to the
+         * input/output size difference (e.g. PointSpreadFunction::convolve,
+         * once its FFT size is padded up to a fast length beyond the
+         * minimal 2*ncols-1 support the crop offset must stay fixed at
+         * ncols-1 regardless of how much extra padding was added).
+         *
+         * @tparam T
+         * @param arr source array
+         * @param out_size size of the (square) cropped output
+         * @param shift row/column offset of the cropped window in `arr`
+         * @return DeviceArray<T>
+         */
+        template <typename T>
+        DeviceArray<T> crop2d(const DeviceArray<T> &, int, int);
     } // namespace gpu
 } // namespace tomocam
 

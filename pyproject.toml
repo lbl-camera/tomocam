@@ -10,7 +10,10 @@ description = "tomocam: Model Based Iterative Reconstruction (MBIR) of synchrotr
 readme = "README.md"
 authors = [ {name = "Dinesh Kumar", email = "dkumar@lbl.gov"} ]
 dependencies = [ "numpy" ]
-requires-python = ">=3.6"
+requires-python = ">=3.8"
+
+[tool.setuptools]
+license-files = ["LICENCE"]
 
 [tool.scikit-build]
 cmake.args = ["-DMULTI_PROC=ON", "-DENABLE_PYTHON=ON", "-DENABLE_TESTS=OFF"]

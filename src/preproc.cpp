@@ -29,15 +29,13 @@
 #include "scheduler.h"
 #include "shipper.h"
 
-#include "gpu/fftshift.cuh"
 #include "gpu/padding.cuh"
 #include "gpu/utils.cuh"
 
 namespace tomocam {
 
     template <typename T>
-    void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int offset,
-                  int device) {
+    void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int device) {
 
         // set the device
         SAFE_CALL(cudaSetDevice(device));
@@ -60,9 +58,6 @@ namespace tomocam {
                 // pad the sinogram
                 auto d_sino2 = gpu::pad1d(d_sino, 2 * npad, PadType::SYMMETRIC);
 
-                // shift by twice the center offset
-                d_sino2 = gpu::roll(d_sino2, offset);
-
                 // copy data to partition
                 shipper.push(p2[idx], std::move(d_sino2));
             }
@@ -70,18 +65,13 @@ namespace tomocam {
     }
 
     template <typename T>
-    DArray<T> preproc(DArray<T> &sino, T center) {
+    DArray<T> preproc(DArray<T> &sino) {
 
         int ndevices = Machine::config.num_of_gpus();
         if (sino.nslices() < ndevices) { ndevices = sino.nslices(); }
 
-        // center shift
-        int cen = static_cast<int>(std::round(center));
-        int cen_offset = (sino.ncols() + 1) / 2 - cen;
-
         // calculate the number of padding pixels ( ≥ √2  * sino.ncols())
         int npad = static_cast<int>(0.42 * sino.ncols()) / 2;
-        if (std::abs(cen_offset) > npad) npad = std::abs(cen_offset);
 
         // dimensions of the padded sinogram
         int nslcs = sino.nslices();
@@ -97,7 +87,7 @@ namespace tomocam {
 
         std::vector<std::thread> threads(ndevices);
         for (int i = 0; i < ndevices; i++) {
-            threads[i] = std::thread(preproc_<T>, p1[i], p2[i], npad, cen_offset, i);
+            threads[i] = std::thread(preproc_<T>, p1[i], p2[i], npad, i);
         }
         Machine::config.barrier();
         for (auto &t : threads) { t.join(); }
@@ -106,7 +96,7 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> preproc(DArray<float> &, float);
-    template DArray<double> preproc(DArray<double> &, double);
+    template DArray<float> preproc(DArray<float> &);
+    template DArray<double> preproc(DArray<double> &);
 
 } // namespace tomocam

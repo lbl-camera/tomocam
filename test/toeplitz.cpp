@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     // read data
     int nproj = 360;
     int ncols = 2047;
-    real_t center = static_cast<real_t>(ncols) / 2;
+    real_t center = static_cast<real_t>(ncols / 2);
 
     // create a hdf5 writer
     tomocam::h5::Writer fp("test_toeplitz.h5");
@@ -53,11 +53,13 @@ int main(int argc, char **argv) {
         nugrids[i] = tomocam::nufft::Grid<real_t>(nproj, ncols, theta.data(), i);
 
     std::vector<tomocam::PointSpreadFunction<real_t>> psfs(ndevices);
-    for (int i = 0; i < ndevices; i++)
+    for (int i = 0; i < ndevices; i++) {
+        cudaSetDevice(i); // Grid's ctor left the current device at ndevices-1
         psfs[i] = tomocam::PointSpreadFunction<real_t>(nugrids[i]);
+    }
 
     // calculate backprojection of data
-    auto yT = tomocam::backproject(y, theta, false);
+    auto yT = tomocam::backproject(y, theta, center, false);
 
     Timer t1;
     t1.start();

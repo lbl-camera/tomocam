@@ -41,29 +41,22 @@
 namespace tomocam {
 
     namespace gpuMem {
-
-        static constexpr size_t TWOGB = 1LL << 31;
         struct cudaDeleter {
             void operator()(void *ptr) const {
                 if (ptr) SAFE_CALL(cudaFree(ptr));
             }
         };
-
         template <class T>
         using cuniquePtr = std::unique_ptr<T, cudaDeleter>;
 
         template <class T>
         cuniquePtr<T> make_cuniquePtr(size_t num_elems) {
-            if (num_elems > TWOGB / sizeof(T)) {
-                throw std::runtime_error("over the top allocation");
-            }
             T *ptr = nullptr;
             if (num_elems > 0) {
                 SAFE_CALL(cudaMalloc((void **)&ptr, sizeof(T) * num_elems));
             }
             return cuniquePtr<T>(ptr);
         }
-
     } // namespace gpuMem
 
     template <typename T>
@@ -115,29 +108,6 @@ namespace tomocam {
                                  cudaMemcpyDeviceToDevice));
             return copy;
         }
-        //  copy constructor
-        /***
-        DeviceArray(const DeviceArray<T> &rhs)
-            : dims_(rhs.dims_), halo_(rhs.halo_), size_(rhs.size_),
-              dev_ptr_(gpuMem::make_cuniquePtr<T>(size_)) {
-            SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.dev_ptr_.get(), rhs.bytes(),
-                                 cudaMemcpyDeviceToDevice));
-        }
-
-        // assignment operator
-        DeviceArray<T> &operator=(const DeviceArray &rhs) {
-            if (this != &rhs) {
-                dims_ = rhs.dims_;
-                size_ = rhs.size_;
-                halo_ = rhs.halo_;
-                std::cout << "size_ = " << rhs.size_ << std::endl;
-                dev_ptr_ = gpuMem::make_cuniquePtr<T>(rhs.size_);
-                SAFE_CALL(cudaMemcpy(dev_ptr_.get(), rhs.dev_ptr_.get(), rhs.bytes(),
-                                     cudaMemcpyDeviceToDevice));
-            }
-            return *this;
-        }
-        ***/
 
         // move constructor
         DeviceArray(DeviceArray<T> &&rhs) = default;

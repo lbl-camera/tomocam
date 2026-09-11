@@ -22,7 +22,7 @@
 
 #include "dev_array.h"
 
-#ifndef TOMOCAM_GPU_OPS_CUH 
+#ifndef TOMOCAM_GPU_OPS_CUH
 #define TOMOCAM_GPU_OPS_CUH
 
 namespace tomocam {
@@ -49,6 +49,18 @@ namespace tomocam {
         template <typename T>
         DeviceArray<T> roll2(const DeviceArray<T> &, int, int);
 
+        /** phase_shift
+         * apply Fourier phase shift. Also folds in the exact correction
+         * for an ifftshift of the pre-FFT spatial data (see
+         * phase_shift_kernel in fftshift.cu) — callers that rely on this
+         * must apply fftshift (not ifftshift) before calling, and must not
+         * ifftshift the input themselves.
+         * @param in input array, assumed already fftshift'd post-FFT
+         * @param shift offset
+         * @return none (shifts in place)
+         */
+        template <typename T>
+        void phase_shift(DeviceArray<complex_t<T>> &, T);
 
         /** fftshift
          * Shifts the zero-frequency component to the center of the spectrum.

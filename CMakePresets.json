@@ -5,9 +5,11 @@
         {
             "name": "debug",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Serial/Debug",
+            "binaryDir": "${sourceDir}/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -21,9 +23,11 @@
         {
             "name": "release",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Serial/Release",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -37,7 +41,7 @@
         {
             "name": "multiproc-debug",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Multiproc/Debug",
+            "binaryDir": "${sourceDir}/Multiproc/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_TESTS": {
@@ -57,7 +61,7 @@
         {
             "name": "multiproc-release",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Multiproc/Release",
+            "binaryDir": "${sourceDir}/Multiproc/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_TESTS": {

@@ -28,6 +28,8 @@
 #include <tuple>
 #include <vector>
 
+#include "gpu/utils.cuh"
+
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
@@ -84,7 +86,16 @@ namespace tomocam {
       private:
         // enqueue one std::vector of Host_t
         void enqueue(std::vector<Host_t> h_arr) {
-            std::thread([this, h_arr]() {
+            // CUDA's "current device" is thread-local and is NOT inherited by
+            // a newly spawned thread (a fresh thread always starts on device
+            // 0). Capture the calling thread's current device here and set
+            // it explicitly inside the background thread below, so Device_t
+            // (e.g. DeviceArray) is allocated/copied on the same device the
+            // caller intended -- not silently on device 0.
+            int device = 0;
+            SAFE_CALL(cudaGetDevice(&device));
+            std::thread([this, h_arr, device]() {
+                SAFE_CALL(cudaSetDevice(device));
                 for (size_t i = 0; i < h_arr.size(); i++) {
                     Device_t d_arr(h_arr[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
@@ -106,7 +117,11 @@ namespace tomocam {
             if (h_arr1.size() != h_arr2.size()) {
                 throw std::invalid_argument("h_arr1 and h_arr2 must have same size");
             }
-            std::thread([this, h_arr1, h_arr2]() {
+            // see comment in the single-vector enqueue() above
+            int device = 0;
+            SAFE_CALL(cudaGetDevice(&device));
+            std::thread([this, h_arr1, h_arr2, device]() {
+                SAFE_CALL(cudaSetDevice(device));
                 for (size_t i = 0; i < h_arr1.size(); i++) {
                     Device_t d_arr1(h_arr1[i]);
                     Device_t d_arr2(h_arr2[i]);

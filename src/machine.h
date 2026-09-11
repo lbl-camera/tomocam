@@ -27,16 +27,28 @@
 
 // singleton
 namespace tomocam {
+
+    class DeviceGuard {
+      private:
+        int device_;
+
+      public:
+        DeviceGuard(int device) : device_(device) { cudaSetDevice(device); }
+        ~DeviceGuard() { cudaSetDevice(device_); }
+        DeviceGuard(const DeviceGuard &) = delete;
+        DeviceGuard &operator=(const DeviceGuard &) = delete;
+    };
+
     class MachineConfig {
       private:
         int ndevice_;
-        int slcsPerStream_;
 
       public:
         MachineConfig() {
             cudaGetDeviceCount(&ndevice_);
-            ndevice_ = 1;       // for debugging
-            slcsPerStream_ = 4; // slices
+#ifdef DEBUG
+            ndevice_ = 1; // for debugging
+#endif
         }
 
         MachineConfig(const MachineConfig &) = delete;
@@ -54,7 +66,8 @@ namespace tomocam {
 
         // getters
         int num_of_gpus() const { return ndevice_; }
-        int slicesPerStream() const { return slcsPerStream_; }
+
+        int slicesPerStream() const { return 4; }
 
         /* calculate number of sub-partitions, based on free memory */
         int num_of_partitions(dim3_t dims, size_t bytes) {

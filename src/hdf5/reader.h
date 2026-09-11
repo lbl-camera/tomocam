@@ -80,7 +80,7 @@ namespace tomocam {
                 if (end == -1) { end = dims[1]; }
 
                 // check bounds
-                if ((end - begin) > dims[1]) {
+                if (end > dims[1] || end <= begin) {
                     throw std::runtime_error("Index out of bounds");
                 }
                 hsize_t nslice = end - begin;
@@ -136,7 +136,7 @@ namespace tomocam {
                 if (end == -1) { end = dims[0]; }
 
                 // check bounds
-                if ((end - begin) > dims[0]) {
+                if (begin < 0 || (hsize_t)end > dims[0] || end <= begin) {
                     throw std::runtime_error("Index out of bounds");
                 }
                 hsize_t nslice = end - begin;

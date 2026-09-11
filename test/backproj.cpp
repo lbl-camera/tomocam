@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     auto t1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_read = t1 - t0;
     std::cout << "Elapsed time reading data: " << elapsed_read.count() << " s"
-        << std::endl;
+              << std::endl;
 
     // if number of columns is even, drop one column
     sino.dropcol();
@@ -61,14 +61,19 @@ int main(int argc, char **argv) {
     auto sino2 = (sino - sino.min()) / (sino.max() - sino.min());
 
     auto start = std::chrono::high_resolution_clock::now();
-    sino2 = tomocam::preproc(sino2, cen);
-    auto recn = tomocam::backproject(sino2, angs, true);
+    sino2 = tomocam::preproc(sino2);
+
+    // preproc pads symmetrically, so the rotation center shifts by
+    // the padding added on each side
+    int npad = (sino2.ncols() - sino.ncols()) / 2;
+    cen += static_cast<float>(npad);
+
+    auto recn = tomocam::backproject(sino2, angs, cen, true);
     recn = tomocam::postproc(recn, sino.ncols());
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Backprojection time: " << elapsed.count() << " s"
-        << std::endl;
+    std::cout << "Backprojection time: " << elapsed.count() << " s" << std::endl;
 
     tomocam::h5::Writer w(outfile.c_str());
     w.write("recon", recn);

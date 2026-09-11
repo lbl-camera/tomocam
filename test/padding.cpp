@@ -1,7 +1,7 @@
 #include <chrono>
-#include <iostream>
-#include <fstream>
 #include <ctime>
+#include <fstream>
+#include <iostream>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -15,12 +15,14 @@ using json = nlohmann::json;
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
 #include "internals.h"
-#include "utils.h"
 #include "tomocam.h"
+#include "utils.h"
 
 uint64_t millisec() {
     using namespace std::chrono;
-    return duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count();
+    return duration_cast<milliseconds>(
+               high_resolution_clock::now().time_since_epoch())
+        .count();
 }
 
 int main(int argc, char **argv) {
@@ -52,10 +54,15 @@ int main(int argc, char **argv) {
     fp.write("unpadded", sino);
 
     // pad sinogram
-    auto sino2 = tomocam::preproc(sino, center);
+    auto sino2 = tomocam::preproc(sino);
     fp.write("padded", sino2);
 
-    auto recon = tomocam::backproject(sino2, angles);
+    // preproc pads symmetrically, so the rotation center shifts by
+    // the padding added on each side
+    int npad = (sino2.ncols() - sino.ncols()) / 2;
+    center += static_cast<float>(npad);
+
+    auto recon = tomocam::backproject(sino2, angles, center);
     fp.write("backproj", recon);
 
     auto recon2 = tomocam::postproc(recon, sino.ncols());

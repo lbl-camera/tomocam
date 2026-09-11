@@ -17,23 +17,6 @@
 
 using json = nlohmann::json;
 
-// filtered backprojection
-template <typename T>
-tomocam::DArray<T> fbp(tomocam::DArray<T> &sino, std::vector<T> &angs, int center) {
-
-    // save the original sino size
-    int nrays = sino.ncols();
-
-    // center and padding
-    auto sino2 = tomocam::preproc(sino);
-
-    // do the filtered backprojection
-    auto recon = tomocam::backproject(sino2, angs, center, true);
-
-    // remove padding and return
-    return tomocam::postproc(recon, nrays);
-}
-
 int main(int argc, char **argv) {
 
     if (argc < 2) {
@@ -78,10 +61,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // MBIR parameters
+    // MBIR parameters -- num_iters is the split-Bregman outer-loop count;
+    // the CG solve at each outer step is capped at 1 inner iteration.
+    // (`sigma`, tuned for mbir2's FISTA/Huber-TV term, does not carry over
+    // to split-Bregman's exact-TV shrinkage, so it's ignored here.)
     auto params = cfg["MBIR"];
     int max_iters = params["num_iters"];
-    float sigma = params["sigma"];
 
     float tol = 0.001;
     if (params.find("tol") != params.end()) tol = params["tol"];
@@ -102,8 +87,8 @@ int main(int argc, char **argv) {
     ibeg = myrank * slcs_per_proc;
     iend = ibeg + slcs_per_proc;
     if (myrank > extra_slcs) {
-        ibeg =
-            extra_slcs * (slcs_per_proc + 1) + (myrank - extra_slcs) * slcs_per_proc;
+        ibeg = extra_slcs * (slcs_per_proc + 1) +
+               (myrank - extra_slcs) * slcs_per_proc;
         iend = ibeg + slcs_per_proc;
     }
 #endif
@@ -119,19 +104,11 @@ int main(int argc, char **argv) {
 
     float cen = static_cast<float>(center);
 
-    // inital guess
-    auto x0 = tomocam::DArray<float>({sino.nslices(), sino.ncols(), sino.ncols()});
-    x0.init(1.f);
-
-    // run FBP
-    auto x1 = fbp(sino, angs, center, true);
-    // normalize
-    x1.normalize();
-
-    // run MBIR
-    Timer t2;
+    tomocam::DArray<float> x0({0,0,0});
+    // run MBIR (split-Bregman + CG)
+    tomocam::Timer t2;
     t2.start();
-    auto recon2 = tomocam::mbir(x1, sino, angs, cen, max_iters, sigma, tol, xtol);
+    auto recon = tomocam::mbir_bregman(x0, sino, angs, cen, max_iters, tol, xtol);
     t2.stop();
 
 #ifdef MULTIPROC
@@ -151,7 +128,7 @@ int main(int argc, char **argv) {
     auto outf = cfg["output"].get<std::string>();
 #endif
     tomocam::h5::Writer writer(outf.c_str());
-    writer.write("recon", recon2);
+    writer.write("recon", recon);
 
     return 0;
 }

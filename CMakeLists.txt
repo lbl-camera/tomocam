@@ -49,7 +49,13 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/mbir_bregman.cpp
     ${PROJECT_SOURCE_DIR}/src/nagopt.cpp
+    ${PROJECT_SOURCE_DIR}/src/cgsolver.cpp
+    ${PROJECT_SOURCE_DIR}/src/bregman.cpp
+    ${PROJECT_SOURCE_DIR}/src/finitdiff_ops.cpp
+    ${PROJECT_SOURCE_DIR}/src/gpu/finitdiff.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/shrinkage.cu
     ${PROJECT_SOURCE_DIR}/src/pyMBIR.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
@@ -148,6 +154,12 @@ add_executable(mbir_recon ${PROJECT_SOURCE_DIR}/src/mbir_recon.cpp)
 set_target_properties(mbir_recon PROPERTIES CXX_STANDARD 20)
 target_link_libraries(mbir_recon PRIVATE tomocam)
 target_link_libraries(mbir_recon PRIVATE nlohmann_json::nlohmann_json)
+
+# MBIR reconstruction executable (split-Bregman + CG)
+add_executable(mbir_bregman_recon ${PROJECT_SOURCE_DIR}/src/mbir_bregman_recon.cpp)
+set_target_properties(mbir_bregman_recon PROPERTIES CXX_STANDARD 20)
+target_link_libraries(mbir_bregman_recon PRIVATE tomocam)
+target_link_libraries(mbir_bregman_recon PRIVATE nlohmann_json::nlohmann_json)
 
 option(ENABLE_PYTHON "Enable python module" OFF)
 if (ENABLE_PYTHON)
