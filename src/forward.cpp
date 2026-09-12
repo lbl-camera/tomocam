@@ -31,8 +31,8 @@ namespace tomocam {
     template <typename T>
     DeviceArray<T> project(const DeviceArray<T> &input, const nufft::Grid<T> &grid) {
 
-        // verify device matches grid
-        CHECK_DEVICE(grid.dev_id());
+        // ensure device matches grid
+        DeviceGuard guard(grid.dev_id());
 
         // cast to complex
         auto in2 = to_complex<T>(input);

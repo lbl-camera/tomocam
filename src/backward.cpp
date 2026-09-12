@@ -43,8 +43,8 @@ namespace tomocam {
     DeviceArray<T> backproject(const DeviceArray<T> &sino,
                                const nufft::Grid<T> &grid, T offset, bool fbp) {
 
-        // verify device matches grid
-        CHECK_DEVICE(grid.dev_id());
+        // ensure device matches grid
+        DeviceGuard guard(grid.dev_id());
 
         // cast to complex
         auto in2 = to_complex<T>(sino);

@@ -95,7 +95,7 @@ namespace tomocam {
             int device = 0;
             SAFE_CALL(cudaGetDevice(&device));
             std::thread([this, h_arr, device]() {
-                SAFE_CALL(cudaSetDevice(device));
+                DeviceGuard guard(device);
                 for (size_t i = 0; i < h_arr.size(); i++) {
                     Device_t d_arr(h_arr[i]);
                     std::unique_lock<std::mutex> lock(this->m_);
@@ -121,7 +121,7 @@ namespace tomocam {
             int device = 0;
             SAFE_CALL(cudaGetDevice(&device));
             std::thread([this, h_arr1, h_arr2, device]() {
-                SAFE_CALL(cudaSetDevice(device));
+                DeviceGuard guard(device);
                 for (size_t i = 0; i < h_arr1.size(); i++) {
                     Device_t d_arr1(h_arr1[i]);
                     Device_t d_arr2(h_arr2[i]);

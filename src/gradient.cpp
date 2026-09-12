@@ -37,7 +37,7 @@ namespace tomocam {
                    const nufft::Grid<T> &nugrid, int device_id) {
 
         // set device
-        SAFE_CALL(cudaSetDevice(device_id));
+        DeviceGuard guard(device_id);
 
         // sub-partitions
         int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());

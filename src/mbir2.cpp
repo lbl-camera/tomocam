@@ -19,6 +19,7 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <format>
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -91,18 +92,32 @@ namespace tomocam {
             grids.emplace_back(std::move(g));
         }
 
-        // compute Lipschitz constant
-        DArray<T> xtmp(dim3_t(1, ncols, ncols));
-        DArray<T> ytmp(dim3_t(1, ncols, ncols));
-        xtmp.init(1);
-        ytmp.init(0);
-        auto g = gradient2(xtmp, ytmp, psfs);
-        gpu::add_tv_hessian(g, params.sigma);
-
-        T L = g.max();
+        // estimate the Lipschitz constant of the objective's gradient.
+        // the data term's Hessian is the Toeplitz-embedded normal operator
+        // A^T A (evaluated on a single slice, since the PSF is the same
+        // for every slice); its largest eigenvalue is found via power
+        // iteration rather than the previous single-shot heuristic.
+        dim3_t slice_dims(1, ncols, ncols);
+        DArray<T> zero_sino(slice_dims);
+        zero_sino.init(0);
+        std::function<DArray<T>(DArray<T> &)> AtA = [&psfs,
+                                                     &zero_sino](DArray<T> &x) {
+            return gradient2(x, zero_sino, psfs);
+        };
+        T L = power_iteration<T>(AtA, slice_dims);
 #ifdef MULTIPROC
         L = multiproc::mp.MaxReduce(L);
 #endif
+
+        // add the regularizer's Hessian upper bound (spatially uniform
+        // for a fixed sigma) to get the Lipschitz constant of the full
+        // objective's gradient
+        DArray<T> hess_tv(slice_dims);
+        hess_tv.init(0);
+        gpu::add_tv_hessian(hess_tv, params.sigma);
+        L += hess_tv.max();
+
+        std::cout << std::format("Lipschitz constant: {:.3f}", L) << std::endl;
         T step_size = 1 / L;
         if (step_size > 1) step_size = 1;
         T p = 1.2;

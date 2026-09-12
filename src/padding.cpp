@@ -39,7 +39,7 @@ namespace tomocam {
                 int device) {
 
         // set the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create subpartitions
         int nparts = Machine::config.num_of_partitions(arr.dims(), arr.bytes());

@@ -30,11 +30,14 @@ namespace tomocam {
 
     class DeviceGuard {
       private:
-        int device_;
+        int prev_;
 
       public:
-        DeviceGuard(int device) : device_(device) { cudaSetDevice(device); }
-        ~DeviceGuard() { cudaSetDevice(device_); }
+        DeviceGuard(int device) {
+            cudaGetDevice(&prev_);
+            cudaSetDevice(device);
+        }
+        ~DeviceGuard() { cudaSetDevice(prev_); }
         DeviceGuard(const DeviceGuard &) = delete;
         DeviceGuard &operator=(const DeviceGuard &) = delete;
     };
@@ -92,7 +95,7 @@ namespace tomocam {
 
         void barrier() {
             for (int i = 0; i < ndevice_; i++) {
-                cudaSetDevice(i);
+                DeviceGuard guard(i);
                 cudaDeviceSynchronize();
             }
         }

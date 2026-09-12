@@ -38,7 +38,7 @@ namespace tomocam {
     void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int device) {
 
         // set the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create subpartitions
         int nparts = Machine::config.num_of_partitions(sino2.dims(), sino2.bytes());

@@ -23,6 +23,7 @@
 #include "common.h"
 #include "dev_array.h"
 #include "gpu/utils.cuh"
+#include "machine.h"
 #include <cuda.h>
 
 namespace tomocam::nufft {
@@ -65,7 +66,7 @@ namespace tomocam::nufft {
             : num_projs_(nproj), num_pixels_(npixel), device_id_(id) {
 
             // set device
-            SAFE_CALL(cudaSetDevice(device_id_));
+            DeviceGuard guard(device_id_);
 
             // allocate memory for the non-uniform points on the device
             size_t npts = num_projs_ * num_pixels_;

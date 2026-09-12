@@ -44,7 +44,7 @@ namespace tomocam::array {
     template <typename T>
     void grad_u_worker(Partition<T> u, Partition<T> dudx, Partition<T> dudy,
                        Partition<T> dudz, int device) {
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         auto nparts = Machine::config.num_of_partitions(dudx.dims(), dudx.bytes());
         auto sub_u    = create_partitions(u, nparts, 1);   // halo=1, re-subdivide
@@ -108,7 +108,7 @@ namespace tomocam::array {
     template <typename T>
     void divergence_worker(Partition<T> p, Partition<T> q, Partition<T> r,
                            Partition<T> div, int device) {
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         auto nparts = Machine::config.num_of_partitions(div.dims(), div.bytes());
         auto sub_p   = create_partitions(p, nparts, 1);
@@ -190,7 +190,7 @@ namespace tomocam::array {
                           Partition<T> bx, Partition<T> by, Partition<T> bz,
                           Partition<T> dcx, Partition<T> dcy, Partition<T> dcz,
                           T lambda_mu, T epsilon, int device) {
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         auto nparts = Machine::config.num_of_partitions(dx.dims(), dx.bytes());
         auto sub_dx  = create_partitions(dx, nparts);

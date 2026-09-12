@@ -43,7 +43,7 @@ namespace tomocam {
         int device) {
 
         // initalize the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create sub-partitions with halo
         int nslcs = Machine::config.slicesPerStream();

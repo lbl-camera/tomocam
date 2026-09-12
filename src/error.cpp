@@ -38,7 +38,7 @@ namespace tomocam {
               int device_id) {
 
         // set device
-        cudaSetDevice(device_id);
+        DeviceGuard guard(device_id);
 
         // sub-partitions
         int nslcs = Machine::config.num_of_partitions(recon.dims(), recon.bytes());

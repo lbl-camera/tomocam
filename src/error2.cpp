@@ -42,7 +42,7 @@ namespace tomocam {
                const PointSpreadFunction<T> &psf, int device_id) {
 
         // set device
-        cudaSetDevice(device_id);
+        DeviceGuard guard(device_id);
 
         // sub-partitions -- size chunks against convolve()'s real peak
         // memory per slice (padded FFT buffers), not recon's plain bytes,

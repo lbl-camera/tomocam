@@ -38,7 +38,7 @@ namespace tomocam {
     void postproc_(Partition<T> soln, Partition<T> soln2, int npad, int device) {
 
         // set the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create subpartitions
         int nparts = Machine::config.num_of_partitions(soln.dims(), soln.bytes());

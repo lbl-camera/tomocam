@@ -37,7 +37,8 @@ namespace tomocam::nufft {
                   DeviceArray<cuda::std::complex<T>> &f, const Grid<T> &pg,
                   bool use_cache = false) {
 
-        CHECK_DEVICE(pg.dev_id());
+        // ensure device matches grid's device
+        DeviceGuard guard(pg.dev_id());
 
         std::array<int64_t, 2> n_modes = {
             static_cast<int64_t>(f.dims().y),
@@ -64,7 +65,8 @@ namespace tomocam::nufft {
                   DeviceArray<cuda::std::complex<T>> &f, const Grid<T> &pg,
                   bool use_cache = false) {
 
-        CHECK_DEVICE(pg.dev_id());
+        // ensure device matches grid's device
+        DeviceGuard guard(pg.dev_id());
 
         std::array<int64_t, 2> n_modes = {
             static_cast<int64_t>(f.dims().y),
