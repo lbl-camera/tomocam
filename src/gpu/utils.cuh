@@ -28,34 +28,30 @@
 #ifndef TOMOCAM_UTILS__CUH
 #define TOMOCAM_UTILS__CUH
 
-#define SAFE_CALL(ans){ gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+#define SAFE_CALL(ans)                                                              \
+    { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line,
+                      bool abort = true) {
     if (code != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s %s %d\n",
-            cudaGetErrorString(code),
-            file,
-            line);
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file,
+                line);
         if (abort) exit(code);
     }
 }
 
-#define CHECK_DEVICE(device_id) { checkDevice((device_id), __FILE__, __LINE__); }
+#define CHECK_DEVICE(device_id)                                                     \
+    { checkDevice((device_id), __FILE__, __LINE__); }
 inline void checkDevice(int device_id, const char *file, int line) {
     int current_device;
     cudaError_t err = cudaGetDevice(&current_device);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Device check failed: %s %s %d\n",
-            cudaGetErrorString(err),
-            file,
-            line);
+        fprintf(stderr, "Device check failed: %s %s %d\n", cudaGetErrorString(err),
+                file, line);
         exit(err);
     }
     if (current_device != device_id) {
         fprintf(stderr, "Device mismatch: expected %d, current %d %s %d\n",
-            device_id,
-            current_device,
-            file,
-            line);
+                device_id, current_device, file, line);
         exit(cudaErrorInvalidDevice);
     }
 }
@@ -73,8 +69,10 @@ namespace tomocam {
         }
 
         inline unsigned int idiv(size_t a, int b) {
-            if (a % b) return (a / b + 1);
-            else return (a / b);
+            if (a % b)
+                return (a / b + 1);
+            else
+                return (a / b);
         }
 
         // cuda doesn't like when any thread block has:
@@ -91,16 +89,14 @@ namespace tomocam {
 
             Grid(int3 d) {
                 threads_ = {16, 16, 1};
-                blocks_ = {idiv(d.z, threads_.x),
-                    idiv(d.y, threads_.y),
-                    idiv(d.x, threads_.z)};
+                blocks_ = {idiv(d.z, threads_.x), idiv(d.y, threads_.y),
+                           idiv(d.x, threads_.z)};
             }
 
             Grid(dim3_t d) {
                 threads_ = {16, 16, 1};
-                blocks_ = {idiv(d.z, threads_.x),
-                    idiv(d.y, threads_.y),
-                    idiv(d.x, threads_.z)};
+                blocks_ = {idiv(d.z, threads_.x), idiv(d.y, threads_.y),
+                           idiv(d.x, threads_.z)};
             }
 
             dim3 blocks() { return blocks_; }
@@ -108,10 +104,8 @@ namespace tomocam {
         };
 
 // calculate thread global index
-#    ifdef __NVCC__
-        __deviceI__ int Index1D() {
-            return (blockDim.x * blockIdx.x + threadIdx.x);
-        }
+#ifdef __NVCC__
+        __deviceI__ int Index1D() { return (blockDim.x * blockIdx.x + threadIdx.x); }
 
         __deviceI__ int3 Index3D() {
             int3 idx;
@@ -120,17 +114,19 @@ namespace tomocam {
             idx.z = blockDim.x * blockIdx.x + threadIdx.x;
             return idx;
         }
-#    endif // __NVCC__
+#endif // __NVCC__
 
         // check if indices are in range
         __deviceI__ bool operator<(int3 i, dim3_t d) {
-            if ((i.x < d.x) && (i.y < d.y) && (i.z < d.z)) return true;
+            if ((i.x < d.x) && (i.y < d.y) && (i.z < d.z))
+                return true;
             else
                 return false;
         }
 
         __devhstI__ bool operator<(int3 a, int3 b) {
-            if ((a.x < b.x) && (a.y < b.y) && (a.z < b.z)) return true;
+            if ((a.x < b.x) && (a.y < b.y) && (a.z < b.z))
+                return true;
             else
                 return false;
         }
