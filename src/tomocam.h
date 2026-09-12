@@ -132,13 +132,11 @@ namespace tomocam {
      * @param sinogram The sinogram to reconstruct.
      * @param angles The angles of the sinogram.
      * @param center The center of rotation.
-     * @param num_iter The number of iterations.
-     * @param sigma The regularization parameter.
-     * @param tolerance The stopping criterion.
-     * @param xtol The tolerance for the solution.
+     * @param params The parameters for the reconstruction.
      */
     template <typename T>
-    DArray<T> mbir2(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
+    DArray<T> mbir2(DArray<T> &, DArray<T> &, std::vector<T>, T,
+                    const ReconParams &);
 
     /**
      * @brief Compute the MBIR reconstruction using split-Bregman TV
@@ -149,13 +147,11 @@ namespace tomocam {
      * @param sinogram The sinogram to reconstruct.
      * @param angles The angles of the sinogram.
      * @param center The center of rotation.
-     * @param num_iter The number of split-Bregman outer iterations.
-     * @param tolerance The CG stopping criterion.
-     * @param xtol The split-Bregman outer convergence tolerance.
+     * @param params The parameters for the reconstruction.
      */
     template <typename T>
-    DArray<T> mbir_bregman(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T,
-                           T);
+    DArray<T> mbir_bregman(DArray<T> &, DArray<T> &, std::vector<T>, T,
+                           const ReconParams &);
 
     /**
      * @brief Compute the MBIR reconstruction.
@@ -164,13 +160,10 @@ namespace tomocam {
      * @param sinogram The sinogram to reconstruct.
      * @param angles The angles of the sinogram.
      * @param center The center of rotation.
-     * @param num_iter The number of iterations.
-     * @param sigma The regularization parameter.
-     * @param tolerance The stopping criterion.
-     * @param xtol The tolerance for the solution.
+     * @param params The parameters for the reconstruction.
      */
     template <typename T>
-    DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
+    DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, const ReconParams &);
 
     /**
      * @brief Model-based iterative reconstruction with MPI gathering.
@@ -207,7 +200,7 @@ namespace tomocam {
         /** dot product of two arrays */
         template <typename T>
         T dot(const DArray<T> &x, const DArray<T> &y);
-    }
+    } // namespace gpu
 
     /**
      * @brief Compute the value of the objective function, given current
