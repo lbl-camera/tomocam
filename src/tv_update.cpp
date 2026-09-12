@@ -42,7 +42,7 @@ namespace tomocam {
     void total_var2(Partition<T> sol, Partition<T> grad, T sigma, T p, int device) {
 
         // initalize the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create sub-partitions with halo
         auto nparts = Machine::config.num_of_partitions(grad.dims(), grad.bytes());
