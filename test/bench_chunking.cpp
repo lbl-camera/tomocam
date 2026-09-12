@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "bench_support.h"
 #include "dev_array.h"
 #include "dist_array.h"
 #include "dist_array_ops.h"
@@ -26,8 +27,9 @@
 #include "machine.h"
 #include "partition.h"
 #include "scheduler.h"
-#include "timer.h"
+#include "test_utils.h"
 
+using namespace bench;
 using real_t = float;
 using tomocam::DArray;
 using tomocam::DeviceArray;
@@ -37,19 +39,6 @@ using tomocam::create_partitions;
 using tomocam::dim3_t;
 
 namespace {
-
-struct Stats {
-    double mean_ms;
-    double min_ms;
-    double gbytes_moved;
-};
-
-double now_ms() {
-    using namespace std::chrono;
-    return duration<double, std::milli>(
-               high_resolution_clock::now().time_since_epoch())
-        .count();
-}
 
 // one H2D copy, one kernel, one D2H copy -- no Scheduler, no threads
 double run_raw_axpy(Partition<real_t> &p1, real_t alpha,
@@ -114,59 +103,16 @@ double run_sched_dot(const Partition<real_t> &p1, const Partition<real_t> &p2,
     return now_ms() - t0;
 }
 
-template <typename Fn>
-Stats time_it(Fn &&fn, int reps, double bytes_per_call) {
-    fn(); // warmup, discarded
-    double total = 0.0, best = 1e300;
-    for (int i = 0; i < reps; i++) {
-        double t = fn();
-        total += t;
-        if (t < best) best = t;
-    }
-    Stats s;
-    s.mean_ms = total / reps;
-    s.min_ms = best;
-    s.gbytes_moved = bytes_per_call / 1e9;
-    return s;
-}
-
-void print_row(const char *label, int chunks, const Stats &s) {
-    double gbps = s.gbytes_moved / (s.min_ms / 1000.0);
-    std::fprintf(stdout, "%-10s %6d %10.3f %10.3f %10.2f\n", label, chunks,
-        s.mean_ms, s.min_ms, gbps);
-    std::fflush(stdout);
-}
-
-real_t rel_error(const DArray<real_t> &a, const DArray<real_t> &b) {
-    double num = 0.0, den = 0.0;
-    for (uint64_t i = 0; i < a.size(); i++) {
-        double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
-        num += d * d;
-        den += static_cast<double>(a[i]) * static_cast<double>(a[i]);
-    }
-    return static_cast<real_t>(std::sqrt(num / std::max(den, 1e-30)));
-}
-
 } // namespace
 
 int main(int argc, char **argv) {
     std::setvbuf(stdout, nullptr, _IOLBF, 0); // stream results as they land
     int nslices = 128, nrows = 2048, ncols = 2048, reps = 10;
-    for (int i = 1; i < argc; i++) {
-        auto arg = [&](const char *flag) {
-            return std::strcmp(argv[i], flag) == 0 && i + 1 < argc;
-        };
-        if (arg("--slices")) nslices = std::atoi(argv[++i]);
-        else if (arg("--rows")) nrows = std::atoi(argv[++i]);
-        else if (arg("--cols")) ncols = std::atoi(argv[++i]);
-        else if (arg("--reps")) reps = std::atoi(argv[++i]);
-        else if (std::strcmp(argv[i], "--help") == 0) {
-            std::fprintf(stdout,
-                "usage: bench_chunking [--slices N] [--rows N] [--cols N] "
-                "[--reps N]\n");
-            return 0;
-        }
-    }
+    parse_int_flags(argc, argv,
+        {{"--slices", &nslices}, {"--rows", &nrows}, {"--cols", &ncols},
+            {"--reps", &reps}},
+        "usage: bench_chunking [--slices N] [--rows N] [--cols N] "
+        "[--reps N]");
 
     size_t free_mem = 0, total_mem = 0;
     cudaMemGetInfo(&free_mem, &total_mem);
@@ -226,9 +172,9 @@ int main(int argc, char **argv) {
         print_row("sched", n, s);
     }
 
-    real_t err = rel_error(a_raw, a_sched1);
+    real_t err = bench::rel_error(a_raw, a_sched1);
     std::fprintf(stdout, "raw vs sched-1 relative error: %.3e\n", err);
-    err = rel_error(a_raw, a_check);
+    err = bench::rel_error(a_raw, a_check);
     std::fprintf(stdout,
         "raw vs sched-%d relative error: %.3e (correctness check)\n",
         chunk_counts.back(), err);

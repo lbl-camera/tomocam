@@ -24,6 +24,7 @@
 #include <cstring>
 #include <vector>
 
+#include "bench_support.h"
 #include "dev_array.h"
 #include "dist_array.h"
 #include "internals.h"
@@ -31,10 +32,11 @@
 #include "nufft.h"
 #include "partition.h"
 #include "scheduler.h"
-#include "timer.h"
+#include "test_utils.h"
 #include "tomocam.h"
 #include "types.h"
 
+using namespace bench;
 using real_t = float;
 using tomocam::DArray;
 using tomocam::DeviceArray;
@@ -44,19 +46,6 @@ using tomocam::create_partitions;
 using tomocam::dim3_t;
 
 namespace {
-
-struct Stats {
-    double mean_ms;
-    double min_ms;
-    double gbytes_moved;
-};
-
-double now_ms() {
-    using namespace std::chrono;
-    return duration<double, std::milli>(
-               high_resolution_clock::now().time_since_epoch())
-        .count();
-}
 
 // mirrors funcval's body exactly (src/error.cpp:36-63), but with an
 // explicit chunk count instead of one computed from free memory
@@ -94,52 +83,16 @@ std::pair<double, real_t> run_sched(const Partition<real_t> &recon,
     return {now_ms() - t0, sum};
 }
 
-template <typename Fn>
-Stats time_it(Fn &&fn, int reps, double bytes_per_call, real_t *last_value) {
-    fn(); // warmup, discarded
-    double total = 0.0, best = 1e300;
-    real_t last = 0;
-    for (int i = 0; i < reps; i++) {
-        auto [t, v] = fn();
-        total += t;
-        if (t < best) best = t;
-        last = v;
-    }
-    if (last_value) *last_value = last;
-    Stats s;
-    s.mean_ms = total / reps;
-    s.min_ms = best;
-    s.gbytes_moved = bytes_per_call / 1e9;
-    return s;
-}
-
-void print_row(const char *label, int chunks, const Stats &s) {
-    double gbps = s.gbytes_moved / (s.min_ms / 1000.0);
-    std::fprintf(stdout, "%-10s %6d %10.3f %10.3f %10.2f\n", label, chunks,
-        s.mean_ms, s.min_ms, gbps);
-    std::fflush(stdout);
-}
-
 } // namespace
 
 int main(int argc, char **argv) {
     std::setvbuf(stdout, nullptr, _IOLBF, 0); // stream results as they land
     int nslices = 32, ncols = 512, nproj = 360, reps = 5;
-    for (int i = 1; i < argc; i++) {
-        auto arg = [&](const char *flag) {
-            return std::strcmp(argv[i], flag) == 0 && i + 1 < argc;
-        };
-        if (arg("--slices")) nslices = std::atoi(argv[++i]);
-        else if (arg("--ncols")) ncols = std::atoi(argv[++i]);
-        else if (arg("--nproj")) nproj = std::atoi(argv[++i]);
-        else if (arg("--reps")) reps = std::atoi(argv[++i]);
-        else if (std::strcmp(argv[i], "--help") == 0) {
-            std::fprintf(stdout,
-                "usage: bench_function_value [--slices N] [--ncols N] "
-                "[--nproj N] [--reps N]\n");
-            return 0;
-        }
-    }
+    parse_int_flags(argc, argv,
+        {{"--slices", &nslices}, {"--ncols", &ncols}, {"--nproj", &nproj},
+            {"--reps", &reps}},
+        "usage: bench_function_value [--slices N] [--ncols N] "
+        "[--nproj N] [--reps N]");
 
     size_t free_mem = 0, total_mem = 0;
     cudaMemGetInfo(&free_mem, &total_mem);
@@ -195,16 +148,14 @@ int main(int argc, char **argv) {
             [&]() { return run_sched(p_recon, p_sino, grid, n); }, reps,
             bytes_per_call, &sched_check_val);
         print_row("sched", n, s);
-        real_t rel = std::abs(raw_val - sched_check_val) /
-            std::max(std::abs(raw_val), 1e-30f);
+        real_t rel = rel_error(raw_val, sched_check_val);
         std::fprintf(stdout, "  (relative error vs raw at %d chunks: %.3e)\n",
             n, rel);
     }
 
-    real_t rel1 = std::abs(raw_val - sched1_val) / std::max(std::abs(raw_val), 1e-30f);
+    real_t rel1 = rel_error(raw_val, sched1_val);
     std::fprintf(stdout, "raw vs sched-1 relative error: %.3e\n", rel1);
-    real_t relN =
-        std::abs(raw_val - sched_check_val) / std::max(std::abs(raw_val), 1e-30f);
+    real_t relN = rel_error(raw_val, sched_check_val);
     std::fprintf(stdout,
         "raw vs sched-%d relative error: %.3e (correctness check)\n",
         chunk_counts.back(), relN);

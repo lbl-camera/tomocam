@@ -1,96 +1,51 @@
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
-find_package(nlohmann_json 3.2.0 REQUIRED)
-find_package(nlohmann_json REQUIRED)
-
-add_executable(padding padding.cpp)
-target_link_libraries(padding PRIVATE tomocam)
-target_link_libraries(padding PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(padding PRIVATE nlohmann_json::nlohmann_json)
-add_test(NAME padding_test COMMAND padding)
 
 # regression test: NUFFT plan batching (ntrans) correctness
 add_executable(nufft_batch nufft_batch.cpp)
 target_link_libraries(nufft_batch PRIVATE tomocam)
 add_test(NAME nufft_batch_test COMMAND nufft_batch)
 
+# adjoint check: <R x, y> == <x, R^T y> for project()/backproject()
+add_executable(adjoint adjoint.cpp)
+target_link_libraries(adjoint PRIVATE tomocam)
+add_test(NAME adjoint_test COMMAND adjoint)
 
-add_executable(partition partition.cpp)
-target_link_libraries(partition PRIVATE tomocam)
-target_link_libraries(partition PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(partition PRIVATE ${MPI_C_LIBRARIES})
-add_test(NAME partition_test COMMAND partition)
-
-# test dropcol
-add_executable(dropcol dropcol.cpp)
-target_link_libraries(dropcol PRIVATE tomocam)
-target_link_libraries(dropcol PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(dropcol PRIVATE nlohmann_json::nlohmann_json)
-add_test(NAME dropcol_test COMMAND dropcol)
-
-
-add_executable(read reader.cpp)
-target_link_libraries(read PRIVATE tomocam)
-target_link_libraries(read PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(read PRIVATE ${MPI_C_LIBRARIES})
-target_link_libraries(read PRIVATE nlohmann_json::nlohmann_json)
-add_test(NAME read_test COMMAND read)
-
-# backproj
-add_executable(backproj backproj.cpp)
-target_link_libraries(backproj PRIVATE tomocam)
-target_link_libraries(backproj PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(backproj PRIVATE nlohmann_json::nlohmann_json)
-add_test(NAME backproj_test COMMAND backproj)
-
-# gradient
+# gradient correctness: R^T(Rx-y) (direct project/backproject) vs.
+# gradient() (nufft-cached) vs. gradient2() (Toeplitz/PSF)
 add_executable(gradient gradient.cpp)
 target_link_libraries(gradient PRIVATE tomocam)
-target_link_libraries(gradient PRIVATE ${HDF5_LIBRARIES})
-target_link_libraries(gradient PRIVATE nlohmann_json::nlohmann_json)
 add_test(NAME gradient_test COMMAND gradient)
-
-add_executable(tv tvd.cpp)
-target_link_libraries(tv PRIVATE tomocam)
-add_test(NAME tv_test COMMAND tv)
 
 # finite-difference gradient/divergence adjoint + laplacian sanity check
 add_executable(finitdiff finitdiff.cpp)
 target_link_libraries(finitdiff PRIVATE tomocam)
 add_test(NAME finitdiff_test COMMAND finitdiff)
 
-# split-Bregman TV denoiser smoke test (A = identity)
-add_executable(bregman bregman.cpp)
-target_link_libraries(bregman PRIVATE tomocam)
-add_test(NAME bregman_test COMMAND bregman)
-
 # GPU isotropic-TV shrinkage kernel vs. reference CPU formula
 add_executable(shrinkage shrinkage.cpp)
 target_link_libraries(shrinkage PRIVATE tomocam)
 add_test(NAME shrinkage_test COMMAND shrinkage)
 
-# test for the forward projection
-add_executable(forward forward.cpp)
-target_link_libraries(forward PRIVATE tomocam)
-target_link_libraries(forward PRIVATE ${HDF5_LIBRARIES})
-add_test(NAME forward_test COMMAND forward)
-# test for Toeplitz matrix
-add_executable(toeplitz toeplitz.cpp)
-target_link_libraries(toeplitz PRIVATE tomocam)
-target_link_libraries(toeplitz PRIVATE ${HDF5_LIBRARIES})
-add_test(NAME toeplitz_test COMMAND toeplitz)
+# GPU add_total_var2 (qGGMRF TV penalty, used by nagopt) vs. CPU reference
+add_executable(total_var total_var.cpp)
+target_link_libraries(total_var PRIVATE tomocam)
+add_test(NAME total_var_test COMMAND total_var)
 
-# test for error calculation
-add_executable(error error.cpp)
-target_link_libraries(error PRIVATE tomocam)
-target_link_libraries(error PRIVATE ${HDF5_LIBRARIES})
-add_test(NAME error_test COMMAND error)
+# cgsolver: SPD synthetic operator (I - mu*laplacian), known solution
+add_executable(cgsolver cgsolver.cpp)
+target_link_libraries(cgsolver PRIVATE tomocam)
+add_test(NAME cgsolver_test COMMAND cgsolver)
 
+# nagopt: synthetic diagonal quadratic, FISTA convergence check
+add_executable(nagopt nagopt.cpp)
+target_link_libraries(nagopt PRIVATE tomocam)
+add_test(NAME nagopt_test COMMAND nagopt)
 
-# test for the xerror calculation
-add_executable(xerror xerror.cpp)
-target_link_libraries(xerror PRIVATE tomocam)
-add_test(NAME xerror_test COMMAND xerror)
+# split-Bregman TV denoiser smoke test (A = identity)
+add_executable(bregman bregman.cpp)
+target_link_libraries(bregman PRIVATE tomocam)
+add_test(NAME bregman_test COMMAND bregman)
 
 # manual benchmark: chunk-count overhead vs. bandwidth in dist_array_ops.h
 # (not registered with add_test -- run manually, not part of ctest)

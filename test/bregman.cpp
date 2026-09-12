@@ -4,6 +4,7 @@
 
 #include "dist_array.h"
 #include "optimize.h"
+#include "test_utils.h"
 #include "tomocam.h"
 
 int main() {
@@ -38,12 +39,11 @@ int main() {
     auto x0 = noisy;
     auto rec = tomocam::split_bregman<float>(A, noisy, x0, params);
 
-    auto err_before = (noisy - clean).norm();
-    auto err_after = (rec - clean).norm();
+    double err_before = rel_error(noisy, clean);
+    double err_after = rel_error(rec, clean);
     std::cout << "err before: " << err_before << "  err after: " << err_after
               << std::endl;
 
     bool ok = err_after < err_before;
-    std::cout << (ok ? "PASS" : "FAIL") << std::endl;
-    return ok ? 0 : 1;
+    return report(ok);
 }
