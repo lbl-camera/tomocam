@@ -50,6 +50,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir_bregman.cpp
     ${PROJECT_SOURCE_DIR}/src/nagopt.cpp
+    ${PROJECT_SOURCE_DIR}/src/power_iteration.cpp
     ${PROJECT_SOURCE_DIR}/src/cgsolver.cpp
     ${PROJECT_SOURCE_DIR}/src/bregman.cpp
     ${PROJECT_SOURCE_DIR}/src/finitdiff_ops.cpp
