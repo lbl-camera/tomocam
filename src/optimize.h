@@ -60,13 +60,20 @@ namespace tomocam {
                      std::function<T(DArray<T> &)> loss, const DArray<T> &x0,
                      T step_size, const ReconParams &params);
 
+    // estimate the largest eigenvalue of a symmetric positive semi-definite
+    // linear operator A (e.g. a normal operator R^T R) via power iteration.
+    template <typename T>
+    T power_iteration(std::function<DArray<T>(DArray<T> &)> A, dim3_t dims,
+                      int max_iters = 20, T tol = static_cast<T>(1e-3));
+
     // split-Bregman TV-regularized solver: minimizes
     //   argmin_x  ||A x - b||^2 + lambda * TV(x)
     // via alternating CG x-update and shrinkage d/b-updates.
     template <typename T>
     DArray<T> split_bregman(std::function<DArray<T>(DArray<T> &)> A,
                             const DArray<T> &b, const DArray<T> &x0,
-                            const ReconParams &params, Precond<T> *precond = nullptr);
+                            const ReconParams &params,
+                            Precond<T> *precond = nullptr);
 
 } // namespace tomocam
 
