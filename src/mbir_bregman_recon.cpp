@@ -1,3 +1,23 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ * IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ * the U.S. Government has been granted for itself and others acting on its
+ * behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ * to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -5,6 +25,7 @@
 #include <nlohmann/json.hpp>
 #include <sstream>
 
+#include "config.h"
 #include "dist_array.h"
 #include "hdf5/reader.h"
 #include "hdf5/writer.h"
@@ -33,14 +54,8 @@ int main(int argc, char **argv) {
     int myrank = 0;
 #endif
 
-    // get JSON file
-    std::ifstream json_file(argv[1]);
-    if (!json_file.is_open()) {
-        std::cerr << "Error: cannot open JSON file" << std::endl;
-        return 1;
-    }
-
-    json cfg = json::parse(json_file);
+    // load JSON config
+    json cfg = tomocam::load_config(argv[1]);
 
     // get parameters
     std::string filename = cfg["filename"];
@@ -56,22 +71,9 @@ int main(int argc, char **argv) {
         iend = slcs[1];
     }
 
-    if (cfg.find("MBIR") == cfg.end()) {
-        std::cerr << "Error: missing MBIR parameters" << std::endl;
-        return 1;
-    }
-
-    // MBIR parameters -- num_iters is the split-Bregman outer-loop count;
-    // the CG solve at each outer step is capped at 1 inner iteration.
-    // (`sigma`, tuned for mbir2's FISTA/Huber-TV term, does not carry over
-    // to split-Bregman's exact-TV shrinkage, so it's ignored here.)
-    auto params = cfg["MBIR"];
-    int max_iters = params["num_iters"];
-
-    float tol = 0.001;
-    if (params.find("tol") != params.end()) tol = params["tol"];
-    float xtol = 0.001;
-    if (params.find("xtol") != params.end()) xtol = params["xtol"];
+    auto params = tomocam::load_recon_params(cfg);
+    auto out_params = tomocam::load_output_params(cfg);
+    tomocam::dump_config(params, out_params);
 
     // load tomogrmaphic data
     tomocam::h5::Reader fp(filename.c_str());
@@ -87,8 +89,8 @@ int main(int argc, char **argv) {
     ibeg = myrank * slcs_per_proc;
     iend = ibeg + slcs_per_proc;
     if (myrank > extra_slcs) {
-        ibeg = extra_slcs * (slcs_per_proc + 1) +
-               (myrank - extra_slcs) * slcs_per_proc;
+        ibeg =
+            extra_slcs * (slcs_per_proc + 1) + (myrank - extra_slcs) * slcs_per_proc;
         iend = ibeg + slcs_per_proc;
     }
 #endif
@@ -104,11 +106,11 @@ int main(int argc, char **argv) {
 
     float cen = static_cast<float>(center);
 
-    tomocam::DArray<float> x0({0,0,0});
+    tomocam::DArray<float> x0({0, 0, 0});
     // run MBIR (split-Bregman + CG)
     tomocam::Timer t2;
     t2.start();
-    auto recon = tomocam::mbir_bregman(x0, sino, angs, cen, max_iters, tol, xtol);
+    auto recon = tomocam::mbir_bregman(x0, sino, angs, cen, params);
     t2.stop();
 
 #ifdef MULTIPROC
@@ -118,14 +120,9 @@ int main(int argc, char **argv) {
 
 // save reconstruction
 #ifdef MULTIPROC
-    auto fname = cfg["output"].get<std::string>();
-    auto prefix = fname.substr(0, fname.find_last_of("."));
-    auto suffix = fname.substr(fname.find_last_of("."));
-    std::stringstream tag;
-    tag << std::setw(3) << std::setfill('0') << myrank;
-    auto outf = prefix + tag.str() + suffix;
+    auto outf = out_params.insert_rank(myrank);
 #else
-    auto outf = cfg["output"].get<std::string>();
+    auto outf = out_params.filename;
 #endif
     tomocam::h5::Writer writer(outf.c_str());
     writer.write("recon", recon);
