@@ -1,3 +1,23 @@
+/* -------------------------------------------------------------------------------
+ * Tomocam Copyright (c) 2018
+ *
+ * The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the
+ * U.S. Dept. of Energy). All rights reserved.
+ *
+ * If you have questions about your rights to use or distribute this software,
+ * please contact Berkeley Lab's Innovation & Partnerships Office at
+ * IPO@lbl.gov.
+ *
+ * NOTICE. This Software was developed under funding from the U.S. Department of
+ * Energy and the U.S. Government consequently retains certain rights. As such,
+ * the U.S. Government has been granted for itself and others acting on its
+ * behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+ * to reproduce, distribute copies to the public, prepare derivative works, and
+ * perform publicly and display publicly, and to permit other to do so.
+ *---------------------------------------------------------------------------------
+ */
+
 
 #include <array>
 
@@ -33,6 +53,7 @@ namespace tomocam::array {
             throw std::runtime_error("dot: arrays must be the same size");
 
         int n_dev = Machine::config.num_of_gpus();
+        if (n_dev > a.nslices()) n_dev = a.nslices();
         T sum = 0;
         auto p1 = create_partitions(const_cast<DArray<T> &>(a), n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
@@ -67,6 +88,7 @@ namespace tomocam::array {
             throw std::runtime_error("axpy: arrays must be the same size");
 
         int n_dev = Machine::config.num_of_gpus();
+        if (n_dev > a.nslices()) n_dev = a.nslices();
         auto p1 = create_partitions(a, n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
         for (int i = 0; i < n_dev; ++i) { axpy(p1[i], alpha, p2[i]); }
@@ -98,6 +120,7 @@ namespace tomocam::array {
             throw std::runtime_error("xpay: arrays must be the same size");
 
         int n_dev = Machine::config.num_of_gpus();
+        if (n_dev > a.nslices()) n_dev = a.nslices();
         auto p1 = create_partitions(a, n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
         for (int i = 0; i < n_dev; ++i) { xpay(p1[i], alpha, p2[i]); }
