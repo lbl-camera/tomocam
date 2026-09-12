@@ -35,7 +35,7 @@ namespace tomocam {
                   const std::vector<T> &angles, int device) {
 
         // set device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
