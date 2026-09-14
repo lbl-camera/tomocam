@@ -17,7 +17,7 @@
 # perform publicly and display publicly, and to permit other to do so.
 #---------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 project(tomocam LANGUAGES CXX CUDA)
 set(tomocam_VERSION_MAJOR 3) 
 set(tomocam_VERSION_MINOR 0)
@@ -87,8 +87,18 @@ add_library(tomocam::deps INTERFACE IMPORTED)
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
-set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
+set(CMAKE_CUDA_ARCHITECTURES native)
+
+if (CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+    # CUDA 13 moved the CCCL headers (cuda/std, thrust, cub) under include/cccl.
+    foreach(dir ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+        if (EXISTS "${dir}/cccl")
+            include_directories("${dir}/cccl")
+        endif()
+    endforeach()
+endif()
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cudart)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cufft)
@@ -125,8 +135,9 @@ find_package(finufft REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
 
 # TRY the official package
-find_package(HDF5 REQUIRED)
-target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
+find_package(HDF5 REQUIRED COMPONENTS C)
+include_directories(${HDF5_INCLUDE_DIRS})
+target_link_libraries(tomocam::deps INTERFACE HDF5::HDF5)
 
 
 find_package(TBB REQUIRED)
