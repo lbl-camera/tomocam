@@ -20,10 +20,13 @@
 
 
 #include <array>
+#include <thread>
+#include <vector>
 
 #include "dev_array.h"
 #include "dist_array.h"
 #include "gpu/gpu_ops.cuh"
+#include "machine.h"
 #include "scheduler.h"
 
 namespace tomocam::array {
@@ -54,10 +57,25 @@ namespace tomocam::array {
 
         int n_dev = Machine::config.num_of_gpus();
         if (n_dev > a.nslices()) n_dev = a.nslices();
-        T sum = 0;
         auto p1 = create_partitions(const_cast<DArray<T> &>(a), n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
-        for (int i = 0; i < n_dev; ++i) { sum += dot(p1[i], p2[i]); }
+
+        // One thread per device, 
+        std::vector<T> partial(n_dev, T(0));
+        std::vector<std::thread> threads;
+        threads.reserve(n_dev);
+        for (int i = 0; i < n_dev; ++i) {
+            threads.emplace_back([&, i]() {
+                DeviceGuard guard(i);
+                partial[i] = dot(p1[i], p2[i]);
+            });
+        }
+        for (auto &t : threads) { t.join(); }
+
+        // accumulate in index order so the reduction stays bit-identical to
+        // the previous serial implementation
+        T sum = 0;
+        for (int i = 0; i < n_dev; ++i) { sum += partial[i]; }
         return sum;
     }
 
@@ -91,7 +109,18 @@ namespace tomocam::array {
         if (n_dev > a.nslices()) n_dev = a.nslices();
         auto p1 = create_partitions(a, n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
-        for (int i = 0; i < n_dev; ++i) { axpy(p1[i], alpha, p2[i]); }
+
+        // see the comment in dot() above -- the DeviceGuard is what spreads
+        // these partitions across the GPUs instead of piling them on device 0
+        std::vector<std::thread> threads;
+        threads.reserve(n_dev);
+        for (int i = 0; i < n_dev; ++i) {
+            threads.emplace_back([&, i]() {
+                DeviceGuard guard(i);
+                axpy(p1[i], alpha, p2[i]);
+            });
+        }
+        for (auto &t : threads) { t.join(); }
         Machine::config.barrier();
         return a;
     }
@@ -123,7 +152,16 @@ namespace tomocam::array {
         if (n_dev > a.nslices()) n_dev = a.nslices();
         auto p1 = create_partitions(a, n_dev);
         auto p2 = create_partitions(const_cast<DArray<T> &>(b), n_dev);
-        for (int i = 0; i < n_dev; ++i) { xpay(p1[i], alpha, p2[i]); }
+        // see the comment in dot() above
+        std::vector<std::thread> threads;
+        threads.reserve(n_dev);
+        for (int i = 0; i < n_dev; ++i) {
+            threads.emplace_back([&, i]() {
+                DeviceGuard guard(i);
+                xpay(p1[i], alpha, p2[i]);
+            });
+        }
+        for (auto &t : threads) { t.join(); }
         Machine::config.barrier();
     }
 
