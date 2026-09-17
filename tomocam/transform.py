@@ -1,28 +1,33 @@
-import numpy as np
 from . import cTomocam
+from ._utils import as_angles, as_array, check_nangles
 
-def radon(volume, angles, center):
+
+def radon(volume, angles):
     """Computes the radon transform using nufft.
 
     Parameters
     -----------
     volume: numpy.ndarray
-        Data for which radon transform is seeketh, (single precision)
+        Volume to project, (nslices, nrows, ncols) or (nrows, ncols)
     angles: numpy.ndarray
-        Projection angles (single, precision)
-    center: float
-        Offset correction to be applied to center of rotation
+        Projection angles, in radians
 
     Returns
     --------
         numpy.ndarray
-            Radon transform of input volume
+            Radon transform of input volume, (nslices, nangles, ncols)
+
+    Notes
+    -----
+    The forward projection is always computed about the center of the volume.
+    Use the `center` argument of `backproject` to correct for an off-center
+    axis of rotation on the way back.
     """
-    if volume.dtype != np.float32 and angles.dtype != np.float32:
-        raise ValueError('input data-type must be single precision')
+    volume = as_array(volume, 'volume')
+    angles = as_angles(angles)
 
     # compute transformation
-    return cTomocam.radon(volume, angles, center, over_sample)
+    return cTomocam.radon(volume, angles)
 
 
 def backproject(sinogram, angles, center):
@@ -30,20 +35,22 @@ def backproject(sinogram, angles, center):
 
     Parameters
     ----------
-    sinogram: numpy.ndarray 
-        Projection data for which radon transform is seeketh, (single precision)
+    sinogram: numpy.ndarray
+        Projection data, (nslices, nangles, ncols) or (nangles, ncols)
     angles: numpy.ndarray
-        Projection angles (single, precision)
+        Projection angles, in radians
     center: float
-        Offset correction to be applied to center of rotation
+        Center of rotation, in pixels along the detector axis
 
     Returns
     --------
         numpy.ndarray
-            Inverse radon transform of input projection data
+            Inverse radon transform of input projection data,
+            (nslices, ncols, ncols)
     """
-    if sinogram.dtype != np.float32 and angles.dtype != np.float32:
-        raise ValueError('input data-type must be single precision')
-   
-    # create appropriate data-structures 
-    return cTomocam.radon_adj(sinogram, angles, center, over_sample)
+    sinogram = as_array(sinogram, 'sinogram')
+    angles = as_angles(angles)
+    check_nangles(sinogram, angles)
+
+    # the sinogram is padded internally, and the center adjusted to match
+    return cTomocam.backproject(sinogram, angles, float(center))
