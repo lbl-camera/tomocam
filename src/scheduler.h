@@ -44,6 +44,7 @@ namespace tomocam {
         std::mutex m_;
         std::condition_variable cv_;
         std::atomic<bool> all_done_;
+        std::thread producer_;
 
       public:
         Scheduler() : all_done_(false) {}
@@ -55,8 +56,13 @@ namespace tomocam {
             enqueue(h_arr1, h_arr2);
         }
 
-        // destructor
-        ~Scheduler() = default;
+        // the producer thread captures `this`, so it MUST be joined before the
+        // queue/mutex/condition-variable it refers to are destroyed. Detaching
+        // it here would let a consumer that has drained the queue tear this
+        // object down while the producer is still touching it.
+        ~Scheduler() {
+            if (producer_.joinable()) producer_.join();
+        }
 
         // delete copy and move constructors
         Scheduler(const Scheduler &) = delete;
@@ -66,13 +72,13 @@ namespace tomocam {
 
         // get work from queue
         std::optional<std::tuple<int, Device_t, Types...>> get_work() {
-            std::lock_guard<std::mutex> lock(m_);
-            if (pending_work_.empty()) {
-                cv_.notify_one();
-                return std::nullopt;
-            }
+            std::unique_lock<std::mutex> lock(m_);
+            // block until the producer has something for us, or is done.
+            cv_.wait(lock, [this] { return !pending_work_.empty() || all_done_; });
+            if (pending_work_.empty()) return std::nullopt;
             auto work = std::move(pending_work_.front());
             pending_work_.pop();
+            lock.unlock();
             cv_.notify_one();
             return work;
         }
@@ -94,7 +100,7 @@ namespace tomocam {
             // caller intended -- not silently on device 0.
             int device = 0;
             SAFE_CALL(cudaGetDevice(&device));
-            std::thread([this, h_arr, device]() {
+            producer_ = std::thread([this, h_arr, device]() {
                 DeviceGuard guard(device);
                 for (size_t i = 0; i < h_arr.size(); i++) {
                     Device_t d_arr(h_arr[i]);
@@ -109,7 +115,7 @@ namespace tomocam {
                     this->all_done_ = true;
                 }
                 cv_.notify_all();
-            }).detach();
+            });
         }
 
         // enqueue two std::vectors of Host_t
@@ -120,7 +126,7 @@ namespace tomocam {
             // see comment in the single-vector enqueue() above
             int device = 0;
             SAFE_CALL(cudaGetDevice(&device));
-            std::thread([this, h_arr1, h_arr2, device]() {
+            producer_ = std::thread([this, h_arr1, h_arr2, device]() {
                 DeviceGuard guard(device);
                 for (size_t i = 0; i < h_arr1.size(); i++) {
                     Device_t d_arr1(h_arr1[i]);
@@ -137,7 +143,7 @@ namespace tomocam {
                     this->all_done_ = true;
                 }
                 cv_.notify_all();
-            }).detach();
+            });
         }
     };
 } // namespace tomocam
