@@ -101,8 +101,10 @@ namespace tomocam {
         for (int i = 0; i < nDevice; i++) {
             threads[i] = std::thread(total_var2<T>, p1[i], p2[i], sigma, p, i);
         }
-        Machine::config.barrier();
+        // join first: barrier-ing while the workers are still submitting work
+        // synchronizes devices at an arbitrary point and guarantees nothing
         for (auto &t : threads) { t.join(); }
+        Machine::config.barrier();
     }
 
     // explicit instantiation
