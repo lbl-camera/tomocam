@@ -30,7 +30,7 @@
 // NOTE: deliberately does NOT include "potential_function.cuh". That header
 // declares its own NX/NY/NZ constants in this same tomocam::gpu namespace,
 // which would collide with the NX/NY/NZ below (ODR/redefinition), and none
-// of its actual contents (FILTER/weight/potfunc/d_pot_func) are used here.
+// of its actual contents (FILTER/weight/d_pot_func) are used here.
 
 namespace tomocam::gpu {
 
