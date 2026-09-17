@@ -39,9 +39,6 @@ namespace tomocam {
          * @param[in] p The weight of the total variation term
          */
         template <typename T>
-        void add_total_var(const DeviceArray<T> &, DeviceArray<T> &, T, T);
-
-        template <typename T>
         void add_total_var2(const DeviceArray<T> &, DeviceArray<T> &, T, T);
 
     } // namespace gpu
