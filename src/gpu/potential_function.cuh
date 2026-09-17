@@ -56,37 +56,12 @@ namespace tomocam {
             return FILTER[i][j][k];
         }
 
-        /*
+        /* Derivative of the potential function
+         *
          *            (|d| / sigma)^2
          *  f(d) =  -------------------
          *          c + (|d| / sigma)^(2-p)
          */
-        template <typename T>
-        __deviceI__ T potfunc(T delta, T p, T sigma) {
-            auto y = abs(delta) / sigma;
-            return pow(y, 2) / (MRF_C + pow(y, 2 - p));
-        }
-
-        template <typename T>
-        __deviceI__ T d_potfunc(T delta, T p, T sigma) {
-
-            auto x = abs(delta) / sigma;
-            auto dx = 1.0 / sigma;
-            if (x < 0) dx *= -1;
-
-            // denominator
-            auto den = MRF_C + pow(x, 2 - p);
-
-            // first term
-            auto t1 = 2 * x * dx / den;
-
-            // second term
-            auto t2 = - (2 - p) * pow(x, 3 - p) * dx / (den * den);
-            if (isnan(t2)) printf("t2 = %g, den = %g\n", p, den);
-
-            return t1 + t2;
-        }
-
         __deviceI__ float d_pot_func(float delta, float MRF_P, float MRF_SIGMA) {
 
             float MRF_SIGMA_Q = powf(MRF_SIGMA, MRF_Q);
