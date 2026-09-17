@@ -6,10 +6,11 @@ skbuild_setup(
     packages=["tomocam"],
     include_package_data=True,
     cmake_args=[
-        "-DMULTI_PROC=ON",
+        "-GNinja",
+        "-DMULTI_PROC=OFF",
         "-DENABLE_PYTHON=ON",
         "-DENABLE_TESTS=OFF",
-        "-DCMAKE_CXX_COMPILER=clang++",
-        "-DCMAKE_CUDA_HOST_COMPILER=clang++"
+        "-DCMAKE_CXX_COMPILER=g++",
+        "-DCMAKE_CUDA_HOST_COMPILER=g++"
         ]
 )
