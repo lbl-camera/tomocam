@@ -279,17 +279,19 @@ namespace tomocam {
             T *temp = SharedMemory<T>();
             temp[tid] = 0;
 
-            if (idx < size) {
-                temp[tid] = a[idx] * b[idx];
-                __syncthreads();
+            // the barriers below must be reached by every thread in the block,
+            // so only the global-memory load is predicated on `idx < size`;
+            // out-of-range lanes keep their temp[tid] = 0 and still take part
+            // in the reduction sweep
+            if (idx < size) temp[tid] = a[idx] * b[idx];
+            __syncthreads();
 
-                // reduce
-                for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-                    if (tid < s) temp[tid] += temp[tid + s];
-                    __syncthreads();
-                }
-                if (tid == 0) atomicAdd(c, temp[tid]);
+            // reduce
+            for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+                if (tid < s) temp[tid] += temp[tid + s];
+                __syncthreads();
             }
+            if (tid == 0) atomicAdd(c, temp[0]);
         }
 
         template <typename T>
