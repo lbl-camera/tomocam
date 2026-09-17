@@ -21,11 +21,15 @@
 #ifndef GPUTOHOST__H
 #define GPUTOHOST__H
 
+#include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <queue>
 #include <thread>
 #include <tuple>
+
+#include "gpu/utils.cuh"
+#include "machine.h"
 
 namespace tomocam {
     template <typename Host_t, typename Device_t>
@@ -33,30 +37,46 @@ namespace tomocam {
       private:
         std::thread thread_;
         std::mutex mutex_;
+        std::condition_variable cv_;
         std::queue<std::tuple<Host_t, Device_t>> queue_;
-        std::atomic<bool> stop_;
+        bool stop_;
 
       public:
         GPUToHost() : stop_(false) {
-            thread_ = std::thread([this] {
-                while (!queue_.empty() || !stop_) {
+            // CUDA's "current device" is thread-local and is NOT inherited by a
+            // newly spawned thread (a fresh thread always starts on device 0).
+            // Capture the calling thread's device and re-select it here, so the
+            // device-to-host cudaMemcpy -- and the cudaFree that runs when the
+            // Device_t below is destroyed -- are issued on the device that
+            // actually owns the memory, not silently on device 0.
+            int device = 0;
+            SAFE_CALL(cudaGetDevice(&device));
+            thread_ = std::thread([this, device] {
+                DeviceGuard guard(device);
+                while (true) {
                     auto item = pop();
-                    if (item.has_value()) {
-                        auto &&[h, d] = std::move(item.value());
-                        d.copy_to(h);
-                    }
+                    if (!item.has_value()) break;
+                    auto &&[h, d] = std::move(item.value());
+                    d.copy_to(h);
                 }
             });
         }
 
         ~GPUToHost() {
-            stop_ = true;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                stop_ = true;
+            }
+            cv_.notify_all();
             thread_.join();
         }
 
         void push(Host_t h, Device_t &&d) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            queue_.push(std::make_tuple(h, std::move(d)));
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                queue_.push(std::make_tuple(h, std::move(d)));
+            }
+            cv_.notify_one();
         }
 
       private:
@@ -65,8 +85,11 @@ namespace tomocam {
         GPUToHost(GPUToHost &&) = delete;
         GPUToHost &operator=(GPUToHost &&) = delete;
 
+        // blocks until an item is available, or returns nullopt once the queue
+        // has been drained *and* the shipper has been told to stop
         std::optional<std::tuple<Host_t, Device_t>> pop() {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
+            cv_.wait(lock, [this] { return !queue_.empty() || stop_; });
             if (queue_.empty()) return std::nullopt;
             auto item = std::move(queue_.front());
             queue_.pop();
