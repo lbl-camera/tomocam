@@ -121,8 +121,6 @@ namespace tomocam {
      * @param eps The TV penalty epsilon.
      */
     template <typename T>
-    void add_total_var(DArray<T> &, DArray<T> &, float, float);
-    template <typename T>
     void add_total_var2(DArray<T> &, DArray<T> &, T, T);
 
     /**
