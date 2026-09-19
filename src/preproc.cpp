@@ -99,4 +99,26 @@ namespace tomocam {
     template DArray<float> preproc(DArray<float> &);
     template DArray<double> preproc(DArray<double> &);
 
+    /*** Tomographic preprocessing ***/
+    /*
+    template <typename T>
+    DArray<T> tomo_preproc(const DArray<T> &projs, const DArray<T> &flats,
+                           const DArray<T> &darks) {
+
+        // normalize
+        auto flat_mean = array::mean(flats);
+        auto dark_mean = array::mean(darks);
+        auto numer = array::bcast_subtract(projs, dark_mean);
+        auto denom = flat_mean - dark_mean;
+        array::clip(denom, 0.0001);
+        auto projs2 = numer / denom;
+
+        // Beer-Lambert
+        array::neg_log(projs2, min_val);
+
+        // transpose from projection to sinogram
+        projs2 = array::proj_to_sino(projs2);
+    }
+    */
+
 } // namespace tomocam
