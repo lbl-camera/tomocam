@@ -18,6 +18,7 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -82,18 +83,15 @@ int main(int argc, char **argv) {
     int nslices = iend - ibeg;
 
 #ifdef MULTIPROC
+    // the first (nslices % nprocs) ranks get one extra slice; offsets are
+    // relative to the requested starting slice
     int slcs_per_proc = nslices / nprocs;
     int extra_slcs = nslices % nprocs;
-    if ((extra_slcs > 0) && (myrank < extra_slcs)) slcs_per_proc += 1;
+    int local_nslcs = slcs_per_proc + (myrank < extra_slcs ? 1 : 0);
 
     // set local ibegs and iends
-    ibeg = myrank * slcs_per_proc;
-    iend = ibeg + slcs_per_proc;
-    if (myrank > extra_slcs) {
-        ibeg =
-            extra_slcs * (slcs_per_proc + 1) + (myrank - extra_slcs) * slcs_per_proc;
-        iend = ibeg + slcs_per_proc;
-    }
+    ibeg += myrank * slcs_per_proc + std::min(myrank, extra_slcs);
+    iend = ibeg + local_nslcs;
 #endif
 
     auto sino = fp.read_sinogram<float>(dataset.c_str(), ibeg, iend);
