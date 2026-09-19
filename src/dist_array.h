@@ -32,7 +32,7 @@
 #include "types.h"
 
 #ifdef MULTIPROC
-    #include "multiproc.h"
+#include "multiproc.h"
 #endif
 
 namespace tomocam {
@@ -106,57 +106,53 @@ namespace tomocam {
 
         void match_dims(const dim3_t &d) {
             if (dims_.x != d.x || dims_.y != d.y || dims_.z != d.z) {
-                throw std::runtime_error(
-                    "Error: DArray dimensions do not match");
+                throw std::runtime_error("Error: DArray dimensions do not match");
             }
         }
 
         // init
-        void init(T v) {
-            std::fill(exe::par_unseq, this->begin(), this->end(), v);
-        }
+        void init(T v) { std::fill(exe::par_unseq, this->begin(), this->end(), v); }
 
         // normalize
         void normalize() {
             T min = this->min();
             T max = this->max();
             T denom = max - min;
-            if (denom == 0) {
-                throw std::runtime_error("Error: Division by zero");
-            }
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                this->begin(), [min, denom](T a) { return (a - min) / denom; });
+            if (denom == 0) { throw std::runtime_error("Error: Division by zero"); }
+            std::transform(exe::par_unseq, this->begin(), this->end(), this->begin(),
+                           [min, denom](T a) { return (a - min) / denom; });
         }
 
         // norm2
         T norm() const {
-            return std::transform_reduce(exe::par_unseq, this->begin(),
-                this->end(), T(0), std::plus<T>(), [](T x) { return x * x; });
+            return std::transform_reduce(exe::par_unseq, this->begin(), this->end(),
+                                         T(0), std::plus<T>(),
+                                         [](T x) { return x * x; });
         }
 
         // sum
         T sum() const {
             return std::reduce(exe::par_unseq, this->begin(), this->end(), T(0),
-                std::plus<T>());
+                               std::plus<T>());
         }
 
         // max
         T max() const {
             return std::reduce(exe::par_unseq, this->begin(), this->end(),
-                T(-1.0e20), [](T a, T b) { return std::max(a, b); });
+                               T(-1.0e20), [](T a, T b) { return std::max(a, b); });
         }
 
         // min
         T min() const {
-            return std::reduce(exe::par_unseq, this->begin(), this->end(),
-                T(1.0e20), [](T a, T b) { return std::min(a, b); });
+            return std::reduce(exe::par_unseq, this->begin(), this->end(), T(1.0e20),
+                               [](T a, T b) { return std::min(a, b); });
         }
 
         // subtract
         DArray<T> &operator-=(const DArray<T> &rhs) {
             match_dims(rhs.dims_);
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                rhs.begin(), this->begin(), std::minus<T>());
+            std::transform(exe::par_unseq, this->begin(), this->end(), rhs.begin(),
+                           this->begin(), std::minus<T>());
             return *this;
         }
         DArray<T> operator-(const DArray<T> &rhs) const {
@@ -168,8 +164,8 @@ namespace tomocam {
         // add
         DArray<T> operator+=(const DArray<T> &rhs) {
             match_dims(rhs.dims_);
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                rhs.begin(), this->begin(), std::plus<T>());
+            std::transform(exe::par_unseq, this->begin(), this->end(), rhs.begin(),
+                           this->begin(), std::plus<T>());
             return *this;
         }
         DArray<T> operator+(const DArray<T> &rhs) const {
@@ -181,8 +177,8 @@ namespace tomocam {
         // multiply
         DArray<T> operator*=(const DArray<T> &rhs) {
             match_dims(dims_);
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                rhs.begin(), this->begin(), std::multiplies<T>());
+            std::transform(exe::par_unseq, this->begin(), this->end(), rhs.begin(),
+                           this->begin(), std::multiplies<T>());
             return *this;
         }
         DArray<T> operator*(const DArray<T> &rhs) const {
@@ -194,8 +190,8 @@ namespace tomocam {
         // divide
         DArray<T> operator/=(const DArray<T> &rhs) {
             match_dims(rhs.dims_);
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                rhs.begin(), this->begin(), std::divides<T>());
+            std::transform(exe::par_unseq, this->begin(), this->end(), rhs.begin(),
+                           this->begin(), std::divides<T>());
             return *this;
         }
         DArray<T> operator/(const DArray<T> &rhs) const {
@@ -206,8 +202,8 @@ namespace tomocam {
 
         // subtract a scalar
         DArray<T> &operator-=(const T &rhs) {
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                this->begin(), [rhs](T a) { return a - rhs; });
+            std::transform(exe::par_unseq, this->begin(), this->end(), this->begin(),
+                           [rhs](T a) { return a - rhs; });
             return *this;
         }
         // right subtract a scalar
@@ -218,8 +214,8 @@ namespace tomocam {
         }
 
         DArray<T> &operator+=(const T &rhs) {
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                this->begin(), [rhs](T a) { return a + rhs; });
+            std::transform(exe::par_unseq, this->begin(), this->end(), this->begin(),
+                           [rhs](T a) { return a + rhs; });
             return *this;
         }
         // right add a scalar
@@ -231,8 +227,8 @@ namespace tomocam {
 
         // multiply by a scalar
         DArray<T> &operator*=(const T &rhs) {
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                this->begin(), [rhs](T a) { return a * rhs; });
+            std::transform(exe::par_unseq, this->begin(), this->end(), this->begin(),
+                           [rhs](T a) { return a * rhs; });
             return *this;
         }
         // right multiply by a scalar
@@ -244,8 +240,8 @@ namespace tomocam {
 
         // divide by a scalar
         DArray<T> &operator/=(const T &rhs) {
-            std::transform(exe::par_unseq, this->begin(), this->end(),
-                this->begin(), [rhs](T a) { return a / rhs; });
+            std::transform(exe::par_unseq, this->begin(), this->end(), this->begin(),
+                           [rhs](T a) { return a / rhs; });
             return *this;
         }
         // right divide by a scalar
@@ -270,8 +266,7 @@ namespace tomocam {
                     uint64_t beg = i * dims_.y * nz + j * nz;
                     uint64_t end = i * dims_.y * nz + j * nz + d.z;
                     uint64_t out_beg = i * d.y * new_nz + j * new_nz;
-                    std::copy(buffer_ + beg, buffer_ + end,
-                        new_buffer + out_beg);
+                    std::copy(buffer_ + beg, buffer_ + end, new_buffer + out_beg);
                 }
             }
             delete[] buffer_;
@@ -293,14 +288,14 @@ namespace tomocam {
         T &operator[](uint64_t i) { return buffer_[i]; }
         T operator[](uint64_t i) const { return buffer_[i]; }
         T &operator()(int i, int j, int k) { return buffer_[idx_(i, j, k)]; }
-        T operator()(int i, int j, int k) const {
-            return buffer_[idx_(i, j, k)];
-        }
+        T operator()(int i, int j, int k) const { return buffer_[idx_(i, j, k)]; }
 
         // Returns pointer to N-th slice
-        T *slice(int n) { return (buffer_ + n * dims_.y * dims_.z); }
-        const T *slice(int n) const {
-            return (buffer_ + n * dims_.y * dims_.z);
+        T *slice(size_t n) {
+            return (buffer_ + static_cast<size_t>(n) * dims_.y * dims_.z);
+        }
+        const T *slice(size_t n) const {
+            return (buffer_ + static_cast<size_t>(n) * dims_.y * dims_.z);
         }
 
         // Expose the allocated memoy pointer
@@ -330,12 +325,10 @@ namespace tomocam {
             if (!first) multiproc::mp.Send(this->slice(1), count, prev);
 
             // receive last slice from next
-            if (!last)
-                multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
+            if (!last) multiproc::mp.Recv(this->slice(dims_.x - 1), count, next);
 
             // send penultimate slice to next
-            if (!last)
-                multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
+            if (!last) multiproc::mp.Send(this->slice(dims_.x - 2), count, next);
             //
             // receive slice 0 from prev
             if (!first) multiproc::mp.Recv(this->slice(0), count, prev);
@@ -373,8 +366,7 @@ namespace tomocam {
 
     /* subdivide array into N partitions */
     template <typename T>
-    std::vector<Partition<T>> create_partitions(DArray<T> &arr,
-        int n_partitions) {
+    std::vector<Partition<T>> create_partitions(DArray<T> &arr, int n_partitions) {
 
         dim3_t dims = arr.dims();
         int n_slices = arr.nslices() / n_partitions;
@@ -384,7 +376,8 @@ namespace tomocam {
         std::vector<Partition<T>> table;
         int offset = 0;
         for (int i = 0; i < n_partitions; i++) {
-            if (i < n_extra) dims.x = n_slices + 1;
+            if (i < n_extra)
+                dims.x = n_slices + 1;
             else
                 dims.x = n_slices;
             table.push_back(Partition<T>(dims, arr.slice(offset)));
@@ -396,8 +389,8 @@ namespace tomocam {
 /* subdivide array into N partitions, with n halo layers on boundaries */
 #ifndef MULTIPROC
     template <typename T>
-    std::vector<Partition<T>> create_partitions(DArray<T> &arr,
-        int n_partitions, int halo) {
+    std::vector<Partition<T>> create_partitions(DArray<T> &arr, int n_partitions,
+                                                int halo) {
 
         const dim3_t dims = arr.dims();
         int n_slices = arr.nslices() / n_partitions;
@@ -411,7 +404,8 @@ namespace tomocam {
         int offset = 0;
         locations.push_back(offset);
         for (int i = 0; i < n_partitions; i++) {
-            if (i < n_extra) offset += n_slices + 1;
+            if (i < n_extra)
+                offset += n_slices + 1;
             else
                 offset += n_slices;
             locations.push_back(offset);
@@ -421,11 +415,13 @@ namespace tomocam {
         int h[2];
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
-            if (i == 0) h[0] = 0;
+            if (i == 0)
+                h[0] = 0;
             else
                 h[0] = halo;
             int imax = std::min(locations[i + 1] + halo, dims.x);
-            if (i == n_partitions - 1) h[1] = 0;
+            if (i == n_partitions - 1)
+                h[1] = 0;
             else
                 h[1] = halo;
             dim3_t d(imax - imin, dims.y, dims.z);
@@ -435,8 +431,8 @@ namespace tomocam {
     }
 #else
     template <typename T>
-    std::vector<Partition<T>> create_partitions(DArray<T> &arr,
-        int n_partitions, int halo) {
+    std::vector<Partition<T>> create_partitions(DArray<T> &arr, int n_partitions,
+                                                int halo) {
 
         // get MPI rank and size
         int myrank = multiproc::mp.myrank();
@@ -459,7 +455,8 @@ namespace tomocam {
         int offset = myrank == 0 ? 0 : 1;
         locations.push_back(offset);
         for (int i = 0; i < n_partitions; i++) {
-            if (i < n_extra) offset += n_slices + 1;
+            if (i < n_extra)
+                offset += n_slices + 1;
             else
                 offset += n_slices;
             locations.push_back(offset);
@@ -469,11 +466,13 @@ namespace tomocam {
         int h[2];
         for (int i = 0; i < n_partitions; i++) {
             int imin = std::max(locations[i] - halo, 0);
-            if ((myrank == 0) && (i == 0)) h[0] = 0;
+            if ((myrank == 0) && (i == 0))
+                h[0] = 0;
             else
                 h[0] = halo;
             int imax = std::min(locations[i + 1] + halo, dims.x);
-            if ((myrank == nprocs - 1) && (i == n_partitions - 1)) h[1] = 0;
+            if ((myrank == nprocs - 1) && (i == n_partitions - 1))
+                h[1] = 0;
             else
                 h[1] = halo;
             dim3_t d(imax - imin, dims.y, dims.z);
