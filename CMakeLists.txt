@@ -197,7 +197,45 @@ if (ENABLE_PYTHON)
                           CXX_STANDARD_REQUIRED ON)
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
     target_link_libraries(cTomocam PUBLIC pybind11::headers)
+
+    # look for shared libraries next to the module first, then fall back to the
+    # directories the module was linked against
+    set_target_properties(cTomocam PROPERTIES
+                          INSTALL_RPATH "$ORIGIN"
+                          INSTALL_RPATH_USE_LINK_PATH ON)
+
     install(TARGETS cTomocam DESTINATION tomocam)
+
+    # ship finufft inside the python package, so that the installed module does
+    # not need finufft on LD_LIBRARY_PATH
+    option(BUNDLE_FINUFFT "Install the finufft shared library with the python module" ON)
+    if (BUNDLE_FINUFFT)
+        set(finufft_RUNTIME_LIBS ${finufft_LIBRARIES})
+        if (NOT finufft_RUNTIME_LIBS)
+            # finufft was found through its own finufftConfig.cmake
+            foreach(prop IMPORTED_LOCATION IMPORTED_LOCATION_RELEASE)
+                get_target_property(loc finufft::finufft ${prop})
+                if (loc)
+                    list(APPEND finufft_RUNTIME_LIBS ${loc})
+                endif()
+            endforeach()
+        endif()
+
+        if (finufft_RUNTIME_LIBS)
+            message(STATUS "Bundling finufft with python module: ${finufft_RUNTIME_LIBS}")
+            # FOLLOW_SYMLINK_CHAIN copies the real library once and recreates the
+            # libcufinufft.so -> libcufinufft.so.2 style links the module needs
+            install(CODE "
+                file(INSTALL
+                     DESTINATION \"\${CMAKE_INSTALL_PREFIX}/tomocam\"
+                     TYPE SHARED_LIBRARY
+                     FOLLOW_SYMLINK_CHAIN
+                     FILES ${finufft_RUNTIME_LIBS})
+            ")
+        else()
+            message(WARNING "BUNDLE_FINUFFT is ON but no finufft shared library was found to install")
+        endif()
+    endif(BUNDLE_FINUFFT)
 
 else()
     message("-- Python module is disabled")
