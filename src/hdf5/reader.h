@@ -26,7 +26,7 @@
 #include "hdf5/h5dtype.h"
 
 #ifndef TOMOCAM_READER__H
-#    define TOMOCAM_READER__H
+#define TOMOCAM_READER__H
 
 namespace tomocam {
     namespace h5 {
@@ -65,7 +65,7 @@ namespace tomocam {
              */
             template <typename T>
             DArray<T> read_sinogram(const char *dataset, hsize_t begin = 0,
-                hsize_t end = -1) {
+                                    hsize_t end = -1) {
 
                 // open dataset
                 hid_t dset = H5Dopen2(fp_, dataset, H5P_DEFAULT);
@@ -91,7 +91,6 @@ namespace tomocam {
                     throw std::runtime_error("Data type mismatch");
                 }
 
-
                 // create memory space for reading
                 hsize_t out_dims[3] = {dims[0], nslice, dims[2]};
                 hid_t out_space = H5Screate_simple(3, out_dims, NULL);
@@ -101,14 +100,14 @@ namespace tomocam {
                 hsize_t count[3] = {dims[0], nslice, dims[2]};
                 hsize_t start[3] = {0, begin, 0};
                 H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL, count,
-                    NULL);
+                                    NULL);
                 H5Dread(dset, dtype, out_space, fspace, H5P_DEFAULT, A.begin());
 
                 // allocate return value
                 DArray<T> B({(int)nslice, (int)dims[0], (int)dims[2]});
 
-                // transpose data
-                #pragma omp parallel for
+// transpose data
+#pragma omp parallel for
                 for (uint64_t i = 0; i < nslice; i++)
                     for (uint64_t j = 0; j < dims[0]; j++)
                         for (uint64_t k = 0; k < dims[2]; k++)
@@ -156,7 +155,7 @@ namespace tomocam {
                 hsize_t count[3] = {nslice, dims[1], dims[2]};
                 hsize_t start[3] = {(hsize_t)begin, 0, 0};
                 H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL, count,
-                    NULL);
+                                    NULL);
                 H5Dread(dset, dtype, out_space, fspace, H5P_DEFAULT, A.begin());
 
                 // clean up
