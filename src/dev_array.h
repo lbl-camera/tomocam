@@ -73,14 +73,14 @@ namespace tomocam {
         // Allocate space
         DeviceArray(dim3_t d) : dims_(d) {
             halo_ = {0, 0};
-            size_ = d.x * d.y * d.z;
+            size_ = static_cast<size_t>(d.x) * d.y * d.z;
             dev_ptr_ = gpuMem::make_cuniquePtr<T>(size_);
         }
 
         // Allocate space with halo
         DeviceArray(dim3_t d, int *h) : dims_(d) {
             halo_ = {h[0], h[1]};
-            size_ = d.x * d.y * d.z;
+            size_ = static_cast<size_t>(d.x) * d.y * d.z;
             dev_ptr_ = gpuMem::make_cuniquePtr<T>(size_);
         }
 
