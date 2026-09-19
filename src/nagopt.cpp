@@ -45,7 +45,12 @@ namespace tomocam {
         T t = 1;
         T tnew = 1;
         T step0 = step_size;
-        T xerr = static_cast<T>(sol.size());
+        T xerr = 1; // relative change in the solution, ||xnew - xold|| / ||xold||
+
+        // normalize the loss by its initial value so that the convergence
+        // criterion is independent of the data scale
+        T loss0 = loss(sol);
+        if (!(loss0 > 0)) loss0 = 1;
 
         for (size_t iter = 0; iter < params.max_iters; ++iter) {
 
@@ -62,8 +67,13 @@ namespace tomocam {
             auto g = gradient(y);
             T fy = loss(y);
             T gnorm2 = array::dot(g, g);
+#ifdef MULTIPROC
+            // gy must be identical on all ranks, otherwise ranks take
+            // different backtracking paths and the collectives below mismatch
+            gnorm2 = multiproc::mp.SumReduce(gnorm2);
+#endif
 
-            while (true) {
+            for (size_t i = 0; i < 20; ++i) {
 
                 // update x, sol = y - step_size * g
                 sol = array::axpy(g, -step_size, y);
@@ -80,24 +90,33 @@ namespace tomocam {
                     step_size = step0;
                     t = tnew;
 
-                    // compute norm of the change
+                    // relative change in the solution, ||xnew - xold|| / ||xold||
                     DArray<T> dx = array::axpy(x, static_cast<T>(-1), sol);
-                    xerr = array::dot(dx, dx);
+                    T dx2 = array::dot(dx, dx);
+                    T x2 = array::dot(x, x);
 #ifdef MULTIPROC
-                    xerr = multiproc::mp.SumReduce(xerr);
+                    dx2 = multiproc::mp.SumReduce(dx2);
+                    x2 = multiproc::mp.SumReduce(x2);
 #endif
+                    // guard against a zero initial guess
+                    xerr = (x2 > 0) ? std::sqrt(dx2 / x2) : static_cast<T>(1);
 
                     x = sol;
                     break;
                 }
             }
-            T e = loss(sol);
+            T e = loss(sol) / loss0;
 #ifdef MULTIPROC
             if (multiproc::mp.first())
 #endif
                 // ensure that output prints in nice columns
                 fprintf(stdout, "iter: %4zu, error: %5.4e, x-err: %5.4e\n", iter, e,
-                        std::sqrt(xerr));
+                        xerr);
+
+            // e and xerr are identical on all ranks (both are reduced), so
+            // every rank exits at the same iteration
+            if (e < static_cast<T>(params.tol) || xerr < static_cast<T>(params.xtol))
+                break;
         }
         return sol;
     }
@@ -108,6 +127,7 @@ namespace tomocam {
                                   const DArray<float> &, float, const ReconParams &);
     template DArray<double> nagopt(std::function<DArray<double>(DArray<double> &)>,
                                    std::function<double(DArray<double> &)>,
-                                   const DArray<double> &, double, const ReconParams &);
+                                   const DArray<double> &, double,
+                                   const ReconParams &);
 
 } // namespace tomocam
