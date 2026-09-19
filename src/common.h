@@ -28,12 +28,12 @@
 namespace tomocam {
 
     struct ReconParams {
-        size_t max_iters = 100;  // outer iteration count (nagopt / split-Bregman)
-        size_t inner_iters = 1;  // CG inner-loop cap (cgsolver, within split-Bregman)
-        double tol;
-        double xtol;
-        double mu = 10.0;     // split-Bregman quadratic penalty weight
-        double lambda = 0.1;  // TV shrinkage weight
+        size_t max_iters = 100; // outer iteration count (nagopt / split-Bregman)
+        size_t inner_iters = 1; // CG inner-loop cap (cgsolver, within split-Bregman)
+        double tol = 1e-4;      // stop when loss / initial loss falls below tol
+        double xtol = 1e-4;  // stop when ||xnew - xold|| / ||xold|| falls below xtol
+        double mu = 10.0;    // split-Bregman quadratic penalty weight
+        double lambda = 0.1; // TV shrinkage weight
         double sigma = 500.0; // qGGMRF parameter
     };
 
