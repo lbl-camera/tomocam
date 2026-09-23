@@ -64,6 +64,59 @@ srun -n 2 --mpi=pmi2 podman-hpc run --rm --openmpi-pmi2 --gpu \
 
 The container expects HDF5 files in ALS 8.3.2 format and writes output as TIFF files.
 
+### Building on Perlmutter (NERSC)
+
+`setup.py` builds with `-DMULTI_PROC=ON`. On NERSC (`$NERSC_HOST` set) CMake then
+requires the `cray-mpich` module and links against it, not against whatever `FindMPI`
+finds. Some things to watch for:
+
+**Modules.** Load `PrgEnv-gnu`, `cray-mpich`, `cudatoolkit`, `craype-accel-nvidia80`
+and `cmake` before building (see `NERSC/NERSC_MODULES.sh`). If `CRAY_MPICH_ROOTDIR`
+is not set, the configure step fails on purpose. Rebuild after changing any of these
+modules.
+
+**Don't install MPI from conda.** conda-forge's `mpi4py` pulls in `openmpi`, which
+causes two problems:
+
+- At build time, the env's `include/` has Open MPI's `mpi.h`. If that directory comes
+  before cray-mpich's include directory, the sources compile against Open MPI and
+  the link step fails with `undefined reference to 'ompi_mpi_comm_world'` (and
+  `ompi_mpi_int`, `ompi_mpi_op_sum`, ...). `CMakeLists.txt` now puts cray-mpich's
+  include directory first to guard against this.
+- At run time, `mpi4py` loads Open MPI while `tomocam` loads Cray MPICH, and the two
+  don't mix under `srun`.
+
+Remove conda's MPI packages and build `mpi4py` against cray-mpich:
+
+```bash
+conda remove --force mpi4py openmpi mpi
+MPICC="cc -shared" pip install --no-binary=mpi4py --no-cache-dir mpi4py
+python -c "from mpi4py import MPI; print(MPI.Get_library_version())"   # should report CRAY MPICH
+```
+
+Don't pass `--no-build-isolation` here: the build needs Cython, which pip installs in the
+isolated build environment. A later `conda install`/`update` can bring `openmpi` back
+if something depends on `mpi`; `conda install "mpich=*=external_*"` stops this, because
+that package tells conda an MPI is already provided and installs no MPI files.
+
+**Dependencies outside conda.** `finufft` (built with cuFINUFFT), `nlohmann_json` and
+`pybind11` are found from `$HOME/finufft`, `$HOME/json` and `$HOME/pybind11` when
+they aren't on `CMAKE_PREFIX_PATH`. HDF5 can resolve to the conda env's `libhdf5`
+even when `cray-hdf5` is loaded. That works, but it means two HDF5 builds are in play.
+
+**Stale builds.** scikit-build caches the CMake configuration in `_skbuild/`. Delete it
+(`rm -rf _skbuild`) after changing modules or the conda env, otherwise `pip install .`
+reuses the old include and library paths.
+
+**Checking the result.**
+
+```bash
+ldd $(python -c "import tomocam, os; print(os.path.dirname(tomocam.__file__))")/cTomocam*.so | grep -i mpi
+```
+
+Every MPI library should be under `/opt/cray/pe/`, and nothing should be `libmpi.so.40`
+(Open MPI).
+
 **Citation**
 ------------
 If you use this code in your research, please cite the following paper:
