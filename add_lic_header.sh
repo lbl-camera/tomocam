@@ -17,17 +17,17 @@ header="/* ---------------------------------------------------------------------
  * to reproduce, distribute copies to the public, prepare derivative works, and
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
- */"
-
+ */
+"
 copyright='Tomocam Copyright (c) 2018'
+files=$(find ./src -type f)
 
 # find .cpp, .h, .cu, and .cuh files in src directory
 files=$(find ./src -type f -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.cu" -o -name "*.cuh")
 for file in $files; do
     if ! grep -q "$copyright" $file; then
         echo "Adding license to file $file"
-        echo "$header" > $file.new
-        cat $file >> $file.new
-        mv $file.new $file
+        echo "${header}" > $file.tmp
+        cat $file >> $file.tmp && mv $file.tmp $file
     fi
 done

@@ -1,0 +1,75 @@
+name: Build Container with Podman-HPC
+
+on:
+  push:
+    branches:
+      - perlmutter
+  pull_request:
+    branches:
+      - perlmutter
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install podman
+
+      - name: Install podman-hpc
+        run: |
+          pip install podman-hpc
+
+      - name: Log in to Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
+      - name: Build image with podman-hpc
+        run: |
+          podman-hpc build \
+            --layers \
+            --format docker \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            .
+
+      - name: Tag image with SHA
+        run: |
+          podman-hpc tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Tag as latest (if default branch)
+        if: github.ref == 'refs/heads/perlmutter'
+        run: |
+          podman-hpc tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Push images
+        run: |
+          podman-hpc push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          podman-hpc push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            podman-hpc push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          fi
+
+      - name: List built images
+        run: podman-hpc images

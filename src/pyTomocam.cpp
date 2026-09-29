@@ -46,7 +46,7 @@ template <typename T>
 inline std::vector<T> getVec(np_array_t<T> array) {
     auto buffer_info = array.request();
     return std::vector<T>((T *)buffer_info.ptr,
-        (T *)buffer_info.ptr + buffer_info.size);
+                          (T *)buffer_info.ptr + buffer_info.size);
 }
 
 template <typename T>
@@ -62,24 +62,22 @@ inline tomocam::DArray<T> from_numpy(const np_array_t<T> &np_arr) {
         dims.z = np_arr.shape(2);
     }
     tomocam::DArray<T> rv(dims);
-    std::copy((T *)buffer_info.ptr, (T *)buffer_info.ptr + rv.size(),
-        rv.begin());
+    std::copy((T *)buffer_info.ptr, (T *)buffer_info.ptr + rv.size(), rv.begin());
     return rv;
 }
 
 template <typename T>
 inline np_array_t<T> to_numpy(const tomocam::DArray<T> &arr) {
     auto dims = arr.dims();
-    std::vector<ssize_t> shape{(ssize_t)dims.x, (ssize_t)dims.y,
-        (ssize_t)dims.z};
-    size_t N = arr.size();
-    T *buf = new T[N];
-    std::copy(arr.begin(), arr.end(), buf);
-    return np_array_t<T>(shape, buf);
+    std::vector<ssize_t> shape{(ssize_t)dims.x, (ssize_t)dims.y, (ssize_t)dims.z};
+    np_array_t<T> result(shape);
+
+    std::copy(arr.begin(), arr.end(), result.mutable_data());
+    return result;
 }
 
 np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
-    np_array_t<float> angs) {
+                                np_array_t<float> angs) {
 
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(imgstack));
@@ -92,7 +90,7 @@ np_array_t<float> radon_wrapper(np_array_t<float> &imgstack,
 }
 
 np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
-    np_array_t<float> angs, float cen) {
+                                      np_array_t<float> angs, float cen) {
 
     // create DArray from numpy
     tomocam::DArray<float> arg1(from_numpy<float>(sino));
@@ -101,10 +99,15 @@ np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
     int nrays = arg1.ncols();
 
     // pad and center the sinogram
-    auto sino2 = tomocam::preproc(arg1, cen);
+    auto sino2 = tomocam::preproc(arg1);
+
+    // preproc pads symmetrically, so the rotation center shifts by
+    // the padding added on each side
+    int npad = (sino2.ncols() - nrays) / 2;
+    cen += static_cast<float>(npad);
 
     // backproject call
-    auto tmp = tomocam::backproject(sino2, getVec<float>(angs));
+    auto tmp = tomocam::backproject(sino2, getVec<float>(angs), cen);
 
     // undo the padding
     auto bproj = tomocam::postproc(tmp, nrays);
@@ -114,22 +117,41 @@ np_array_t<float> backproject_wrapper(np_array_t<float> &sino,
 }
 
 np_array_t<float> mbir_wrapper(np_array_t<float> &np_sino,
-    np_array_t<float> &np_angles, float center, int num_iters, float sigma,
-    float tol, float xtol) {
+                               np_array_t<float> &np_angles, float center,
+                               int num_iters, float sigma, float tol, float xtol) {
 
     // create DArray from numpy
     tomocam::DArray<float> sino(from_numpy<float>(np_sino));
     tomocam::dim3_t dims = sino.dims();
 
     // initial guess
-    std::optional<tomocam::DArray<float>> x0;
+    tomocam::DArray<float> x0({0, 0, 0});
 
     // get data pointer to angles
     auto angles = getVec<float>(np_angles);
-    tomocam::DArray<float> recon =
-        tomocam::mbir2(x0, sino, angles, center, num_iters, sigma, tol, xtol);
+
+    tomocam::ReconParams params;
+    params.max_iters = num_iters;
+    params.sigma = sigma;
+    params.tol = tol;
+    params.xtol = xtol;
+    tomocam::DArray<float> recon = tomocam::mbir2(x0, sino, angles, center, params);
 
     // return numpy array
+    return to_numpy<float>(recon);
+}
+
+np_array_t<float> mbir_mpi_wrapper(np_array_t<float> &np_sino,
+                                   np_array_t<float> &np_angles, float center,
+                                   int num_iters, float sigma, float tol, float xtol,
+                                   bool file_write, std::string output_file) {
+
+    tomocam::DArray<float> sino(from_numpy<float>(np_sino));
+    auto angles = getVec<float>(np_angles);
+
+    tomocam::DArray<float> recon = tomocam::mbir_mpi(
+        sino, angles, center, num_iters, sigma, tol, xtol, file_write, output_file);
+
     return to_numpy<float>(recon);
 }
 
@@ -139,7 +161,7 @@ PYBIND11_MODULE(cTomocam, m) {
 
     // set gpu paramters
     m.def("set_num_of_gpus",
-        [](int num) { tomocam::Machine::config.num_of_gpus(num); });
+          [](int num) { tomocam::Machine::config.num_of_gpus(num); });
 
     // radon transform
     m.def("radon", &radon_wrapper);
@@ -149,4 +171,8 @@ PYBIND11_MODULE(cTomocam, m) {
 
     // mbir
     m.def("mbir", &mbir_wrapper, "Model-based iterative reconstruction");
+
+    // mbir with MPI gathering
+    m.def("mbir_mpi", &mbir_mpi_wrapper,
+          "Model-based iterative reconstruction with HPC");
 }

@@ -37,13 +37,14 @@ namespace tomocam {
      *
      * @param sinogram The sinogram to backproject.
      * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
      * @param boolean flag to indicate whether to apply the ramp filter.
      *
      * @return The backprojected image.
      */
     template <typename T>
-    DArray<T> backproject(DArray<T> &, const std::vector<T> &,
-        bool flag = false);
+    DArray<T> backproject(DArray<T> &, const std::vector<T> &, T center,
+                          bool flag = false);
 
     /**
      * @brief Compute the forward projection of an image.
@@ -68,7 +69,7 @@ namespace tomocam {
      */
     template <typename T>
     DArray<T> gradient(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+                       const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Compute the gradient of the objective function, given current
@@ -83,20 +84,19 @@ namespace tomocam {
 
     template <typename T>
     DArray<T> gradient2(DArray<T> &, DArray<T> &,
-        const std::vector<PointSpreadFunction<T>> &);
+                        const std::vector<PointSpreadFunction<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
      * solution
      *
      * @param current solution.
-     * @param std::vector of NUFFT::Grid types per device
+     * @param std::vector of nufft::Grid types per device
      *
      * @return the value of the objective function
      */
     template <typename T>
-    T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+    T function_value(DArray<T> &, DArray<T> &, const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -110,7 +110,7 @@ namespace tomocam {
      */
     template <typename T>
     T function_value2(DArray<T> &, DArray<T> &,
-        const std::vector<PointSpreadFunction<T>> &, T);
+                      const std::vector<PointSpreadFunction<T>> &, T);
 
     /**
      * @brief Compute TV penalty and update gradients in-place.
@@ -121,8 +121,6 @@ namespace tomocam {
      * @param eps The TV penalty epsilon.
      */
     template <typename T>
-    void add_total_var(DArray<T> &, DArray<T> &, float, float);
-    template <typename T>
     void add_total_var2(DArray<T> &, DArray<T> &, T, T);
 
     /**
@@ -132,14 +130,26 @@ namespace tomocam {
      * @param sinogram The sinogram to reconstruct.
      * @param angles The angles of the sinogram.
      * @param center The center of rotation.
-     * @param num_iter The number of iterations.
-     * @param sigma The regularization parameter.
-     * @param tolerance The stopping criterion.
-     * @param xtol The tolerance for the solution.
+     * @param params The parameters for the reconstruction.
      */
     template <typename T>
-    DArray<T> mbir2(std::optional<DArray<T>>, const DArray<T> &, std::vector<T>,
-        T, int, T, T, T);
+    DArray<T> mbir2(DArray<T> &, DArray<T> &, std::vector<T>, T,
+                    const ReconParams &);
+
+    /**
+     * @brief Compute the MBIR reconstruction using split-Bregman TV
+     * regularization, with CG (capped at 1 inner iteration) solving the
+     * normal equations at each outer step.
+     *
+     * @param initial guess
+     * @param sinogram The sinogram to reconstruct.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
+     * @param params The parameters for the reconstruction.
+     */
+    template <typename T>
+    DArray<T> mbir_bregman(DArray<T> &, DArray<T> &, std::vector<T>, T,
+                           const ReconParams &);
 
     /**
      * @brief Compute the MBIR reconstruction.
@@ -148,13 +158,27 @@ namespace tomocam {
      * @param sinogram The sinogram to reconstruct.
      * @param angles The angles of the sinogram.
      * @param center The center of rotation.
+     * @param params The parameters for the reconstruction.
+     */
+    template <typename T>
+    DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, const ReconParams &);
+
+    /**
+     * @brief Model-based iterative reconstruction with MPI gathering.
+     *
+     * @param sino The sinogram.
+     * @param angles The angles of the sinogram.
+     * @param center The center of rotation.
      * @param num_iter The number of iterations.
      * @param sigma The regularization parameter.
      * @param tolerance The stopping criterion.
      * @param xtol The tolerance for the solution.
+     * @param file_write Whether to write output to HDF5 file.
+     * @param output_file The output file name.
      */
     template <typename T>
-    DArray<T> mbir(DArray<T> &, DArray<T> &, std::vector<T>, T, int, T, T, T);
+    DArray<T> mbir_mpi(DArray<T> &, std::vector<T> &, T, int, T, T, T, bool,
+                       const std::string &);
 
     /**
      * @brief Compute the TV Hessian to estimate Lipschitz constant.
@@ -162,7 +186,19 @@ namespace tomocam {
     namespace gpu {
         template <typename T>
         void add_tv_hessian(DArray<T> &, float);
-    }
+
+        /** out-of-place BLAS-1 axpy: returns a*x + y */
+        template <typename T>
+        DArray<T> axpy(const DArray<T> &x, T a, const DArray<T> &y);
+
+        /** in-place BLAS-1 xpay: x += a*y */
+        template <typename T>
+        void xpay(DArray<T> &x, T a, const DArray<T> &y);
+
+        /** dot product of two arrays */
+        template <typename T>
+        T dot(const DArray<T> &x, const DArray<T> &y);
+    } // namespace gpu
 
     /**
      * @brief Compute the value of the objective function, given current
@@ -175,8 +211,7 @@ namespace tomocam {
      * @return the value of the objective function
      */
     template <typename T>
-    T function_value(DArray<T> &, DArray<T> &,
-        const std::vector<NUFFT::Grid<T>> &);
+    T function_value(DArray<T> &, DArray<T> &, const std::vector<nufft::Grid<T>> &);
 
     /**
      * @brief Zero pad the sinogram by a factor of \sqrt{2}
@@ -185,7 +220,7 @@ namespace tomocam {
      * @return zero padded sinogram
      */
     template <typename T>
-    DArray<T> preproc(DArray<T> &, T);
+    DArray<T> preproc(DArray<T> &);
 
     /**
      * @brief Crop the reconstruction by a factor of \sqrt{2}

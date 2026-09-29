@@ -27,35 +27,50 @@
 
 // singleton
 namespace tomocam {
+
+    class DeviceGuard {
+      private:
+        int prev_;
+
+      public:
+        DeviceGuard(int device) {
+            cudaGetDevice(&prev_);
+            cudaSetDevice(device);
+        }
+        ~DeviceGuard() { cudaSetDevice(prev_); }
+        DeviceGuard(const DeviceGuard &) = delete;
+        DeviceGuard &operator=(const DeviceGuard &) = delete;
+    };
+
     class MachineConfig {
       private:
         int ndevice_;
-        int slcsPerStream_;
 
       public:
         MachineConfig() {
             cudaGetDeviceCount(&ndevice_);
-            #ifdef DEBUG
+#ifdef DEBUG
             ndevice_ = 1; // for debugging
-            #endif
-            slcsPerStream_ = 4; // slices
+#endif
         }
 
         MachineConfig(const MachineConfig &) = delete;
         MachineConfig &operator=(const MachineConfig &) = delete;
 
         // setters
-        void num_of_gpus(int ndev)  {
+        void num_of_gpus(int ndev) {
             if ((ndev > 0) && (ndev <= ndevice_)) {
                 ndevice_ = ndev;
             } else {
-                std::cerr << "Invalid number of GPUs. Using default: " << ndevice_ << std::endl;
+                std::cerr << "Invalid number of GPUs. Using default: " << ndevice_
+                          << std::endl;
             }
         }
 
         // getters
         int num_of_gpus() const { return ndevice_; }
-        int slicesPerStream() const { return slcsPerStream_; }
+
+        int slicesPerStream() const { return 4; }
 
         /* calculate number of sub-partitions, based on free memory */
         int num_of_partitions(dim3_t dims, size_t bytes) {
@@ -63,11 +78,14 @@ namespace tomocam {
             size_t total_mem = 0;
             size_t free_mem = 0;
             cudaMemGetInfo(&free_mem, &total_mem);
-            size_t max_allowed = 0.05 * free_mem;
+            constexpr size_t target_chunk_bytes = 2ULL * 1024 * 1024 * 1024; // 2 GB
+            size_t max_allowed =
+                std::min(target_chunk_bytes, static_cast<size_t>(0.5 * free_mem));
 
-            size_t bytes_per_slice = bytes / dims.x;
-            int slcs_per_partition = max_allowed / bytes_per_slice;
-            int slcs = std::min(slcsPerStream_, slcs_per_partition);
+            double bytes_per_slice = static_cast<double>(bytes) / dims.x;
+            int slcs_per_partition =
+                static_cast<int>(static_cast<double>(max_allowed) / bytes_per_slice);
+            int slcs = std::max(1, slcs_per_partition);
 
             // number of partions
             int n_partitions = dims.x / slcs;
@@ -77,7 +95,7 @@ namespace tomocam {
 
         void barrier() {
             for (int i = 0; i < ndevice_; i++) {
-                cudaSetDevice(i);
+                DeviceGuard guard(i);
                 cudaDeviceSynchronize();
             }
         }

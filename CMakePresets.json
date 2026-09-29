@@ -4,13 +4,12 @@
     "configurePresets": [
         {
             "name": "debug",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_CUDA_HOST_COMPILER": "clang++",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -23,13 +22,12 @@
         },
         {
             "name": "release",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_CUDA_HOST_COMPILER": "clang++",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -41,11 +39,14 @@
             }
         },
         {
-            "name": "multiproc",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/Multiproc",
+            "name": "multiproc-debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/mpi-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_CUDA_HOST_COMPILER": "g++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -59,7 +60,30 @@
                     "value": "ON"
                 }
             }
-        } 
+        },
+        {
+            "name": "multiproc-release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/mpi-build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_CUDA_HOST_COMPILER": "g++",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "OFF"
+                },
+                "MULTI_PROC": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "ENABLE_PYTHON": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        }
     ],
     "buildPresets": [
         {
@@ -73,9 +97,44 @@
             "jobs": 8
         },
         {
-            "name": "multiproc",
-            "configurePreset": "multiproc",
+            "name": "multiproc-debug",
+            "configurePreset": "multiproc-debug",
             "jobs": 8
+        },
+        { 
+            "name": "multiproc-release",
+            "configurePreset": "multiproc-release",
+            "jobs": 8
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "debug",
+            "steps": [
+                { "name": "debug", "type": "configure" },
+                { "name": "debug", "type": "build" }
+            ]
+        },
+        {
+            "name": "release",
+            "steps": [
+                { "name": "release", "type": "configure" },
+                { "name": "release", "type": "build" }
+            ]
+        },
+        {
+            "name": "multiproc-debug",
+            "steps": [
+                { "name": "multiproc-debug", "type": "configure" },
+                { "name": "multiproc-debug", "type": "build" }
+            ]
+        },
+        {
+            "name": "multiproc-release",
+            "steps": [
+                { "name": "multiproc-release", "type": "configure" },
+                { "name": "multiproc-release", "type": "build" }
+            ]
         }
     ]
 }

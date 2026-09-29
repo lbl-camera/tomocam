@@ -237,5 +237,22 @@ namespace tomocam {
         template void unpad2d(DeviceArray<double> &, const DeviceArray<double> &,
             int, PadType);
 
+        /* two-dimensional crop at an arbitrary, caller-specified offset --
+         * reuses crop2d_kernel directly instead of going through unpad2d's
+         * PadType-derived shift formulas */
+        template <typename T>
+        DeviceArray<T> crop2d(const DeviceArray<T> &in, int out_size, int shift) {
+
+            dim3_t new_dim = {in.nslices(), out_size, out_size};
+            DeviceArray<T> out(new_dim);
+
+            Grid grid(new_dim);
+            crop2d_kernel<T><<<grid.blocks(), grid.threads()>>>(in, out, shift);
+            return out;
+        }
+        // specializations for float and double
+        template DeviceArray<float> crop2d(const DeviceArray<float> &, int, int);
+        template DeviceArray<double> crop2d(const DeviceArray<double> &, int, int);
+
     } // namespace gpu
 } // namespace tomocam

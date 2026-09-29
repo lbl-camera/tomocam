@@ -23,23 +23,26 @@
 #include "dev_array.h"
 #include "fft.h"
 #include "fftshift.h"
-#include "gpu/padding.cuh"
 #include "internals.h"
 #include "nufft.h"
-#include "tomocam.h"
 #include "types.h"
 
 namespace tomocam {
     template <typename T>
-    DeviceArray<T> project(const DeviceArray<T> &input,
-        const NUFFT::Grid<T> &grid) {
+    DeviceArray<T> project(const DeviceArray<T> &input, const nufft::Grid<T> &grid) {
+
+        // ensure device matches grid
+        DeviceGuard guard(grid.dev_id());
 
         // cast to complex
-        auto in2 = complex(input);
+        auto in2 = to_complex<T>(input);
+
+        // allocate non-uniform output
+        dim3_t out_dim(input.nslices(), grid.nprojs(), grid.npixels());
+        DeviceArray<gpu::complex_t<T>> out(out_dim);
 
         // nufft type 2
-        auto out = nufft2d2(in2, grid);
-        SAFE_CALL(cudaDeviceSynchronize());
+        nufft::nufft2d2(out, in2, grid);
 
         //  1d inverse fft along columns
         out = gpu::ifftshift(out);
@@ -48,13 +51,13 @@ namespace tomocam {
 
         T scale = static_cast<T>(input.ncols() * input.ncols());
         // cast to real
-        return (real(out) / scale);
+        return (to_real<T>(out) / scale);
     }
 
     // explicit instantiation
     template DeviceArray<float> project<float>(const DeviceArray<float> &,
-        const NUFFT::Grid<float> &); 
+                                               const nufft::Grid<float> &);
     template DeviceArray<double> project<double>(const DeviceArray<double> &,
-        const NUFFT::Grid<double> &); 
+                                                 const nufft::Grid<double> &);
 
 } // namespace tomocam

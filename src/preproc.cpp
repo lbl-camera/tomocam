@@ -29,22 +29,19 @@
 #include "scheduler.h"
 #include "shipper.h"
 
-#include "gpu/fftshift.cuh"
 #include "gpu/padding.cuh"
 #include "gpu/utils.cuh"
 
 namespace tomocam {
 
     template <typename T>
-    void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int offset,
-        int device) {
+    void preproc_(Partition<T> sino, Partition<T> sino2, int npad, int device) {
 
         // set the device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create subpartitions
-        int nparts =
-            Machine::config.num_of_partitions(sino2.dims(), sino2.bytes());
+        int nparts = Machine::config.num_of_partitions(sino2.dims(), sino2.bytes());
         auto p1 = create_partitions<T>(sino, nparts);
         auto p2 = create_partitions<T>(sino2, nparts);
 
@@ -56,33 +53,25 @@ namespace tomocam {
         while (scheduler.has_work()) {
             auto work = scheduler.get_work();
             if (work.has_value()) {
-                auto [idx, d_sino] = work.value();
+                auto &&[idx, d_sino] = std::move(work.value());
 
                 // pad the sinogram
                 auto d_sino2 = gpu::pad1d(d_sino, 2 * npad, PadType::SYMMETRIC);
 
-                // shift by twice the center offset
-                d_sino2 = gpu::roll(d_sino2, offset);
-
                 // copy data to partition
-                shipper.push(p2[idx], d_sino2);
+                shipper.push(p2[idx], std::move(d_sino2));
             }
         }
     }
 
     template <typename T>
-    DArray<T> preproc(DArray<T> &sino, T center) {
+    DArray<T> preproc(DArray<T> &sino) {
 
         int ndevices = Machine::config.num_of_gpus();
         if (sino.nslices() < ndevices) { ndevices = sino.nslices(); }
 
-        // center shift
-        int cen = static_cast<int>(std::round(center));
-        int cen_offset = (sino.ncols() + 1) / 2 - cen;
-
         // calculate the number of padding pixels ( ≥ √2  * sino.ncols())
         int npad = static_cast<int>(0.42 * sino.ncols()) / 2;
-        if (std::abs(cen_offset) > npad) npad = std::abs(cen_offset);
 
         // dimensions of the padded sinogram
         int nslcs = sino.nslices();
@@ -98,8 +87,7 @@ namespace tomocam {
 
         std::vector<std::thread> threads(ndevices);
         for (int i = 0; i < ndevices; i++) {
-            threads[i] =
-                std::thread(preproc_<T>, p1[i], p2[i], npad, cen_offset, i);
+            threads[i] = std::thread(preproc_<T>, p1[i], p2[i], npad, i);
         }
         Machine::config.barrier();
         for (auto &t : threads) { t.join(); }
@@ -108,7 +96,29 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> preproc(DArray<float> &, float);
-    template DArray<double> preproc(DArray<double> &, double);
+    template DArray<float> preproc(DArray<float> &);
+    template DArray<double> preproc(DArray<double> &);
+
+    /*** Tomographic preprocessing ***/
+    /*
+    template <typename T>
+    DArray<T> tomo_preproc(const DArray<T> &projs, const DArray<T> &flats,
+                           const DArray<T> &darks) {
+
+        // normalize
+        auto flat_mean = array::mean(flats);
+        auto dark_mean = array::mean(darks);
+        auto numer = array::bcast_subtract(projs, dark_mean);
+        auto denom = flat_mean - dark_mean;
+        array::clip(denom, 0.0001);
+        auto projs2 = numer / denom;
+
+        // Beer-Lambert
+        array::neg_log(projs2, min_val);
+
+        // transpose from projection to sinogram
+        projs2 = array::proj_to_sino(projs2);
+    }
+    */
 
 } // namespace tomocam

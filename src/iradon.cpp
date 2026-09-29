@@ -34,15 +34,15 @@ namespace tomocam {
 
     template <typename T>
     void backproject_(Partition<T> sino, Partition<T> output,
-        const std::vector<T> &angles, bool fbp, int device) {
+                      const std::vector<T> &angles, T offset, bool fbp, int device) {
 
         // select device
-        SAFE_CALL(cudaSetDevice(device));
+        DeviceGuard guard(device);
 
         // create NUFFT Grid
         int nproj = static_cast<int>(angles.size());
         int ncols = sino.ncols();
-        auto grid = NUFFT::Grid<T>(nproj, ncols, angles.data(), device);
+        auto grid = nufft::Grid<T>(nproj, ncols, angles.data(), device);
 
         // create a data shipper
         GPUToHost<Partition<T>, DeviceArray<T>> shipper;
@@ -58,22 +58,22 @@ namespace tomocam {
 
         // start a scheduler
         Scheduler<Partition<T>, DeviceArray<T>> scheduler(sub_sinos);
-        while(scheduler.has_work()) {
-            auto task = scheduler.get_work();
-            if (task.has_value()) {
-                auto [i, d_sino] = task.value();
-                auto d_recn = backproject(d_sino, grid, fbp);
+        while (scheduler.has_work()) {
+            auto work = scheduler.get_work();
+            if (work.has_value()) {
+                auto &&[i, d_sino] = std::move(work.value());
+                auto d_recn = backproject(d_sino, grid, offset, fbp);
 
                 // copy the result to the output
-                shipper.push(sub_outputs[i], d_recn);
+                shipper.push(sub_outputs[i], std::move(d_recn));
             }
         }
     }
 
     // back projection
     template <typename T>
-    DArray<T> backproject(DArray<T> &input, const std::vector<T> &angles,
-        bool fbp) {
+    DArray<T> backproject(DArray<T> &input, const std::vector<T> &angles, T center,
+                          bool fbp) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > input.nslices()) nDevice = input.nslices();
@@ -82,6 +82,9 @@ namespace tomocam {
         dim3_t dims = {input.nslices(), input.ncols(), input.ncols()};
         DArray<T> output(dims);
 
+        // calculate offset TODO: check sign
+        T offset = static_cast<T>(input.ncols() / 2) - center;
+
         // create partitions
         auto p1 = create_partitions(input, nDevice);
         auto p2 = create_partitions(output, nDevice);
@@ -89,8 +92,8 @@ namespace tomocam {
         std::vector<std::thread> threads(nDevice);
         // launch threads for each device
         for (int i = 0; i < nDevice; i++) {
-            threads[i] = std::thread(backproject_<T>, 
-                    p1[i], p2[i], std::cref(angles), fbp, i);
+            threads[i] = std::thread(backproject_<T>, p1[i], p2[i],
+                                     std::cref(angles), offset, fbp, i);
         }
 
         // wait for all devices to finish
@@ -102,9 +105,9 @@ namespace tomocam {
     }
 
     // explicit instantiation
-    template DArray<float> backproject(DArray<float> &,
-        const std::vector<float> &, bool);
+    template DArray<float> backproject(DArray<float> &, const std::vector<float> &,
+                                       float, bool);
     template DArray<double> backproject(DArray<double> &,
-        const std::vector<double> &, bool);
+                                        const std::vector<double> &, double, bool);
 
 } // namespace tomocam

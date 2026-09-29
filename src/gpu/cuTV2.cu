@@ -38,29 +38,33 @@ namespace tomocam {
                 __shared__ T s_val[NX + 2][NY + 2][NZ + 2];
 
                 auto idx = Index3D();
-                if (idx <  g.dims()) {
 
-                    // last block with shift less thet block size
-                    int shiftx = min(blockDim.z, g.dims().x - blockIdx.z * blockDim.z);
-                    int shifty = min(blockDim.y, g.dims().y - blockIdx.y * blockDim.y);
-                    int shiftz = min(blockDim.x, g.dims().z - blockIdx.x * blockDim.x);
-                    
-                    /* copy values into shared memory. */
-                    for (int i = threadIdx.z; i < NX + 2; i += shiftx) {
-                        for (int j = threadIdx.y; j < NY + 2; j += shifty) {
-                            for (int k = threadIdx.x; k < NZ + 2; k += shiftz) {
-                                int x = (int) (blockIdx.z * blockDim.z) + i - 1;
-                                int y = (int) (blockIdx.y * blockDim.y) + j - 1;
-                                int z = (int) (blockIdx.x * blockDim.x) + k - 1;
-                                s_val[i][j][k] = f_ext.at(x, y, z);
-                            }
+                int x0 = blockIdx.z * blockDim.z;
+                int y0 = blockIdx.y * blockDim.y;
+                int z0 = blockIdx.x * blockDim.x;
+
+                int nx = min((int) blockDim.z, (int) g.dims().x - x0);
+                int ny = min((int) blockDim.y, (int) g.dims().y - y0);
+                int nz = min((int) blockDim.x, (int) g.dims().z - z0);
+
+                /* copy values into shared memory. */
+                for (int i = threadIdx.z; i < nx + 2; i += blockDim.z) {
+                    for (int j = threadIdx.y; j < ny + 2; j += blockDim.y) {
+                        for (int k = threadIdx.x; k < nz + 2; k += blockDim.x) {
+                            int x = x0 + i - 1;
+                            int y = y0 + j - 1;
+                            int z = z0 + k - 1;
+                            s_val[i][j][k] = f_ext.at(x, y, z);
                         }
                     }
-                    __syncthreads();
+                }
+                __syncthreads();
+
+                if (idx < g.dims()) {
 
                     // compute the qGGMRF contribution
                     T v = s_val[threadIdx.z + 1][threadIdx.y + 1][threadIdx.x + 1];
-                    T temp = 0.f;
+                    T temp = (T) 0;
                     for (int ix = 0; ix < 3; ix++) {
                         for (int iy = 0; iy < 3; iy++) {
                             for (int iz = 0; iz < 3; iz++) {
@@ -72,7 +76,6 @@ namespace tomocam {
                     }
                     g[idx] += temp;
                 }
-                __syncthreads();
         }
 
         template <typename T>

@@ -136,8 +136,6 @@ namespace tomocam {
                     log_file_ << std::endl;
                 }
         };  
-
-        namespace data { inline Timelog timelog; }
     } // namespace log
 } // namespace tomocam
 #endif // CAM_DEBUG__H

@@ -34,10 +34,10 @@ namespace tomocam {
 
     template <typename T>
     void gradient_(Partition<T> f, Partition<T> sinoT, Partition<T> df,
-        const NUFFT::Grid<T> &nugrid, int device_id) {
+                   const nufft::Grid<T> &nugrid, int device_id) {
 
         // set device
-        SAFE_CALL(cudaSetDevice(device_id));
+        DeviceGuard guard(device_id);
 
         // sub-partitions
         int nparts = Machine::config.num_of_partitions(sinoT.dims(), sinoT.bytes());
@@ -53,19 +53,29 @@ namespace tomocam {
 
         // creater a scheduler, and assign work
         Scheduler<Partition<T>, DeviceArray<T>, DeviceArray<T>> s(p1, p2);
+
+        // cache FINUFFT plans, and reuse them
+        bool cache_plans = true;
         while (s.has_work()) {
             auto work = s.get_work();
             if (work.has_value()) {
-                auto[idx, d_f, d_sinoT] = work.value();
+                auto &&[idx, d_f, d_sinoT] = std::move(work.value());
 
-                auto t1 = complex(d_f);
-                auto t2 = nufft2d2(t1, nugrid);
-                auto t3 = nufft2d1(t2, nugrid);
-                auto t4 = real(t3) / scale;
-                auto d_g = t4 - d_sinoT;
+                // allocate intermediate array
+                dim3_t proj_dims = {d_f.nslices(), nugrid.nprojs(),
+                                    nugrid.npixels()};
+                auto temp = DeviceArray<cuda::std::complex<T>>(proj_dims);
+                auto d_gcmplx = DeviceArray<gpu::complex_t<T>>(d_f.dims());
+
+                auto d_fcmplx = to_complex<T>(d_f);
+                // call NUFFT operations, set cache_plans to true
+                nufft::nufft2d2(temp, d_fcmplx, nugrid, cache_plans);
+                nufft::nufft2d1(temp, d_gcmplx, nugrid, cache_plans);
+                auto d_g = to_real<T>(d_gcmplx);
+                d_g = (d_g - d_sinoT) / scale;
 
                 // copy gradient to host
-                shipper.push(p3[idx], d_g);
+                shipper.push(p3[idx], std::move(d_g));
             }
         }
     }
@@ -73,7 +83,7 @@ namespace tomocam {
     // Multi-GPU calll
     template <typename T>
     DArray<T> gradient(DArray<T> &solution, DArray<T> &sinoT,
-        const std::vector<NUFFT::Grid<T>> &nugrids) {
+                       const std::vector<nufft::Grid<T>> &nugrids) {
 
         int nDevice = Machine::config.num_of_gpus();
         if (nDevice > sinoT.nslices()) nDevice = sinoT.nslices();
@@ -88,13 +98,10 @@ namespace tomocam {
         // create a vector std::threads to launch the gradient function
         std::vector<std::thread> threads(nDevice);
         for (int i = 0; i < nDevice; i++) {
-            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i], 
-                    std::cref(nugrids[i]), i);
+            threads[i] = std::thread(gradient_<T>, p1[i], p2[i], p3[i],
+                                     std::cref(nugrids[i]), i);
         }
 
-       // wait for all the GPUs
-        Machine::config.barrier();
-        
         // waht for all threads to join
         for (auto &t : threads) { t.join(); }
 
@@ -103,9 +110,9 @@ namespace tomocam {
     }
 
     // Explicit instantiation
-    template DArray<float> gradient(DArray<float> &, DArray<float> &, 
-            const std::vector<NUFFT::Grid<float>> &);
-    template DArray<double> gradient(DArray<double> &, DArray<double> &, 
-            const std::vector<NUFFT::Grid<double>> &);
+    template DArray<float> gradient(DArray<float> &, DArray<float> &,
+                                    const std::vector<nufft::Grid<float>> &);
+    template DArray<double> gradient(DArray<double> &, DArray<double> &,
+                                     const std::vector<nufft::Grid<double>> &);
 
 } // namespace tomocam

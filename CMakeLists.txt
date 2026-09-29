@@ -17,14 +17,15 @@
 # perform publicly and display publicly, and to permit other to do so.
 #---------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 project(tomocam LANGUAGES CXX CUDA)
 set(tomocam_VERSION_MAJOR 3) 
 set(tomocam_VERSION_MINOR 0)
 
 #C++ Stuff
-set(CMAKE_CXX_STANDARD 23) 
-set(CMAKE_CUDA_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED OFF)
+set(CMAKE_CUDA_STANDARD 20)
 
 # debug flags
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
@@ -44,12 +45,18 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/xerror.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient.cpp
     ${PROJECT_SOURCE_DIR}/src/gradient2.cpp
-    ${PROJECT_SOURCE_DIR}/src/gpu/cuTVD.cu
     ${PROJECT_SOURCE_DIR}/src/gpu/cuTV2.cu
-    ${PROJECT_SOURCE_DIR}/src/tvd_update.cpp
     ${PROJECT_SOURCE_DIR}/src/tv_update.cpp
-    ${PROJECT_SOURCE_DIR}/src/mbir.cpp
     ${PROJECT_SOURCE_DIR}/src/mbir2.cpp
+    ${PROJECT_SOURCE_DIR}/src/mbir_bregman.cpp
+    ${PROJECT_SOURCE_DIR}/src/nagopt.cpp
+    ${PROJECT_SOURCE_DIR}/src/power_iteration.cpp
+    ${PROJECT_SOURCE_DIR}/src/cgsolver.cpp
+    ${PROJECT_SOURCE_DIR}/src/bregman.cpp
+    ${PROJECT_SOURCE_DIR}/src/finitdiff_ops.cpp
+    ${PROJECT_SOURCE_DIR}/src/gpu/finitdiff.cu
+    ${PROJECT_SOURCE_DIR}/src/gpu/shrinkage.cu
+    ${PROJECT_SOURCE_DIR}/src/pyMBIR.cpp
     ${PROJECT_SOURCE_DIR}/src/postproc.cpp
     ${PROJECT_SOURCE_DIR}/src/preproc.cpp
     ${PROJECT_SOURCE_DIR}/src/padding.cpp
@@ -74,17 +81,27 @@ endif(ENABLE_GPROF)
 
 # create a dependency interface shortcut
 add_library(tomocam::deps INTERFACE IMPORTED)
-target_link_libraries(tomocam::deps INTERFACE stdc++exp)
+# Note: stdc++exp removed for Ubuntu 22.04 compatibility
+#target_link_libraries(tomocam::deps INTERFACE stdc++exp)
 
 # CUDA Stuff
 find_package(CUDAToolkit REQUIRED)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
 set(CMAKE_CUDA_FLAGS "--default-stream per-thread ${CMAKE_CUDA_FLAGS}")
-set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;86")
+set(CMAKE_CUDA_ARCHITECTURES native)
+
+if (CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+    # CUDA 13 moved the CCCL headers (cuda/std, thrust, cub) under include/cccl.
+    foreach(dir ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+        if (EXISTS "${dir}/cccl")
+            include_directories("${dir}/cccl")
+        endif()
+    endforeach()
+endif()
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cudart)
 target_link_libraries(tomocam::deps INTERFACE CUDA::cufft)
-target_link_libraries(tomocam::deps INTERFACE CUDA::cuda_driver)
 
 # openmp
 find_package(OpenMP) 
@@ -102,43 +119,71 @@ endif()
 # MPI
 if (MULTI_PROC)
     enable_language(C)
-    find_package(MPI COMPONENTS C)
-    if (MPI_FOUND)
-        target_include_directories(tomocam::deps INTERFACE ${MPI_C_INCLUDE_PATH})
-        target_compile_definitions(tomocam::deps INTERFACE MULTIPROC)
-        target_link_libraries(tomocam::deps INTERFACE ${MPI_C_LIBRARIES})
+    if (DEFINED ENV{NERSC_HOST})
+        # On NERSC, use the cray-mpich module (CRAY_MPICH_ROOTDIR), not whatever
+        # FindMPI turns up (e.g. a conda Open MPI that would clash with srun / mpi4py)
+        if (NOT DEFINED ENV{CRAY_MPICH_ROOTDIR})
+            message(FATAL_ERROR "Building on NERSC ($ENV{NERSC_HOST}) with MULTI_PROC=ON "
+                                "requires the cray-mpich module (CRAY_MPICH_ROOTDIR is not set)")
+        endif()
+        find_package(MPICH REQUIRED)
+        # Plain -I so cray-mpich's mpi.h beats any other mpi.h on an -isystem
+        # path (e.g. a conda env include/ that has Open MPI via mpi4py)
+        include_directories(BEFORE ${MPI_INCLUDE_DIR})
+        set(TOMOCAM_MPI_INCLUDE ${MPI_INCLUDE_DIR})
+        set(TOMOCAM_MPI_LIBS ${MPI_LIBRARY})
     else()
-        message(FATAL_ERROR "MPI not found")
-    endif(MPI_FOUND)
+        find_package(MPI COMPONENTS C REQUIRED)
+        set(TOMOCAM_MPI_INCLUDE ${MPI_C_INCLUDE_PATH})
+        set(TOMOCAM_MPI_LIBS ${MPI_C_LIBRARIES})
+    endif()
+    target_include_directories(tomocam::deps INTERFACE ${TOMOCAM_MPI_INCLUDE})
+    target_compile_definitions(tomocam::deps INTERFACE MULTIPROC)
+    target_link_libraries(tomocam::deps INTERFACE ${TOMOCAM_MPI_LIBS})
 endif(MULTI_PROC)
 
 
 # finufft
 find_package(finufft REQUIRED)
-target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
+target_link_libraries(tomocam::deps INTERFACE finufft::cufinufft)
 
 # TRY the official package
-find_package(HDF5 REQUIRED)
-target_link_libraries(tomocam::deps INTERFACE hdf5::hdf5)
+find_package(HDF5 REQUIRED COMPONENTS C)
+include_directories(${HDF5_INCLUDE_DIRS})
+target_link_libraries(tomocam::deps INTERFACE HDF5::HDF5)
 
 
 find_package(TBB REQUIRED)
 target_link_libraries(tomocam::deps INTERFACE TBB::tbb)
 
+find_package(nlohmann_json 3.2.0 REQUIRED)
+
 # build ojbect library
 add_library(tomocam_objs OBJECT ${SRC})
-set_target_properties(tomocam_objs PROPERTIES 
-                      POSITION_INDEPENDENT_CODE ON)
-target_compile_features(tomocam_objs PUBLIC cxx_std_23)
+set_target_properties(tomocam_objs PROPERTIES
+                      POSITION_INDEPENDENT_CODE ON
+                      CXX_STANDARD 20)
 target_link_libraries(tomocam_objs PUBLIC tomocam::deps)
 
 # build shared library
 add_library(tomocam SHARED $<TARGET_OBJECTS:tomocam_objs>)
-set_target_properties(tomocam PROPERTIES 
-                      VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR} 
-                      SOVERSION ${tomocam_VERSION_MAJOR})
+set_target_properties(tomocam PROPERTIES
+                      VERSION ${tomocam_VERSION_MAJOR}.${tomocam_VERSION_MINOR}
+                      SOVERSION ${tomocam_VERSION_MAJOR}
+                      CXX_STANDARD 20)
 target_link_libraries(tomocam PUBLIC tomocam::deps)
-target_compile_features(tomocam PUBLIC cxx_std_23)
+
+# MBIR reconstruction executable
+add_executable(mbir_recon ${PROJECT_SOURCE_DIR}/src/mbir_recon.cpp)
+set_target_properties(mbir_recon PROPERTIES CXX_STANDARD 20)
+target_link_libraries(mbir_recon PRIVATE tomocam)
+target_link_libraries(mbir_recon PRIVATE nlohmann_json::nlohmann_json)
+
+# MBIR reconstruction executable (split-Bregman + CG)
+add_executable(mbir_bregman_recon ${PROJECT_SOURCE_DIR}/src/mbir_bregman_recon.cpp)
+set_target_properties(mbir_bregman_recon PROPERTIES CXX_STANDARD 20)
+target_link_libraries(mbir_bregman_recon PRIVATE tomocam)
+target_link_libraries(mbir_bregman_recon PRIVATE nlohmann_json::nlohmann_json)
 
 option(ENABLE_PYTHON "Enable python module" OFF)
 if (ENABLE_PYTHON)
@@ -157,13 +202,53 @@ if (ENABLE_PYTHON)
 
     # build python module
     add_library(cTomocam MODULE src/pyTomocam.cpp $<TARGET_OBJECTS:tomocam_objs>)
-    set_target_properties(cTomocam PROPERTIES 
-                          CXX_VISIBILITY_PRESET "hidden" 
-                          PREFIX "${PYTHON_MODULE_PREFIX}" 
-                          SUFFIX "${PYTHON_MODULE_EXTENSION}")
+    set_target_properties(cTomocam PROPERTIES
+                          CXX_VISIBILITY_PRESET "hidden"
+                          PREFIX "${PYTHON_MODULE_PREFIX}"
+                          SUFFIX "${PYTHON_MODULE_EXTENSION}"
+                          CXX_STANDARD 20
+                          CXX_STANDARD_REQUIRED ON)
     target_link_libraries(cTomocam PUBLIC tomocam::deps)
-    target_compile_features(cTomocam PUBLIC cxx_std_23)
+    target_link_libraries(cTomocam PUBLIC pybind11::headers)
+
+    # look for shared libraries next to the module first, then fall back to the
+    # directories the module was linked against
+    set_target_properties(cTomocam PROPERTIES
+                          INSTALL_RPATH "$ORIGIN"
+                          INSTALL_RPATH_USE_LINK_PATH ON)
+
     install(TARGETS cTomocam DESTINATION tomocam)
+
+    # ship finufft inside the python package, so that the installed module does
+    # not need finufft on LD_LIBRARY_PATH
+    option(BUNDLE_FINUFFT "Install the finufft shared library with the python module" ON)
+    if (BUNDLE_FINUFFT)
+        set(finufft_RUNTIME_LIBS ${finufft_LIBRARIES})
+        if (NOT finufft_RUNTIME_LIBS)
+            # finufft was found through its own finufftConfig.cmake
+            foreach(prop IMPORTED_LOCATION IMPORTED_LOCATION_RELEASE)
+                get_target_property(loc finufft::cufinufft ${prop})
+                if (loc)
+                    list(APPEND finufft_RUNTIME_LIBS ${loc})
+                endif()
+            endforeach()
+        endif()
+
+        if (finufft_RUNTIME_LIBS)
+            message(STATUS "Bundling finufft with python module: ${finufft_RUNTIME_LIBS}")
+            # FOLLOW_SYMLINK_CHAIN copies the real library once and recreates the
+            # libcufinufft.so -> libcufinufft.so.2 style links the module needs
+            install(CODE "
+                file(INSTALL
+                     DESTINATION \"\${CMAKE_INSTALL_PREFIX}/tomocam\"
+                     TYPE SHARED_LIBRARY
+                     FOLLOW_SYMLINK_CHAIN
+                     FILES ${finufft_RUNTIME_LIBS})
+            ")
+        else()
+            message(WARNING "BUNDLE_FINUFFT is ON but no finufft shared library was found to install")
+        endif()
+    endif(BUNDLE_FINUFFT)
 
 else()
     message("-- Python module is disabled")

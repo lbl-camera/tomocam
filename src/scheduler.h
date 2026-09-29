@@ -28,6 +28,8 @@
 #include <tuple>
 #include <vector>
 
+#include "gpu/utils.cuh"
+
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
@@ -42,6 +44,7 @@ namespace tomocam {
         std::mutex m_;
         std::condition_variable cv_;
         std::atomic<bool> all_done_;
+        std::thread producer_;
 
       public:
         Scheduler() : all_done_(false) {}
@@ -53,8 +56,13 @@ namespace tomocam {
             enqueue(h_arr1, h_arr2);
         }
 
-        // destructor
-        ~Scheduler() = default;
+        // the producer thread captures `this`, so it MUST be joined before the
+        // queue/mutex/condition-variable it refers to are destroyed. Detaching
+        // it here would let a consumer that has drained the queue tear this
+        // object down while the producer is still touching it.
+        ~Scheduler() {
+            if (producer_.joinable()) producer_.join();
+        }
 
         // delete copy and move constructors
         Scheduler(const Scheduler &) = delete;
@@ -64,13 +72,13 @@ namespace tomocam {
 
         // get work from queue
         std::optional<std::tuple<int, Device_t, Types...>> get_work() {
-            std::lock_guard<std::mutex> lock(m_);
-            if (pending_work_.empty()) {
-                cv_.notify_one();
-                return std::nullopt;
-            }
-            auto work = pending_work_.front();
+            std::unique_lock<std::mutex> lock(m_);
+            // block until the producer has something for us, or is done.
+            cv_.wait(lock, [this] { return !pending_work_.empty() || all_done_; });
+            if (pending_work_.empty()) return std::nullopt;
+            auto work = std::move(pending_work_.front());
             pending_work_.pop();
+            lock.unlock();
             cv_.notify_one();
             return work;
         }
@@ -84,34 +92,67 @@ namespace tomocam {
       private:
         // enqueue one std::vector of Host_t
         void enqueue(std::vector<Host_t> h_arr) {
-            std::thread([this, h_arr]() {
-                for (int i = 0; i < h_arr.size(); i++) {
+            // CUDA's "current device" is thread-local and is NOT inherited by
+            // a newly spawned thread (a fresh thread always starts on device
+            // 0). Capture the calling thread's current device here and set
+            // it explicitly inside the background thread below, so Device_t
+            // (e.g. DeviceArray) is allocated/copied on the same device the
+            // caller intended -- not silently on device 0.
+            int device = 0;
+            SAFE_CALL(cudaGetDevice(&device));
+            producer_ = std::thread([this, h_arr, device]() {
+                DeviceGuard guard(device);
+                for (size_t i = 0; i < h_arr.size(); i++) {
                     Device_t d_arr(h_arr[i]);
-                    std::unique_lock<std::mutex> lock(this->m_);
-                    cv_.wait(lock, [this]() {
-                        return this->pending_work_.size() < MAX_QUEUE_SIZE;
-                    });
-                    this->pending_work_.push(std::make_tuple(i, d_arr));
+                    {
+                        std::unique_lock<std::mutex> lock(this->m_);
+                        cv_.wait(lock, [this]() {
+                            return this->pending_work_.size() < MAX_QUEUE_SIZE;
+                        });
+                        this->pending_work_.push(
+                            std::make_tuple(i, std::move(d_arr)));
+                    }
+                    // wake the consumer, which may be blocked in get_work()
+                    cv_.notify_all();
                 }
-                this->all_done_ = true;
-            }).detach();
+                {
+                    std::lock_guard<std::mutex> lock(this->m_);
+                    this->all_done_ = true;
+                }
+                cv_.notify_all();
+            });
         }
 
         // enqueue two std::vectors of Host_t
         void enqueue(std::vector<Host_t> h_arr1, std::vector<Host_t> h_arr2) {
-            std::thread([this, h_arr1, h_arr2]() {
-                for (int i = 0; i < h_arr1.size(); i++) {
+            if (h_arr1.size() != h_arr2.size()) {
+                throw std::invalid_argument("h_arr1 and h_arr2 must have same size");
+            }
+            // see comment in the single-vector enqueue() above
+            int device = 0;
+            SAFE_CALL(cudaGetDevice(&device));
+            producer_ = std::thread([this, h_arr1, h_arr2, device]() {
+                DeviceGuard guard(device);
+                for (size_t i = 0; i < h_arr1.size(); i++) {
                     Device_t d_arr1(h_arr1[i]);
                     Device_t d_arr2(h_arr2[i]);
-                    std::unique_lock<std::mutex> lock(this->m_);
-                    cv_.wait(lock, [this]() {
-                        return this->pending_work_.size() < MAX_QUEUE_SIZE;
-                    });
-                    this->pending_work_.push(
-                        std::make_tuple(i, d_arr1, d_arr2));
+                    {
+                        std::unique_lock<std::mutex> lock(this->m_);
+                        cv_.wait(lock, [this]() {
+                            return this->pending_work_.size() < MAX_QUEUE_SIZE;
+                        });
+                        this->pending_work_.push(std::make_tuple(
+                            i, std::move(d_arr1), std::move(d_arr2)));
+                    }
+                    // wake the consumer, which may be blocked in get_work()
+                    cv_.notify_all();
                 }
-                this->all_done_ = true;
-            }).detach();
+                {
+                    std::lock_guard<std::mutex> lock(this->m_);
+                    this->all_done_ = true;
+                }
+                cv_.notify_all();
+            });
         }
     };
 } // namespace tomocam
