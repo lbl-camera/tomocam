@@ -119,20 +119,33 @@ endif()
 # MPI
 if (MULTI_PROC)
     enable_language(C)
-    find_package(MPI COMPONENTS C)
-    if (MPI_FOUND)
-        target_include_directories(tomocam::deps INTERFACE ${MPI_C_INCLUDE_PATH})
-        target_compile_definitions(tomocam::deps INTERFACE MULTIPROC)
-        target_link_libraries(tomocam::deps INTERFACE ${MPI_C_LIBRARIES})
+    if (DEFINED ENV{NERSC_HOST})
+        # On NERSC, use the cray-mpich module (CRAY_MPICH_ROOTDIR), not whatever
+        # FindMPI turns up (e.g. a conda Open MPI that would clash with srun / mpi4py)
+        if (NOT DEFINED ENV{CRAY_MPICH_ROOTDIR})
+            message(FATAL_ERROR "Building on NERSC ($ENV{NERSC_HOST}) with MULTI_PROC=ON "
+                                "requires the cray-mpich module (CRAY_MPICH_ROOTDIR is not set)")
+        endif()
+        find_package(MPICH REQUIRED)
+        # Plain -I so cray-mpich's mpi.h beats any other mpi.h on an -isystem
+        # path (e.g. a conda env include/ that has Open MPI via mpi4py)
+        include_directories(BEFORE ${MPI_INCLUDE_DIR})
+        set(TOMOCAM_MPI_INCLUDE ${MPI_INCLUDE_DIR})
+        set(TOMOCAM_MPI_LIBS ${MPI_LIBRARY})
     else()
-        message(FATAL_ERROR "MPI not found")
-    endif(MPI_FOUND)
+        find_package(MPI COMPONENTS C REQUIRED)
+        set(TOMOCAM_MPI_INCLUDE ${MPI_C_INCLUDE_PATH})
+        set(TOMOCAM_MPI_LIBS ${MPI_C_LIBRARIES})
+    endif()
+    target_include_directories(tomocam::deps INTERFACE ${TOMOCAM_MPI_INCLUDE})
+    target_compile_definitions(tomocam::deps INTERFACE MULTIPROC)
+    target_link_libraries(tomocam::deps INTERFACE ${TOMOCAM_MPI_LIBS})
 endif(MULTI_PROC)
 
 
 # finufft
 find_package(finufft REQUIRED)
-target_link_libraries(tomocam::deps INTERFACE finufft::finufft)
+target_link_libraries(tomocam::deps INTERFACE finufft::cufinufft)
 
 # TRY the official package
 find_package(HDF5 REQUIRED COMPONENTS C)
@@ -214,7 +227,7 @@ if (ENABLE_PYTHON)
         if (NOT finufft_RUNTIME_LIBS)
             # finufft was found through its own finufftConfig.cmake
             foreach(prop IMPORTED_LOCATION IMPORTED_LOCATION_RELEASE)
-                get_target_property(loc finufft::finufft ${prop})
+                get_target_property(loc finufft::cufinufft ${prop})
                 if (loc)
                     list(APPEND finufft_RUNTIME_LIBS ${loc})
                 endif()
