@@ -117,7 +117,9 @@ namespace tomocam {
         gpu::add_tv_hessian(hess_tv, params.sigma);
         L += hess_tv.max();
 
+#ifndef MULTIPROC
         std::cout << std::format("Lipschitz constant: {:.3f}", L) << std::endl;
+#endif
         T step_size = 1 / L;
         if (step_size > 1) step_size = 1;
         T p = 1.2;
