@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     libfftw3-dev \
     pybind11-dev \
     libtbb-dev \
+    nlohmann-json3-dev \
     libc++-dev \
     libc++abi-dev \
     libpmix-dev \
