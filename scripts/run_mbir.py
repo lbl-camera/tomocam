@@ -1,171 +1,149 @@
 #!/usr/bin/env python
-"""MBIR reconstruction driver -- the python twin of build/mbir_recon.
+"""MBIR reconstruction driver for raw DXchange (/exchange) beamline files.
 
-Usage: python run_mbir.py <input.json> [--skip-prep] [--bregman] [--show]
+Standalone python driver; it does not read the JSON that build/mbir_recon uses.
 
-Reads the same JSON that mbir_recon.cpp consumes (src/config.h), so one file
-describes a dataset for both. The top-level keys name an HDF5 file that already
-holds float32 sinograms and radian angles:
+    python run_mbir.py raw.h5 --axis 1227                    # all sinograms
+    python run_mbir.py raw.h5 --sino 1000:1032 --axis 1227
+    python run_mbir.py raw.h5 --sino 1000:1032 --axis 1227 --save-prep prep.h5
+    python run_mbir.py prep.h5 --from-prep --axis 1227 --iters 50
+    python run_mbir.py --config recon.json          # flags override the file
 
-    filename     HDF5 file to reconstruct from                   (required)
-    dataset      projection dataset, (nproj, nrow, ncol) float32 (required)
-    angles       angles dataset, radians, float32                (required)
-    axis         center of rotation, in pixels                   (required)
-    slices       [start, stop] detector rows of `dataset` to reconstruct
-                                             (default: the whole stack)
-    MBIR.max_iters                                           (default: 100)
-    MBIR.inner_iters  CG inner-loop cap, split-Bregman only     (default: 1)
-    MBIR.tol                                                (default: 1e-4)
-    MBIR.xtol                                               (default: 1e-4)
-    MBIR.mu       split-Bregman penalty weight, bregman only   (default: 10.)
-    MBIR.lambda   TV shrinkage weight, bregman only            (default: 0.1)
-    MBIR.sigma    qGGMRF parameter                             (default: 500)
-    output.filename  where the reconstruction is written        (required)
-    output.format    "hdf5" or "tiff"      (default: from the filename suffix)
+Pipeline: read /exchange/{data,data_white,data_dark,theta} -> flat/dark
+normalize -> clip -> minus_log -> stripe removal (Fourier-wavelet) -> MBIR ->
+multi-page TIFF (one float32 page per slice, <out-dir>/<stem>.tiff).
 
-Raw APS 32-ID / DXchange files hold uint16 counts and degrees, which this
-pipeline cannot read. If the JSON carries a `prep` block, it is normalized into
-the file named by `filename` first (--skip-prep reuses an existing one):
+`--save-prep PATH` keeps the preprocessed float32 sinograms (`projs`, shape
+(nproj, nrow, ncol)) and radian angles (`angs`) so a later run can start from
+them with `--from-prep`, skipping the normalization and stripe removal.
 
-    prep.input_dir      directory holding the raw file            (required)
-    prep.input_file     raw APS 32-ID / DXchange HDF5 file        (required)
-    prep.sino           [start, stop] or [start, stop, step] detector rows
-                        to extract, in raw-file indexing          (required)
-    prep.proj           [start, stop] or [start, stop, step] projections
-                                                            (default: all)
-    prep.clip_min       floor applied before minus_log         (default: 0.01)
-    prep.remove_stripe  Fourier-wavelet stripe removal         (default: true)
+--config takes a flat JSON object whose keys are the long flag names with
+underscores, plus "input" for the file, e.g. {"input": "raw.h5",
+"sino": "1000:1032", "axis": 1227, "iters": 50, "save_prep": "prep.h5"}.
+`--write-template recon.json` writes a file with every key and its default.
+Slices are START:STOP[:STEP], or a JSON list [START, STOP[, STEP]].
 
-Note that `slices` then indexes the prepped file, not the raw one: [0, nrow].
+MPI: launch with srun/mpirun and the --sino rows are split into contiguous
+slabs, one per rank (needs mpi4py and a tomocam built with MULTI_PROC). Each
+rank reads and preprocesses only its slab; rank 0 gathers, masks and writes
+the result. --save-prep/--prep-only are single-process only.
 """
 
-import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
+import click
 import h5py
 import numpy as np
 import tifffile
 
+try:
+    from mpi4py import MPI
+    RANK = MPI.COMM_WORLD.Get_rank()
+    SIZE = MPI.COMM_WORLD.Get_size()
+    # Every rank starting as a singleton means mpi4py was built against a
+    # different MPI than the one srun launches (each would redo all slices).
+    if SIZE == 1 and int(os.environ.get("SLURM_NTASKS", "1")) > 1:
+        sys.exit(f"mpi4py sees 1 rank but Slurm started {os.environ['SLURM_NTASKS']}: "
+                 "rebuild mpi4py against Cray MPICH")
+except ImportError:
+    if int(os.environ.get("SLURM_NTASKS", "1")) > 1:
+        sys.exit("run under MPI needs mpi4py, which is not installed")
+    RANK, SIZE = 0, 1
+
+# mpi4py first: it initializes MPI, which tomocam then reuses.
 import tomopy
 import tomocam
 
-# ReconParams defaults, src/common.h -- keep in step with the C++ struct
-DEFAULTS = {
-    "max_iters": 100,
-    "inner_iters": 1,
-    "tol": 1.0e-4,
-    "xtol": 1.0e-4,
-    "mu": 10.0,
-    "lambda": 0.1,
-    "sigma": 500.0,
-}
+PREP_DATASET = "projs"
+PREP_ANGLES = "angs"
 
 
-def as_slice(spec, name):
-    """Turn a [start, stop] or [start, stop, step] list into a slice."""
-    if spec is None:
-        return slice(None)
-    if not isinstance(spec, (list, tuple)) or len(spec) not in (2, 3):
-        raise ValueError(
-            f"'{name}' must be [start, stop] or [start, stop, step], got {spec!r}")
-    start, stop = int(spec[0]), int(spec[1])
-    step = int(spec[2]) if len(spec) == 3 else 1
-    if stop <= start or step < 1:
-        raise ValueError(
-            f"'{name}' must have stop > start and step >= 1, got {spec!r}")
-    return slice(start, stop, step)
+class SliceType(click.ParamType):
+    """START:STOP[:STEP] (or a JSON list of those ints) as a slice."""
+    name = "slice"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, slice):
+            return value
+        try:
+            parts = (value.split(":") if isinstance(value, str) else list(value))
+            nums = [int(x) for x in parts]
+        except (TypeError, ValueError):
+            self.fail(f"{value!r} is not START:STOP[:STEP]", param, ctx)
+        if len(nums) not in (2, 3):
+            self.fail(f"{value!r} is not START:STOP[:STEP]", param, ctx)
+        start, stop = nums[:2]
+        step = nums[2] if len(nums) == 3 else 1
+        if start < 0 or stop <= start or step < 1:
+            self.fail(f"{value!r} needs 0 <= START < STOP and STEP >= 1",
+                      param, ctx)
+        return slice(start, stop, step)
 
 
-def load_recon_params(cfg):
-    """The MBIR block, with the defaults load_recon_params() leaves in place."""
-    mbir = cfg.get("MBIR", {})
-    unknown = set(mbir) - set(DEFAULTS)
-    if unknown:
-        print(f"warning: ignoring unknown MBIR keys {sorted(unknown)}")
-    params = dict(DEFAULTS)
-    params.update({k: v for k, v in mbir.items() if k in DEFAULTS})
-    params["max_iters"] = int(params["max_iters"])
-    params["inner_iters"] = int(params["inner_iters"])
-    for key in ("tol", "xtol", "mu", "lambda", "sigma"):
-        params[key] = float(params[key])
-    if params["max_iters"] < 1:
-        sys.exit("'MBIR.max_iters' must be greater than 0")
-    if params["sigma"] <= 0:
-        sys.exit("'MBIR.sigma' must be greater than 0")
-    return params
+SLICE = SliceType()
+
+# config-file key -> click parameter name, where they differ
+CONFIG_ALIAS = {"input": "input_file", "format": "fmt"}
+# values for options with no default, so the template shows what goes there
+TEMPLATE_EXAMPLES = {"input_file": "raw.h5", "sino": "0:16", "axis": 1024.0}
+NOT_IN_TEMPLATE = {"config", "write_template"}
 
 
-def load_output_params(cfg):
-    """The output block. Mirrors load_output_params(): suffix picks the format."""
-    if "output" not in cfg or "filename" not in cfg.get("output", {}):
-        sys.exit("'output.filename' missing from the JSON file")
-    out = cfg["output"]
-    outfile = Path(out["filename"])
-    fmt = out.get("format")
-    if fmt is None:
-        fmt = "tiff" if outfile.suffix in (".tif", ".tiff") else "hdf5"
-    if fmt not in ("hdf5", "tiff"):
-        sys.exit(f"'output.format' must be \"hdf5\" or \"tiff\", got {fmt!r}")
-    return outfile, fmt
+def row_indices(sl, nrow):
+    """Detector row numbers a slice selects, for naming the output files."""
+    return np.arange(*sl.indices(nrow))
 
 
-def prep(cfg, json_file):
-    """Normalize a raw APS 32-ID file into the float32 file `filename` names.
+def split_rows(sino, nrow, rank, size):
+    """All rows `sino` selects, and a slice covering this rank's contiguous
+    share of them. The shares differ by at most one row."""
+    rows = row_indices(sino, nrow)
+    if rows.size < size:
+        sys.exit(f"{rows.size} slices cannot be split across {size} ranks")
+    mine = np.array_split(rows, size)[rank]
+    return rows, slice(int(mine[0]), int(mine[-1]) + 1, sino.step or 1)
 
-    mbir_recon reads `dataset` straight out of the HDF5 file with no flat/dark
-    normalization, rejects anything that is not float32, and feeds `angles`
-    directly into cos/sin, so they must be radians. This does the tomopy half
-    of the pipeline once and writes the result where the rest of the JSON --
-    and the C++ binary reading the same file -- expects to find it.
-    """
-    p = cfg["prep"]
-    for key in ("input_dir", "input_file", "sino"):
-        if key not in p:
-            sys.exit(f"'prep.{key}' missing from {json_file}")
 
-    raw = Path(p["input_dir"]) / p["input_file"]
-    if not raw.exists():
-        raise FileNotFoundError(f"File {raw} not found")
-
-    sino = as_slice(p["sino"], "prep.sino")
-    proj = as_slice(p.get("proj"), "prep.proj")
-    clip_min = float(p.get("clip_min", 0.01))
-    do_stripe = bool(p.get("remove_stripe", True))
-
-    outfile = Path(cfg["filename"])
-    sino_name = cfg.get("dataset", "sino")
-    angs_name = cfg.get("angles", "theta")
-
-    print("== prep")
-    print("raw file:   ", raw)
-    print("prep file:  ", outfile)
-    print("sino:       ", p["sino"])
-    print("proj:       ", p.get("proj"))
-
-    t_start = time.time()
-    with h5py.File(raw, "r") as h:
-        exchange = h["exchange"]
-        tomo = exchange["data"][proj, sino, :]
-        flat = exchange["data_white"][:, sino, :]
-        dark = exchange["data_dark"][:, sino, :]
-        theta = exchange["theta"][proj] if "theta" in exchange else None
+def load_raw(path, sino, proj, part=(0, 1)):
+    """Read this rank's share of the selected rows of a raw DXchange file:
+    tomo, flat, dark, theta, and the row numbers of all ranks together."""
+    if not path.exists():
+        raise FileNotFoundError(f"File {path} not found")
+    with h5py.File(path, "r") as h:
+        if "exchange" not in h:
+            sys.exit(f"{path} has no /exchange group -- not a DXchange file")
+        ex = h["exchange"]
+        for key in ("data", "data_white", "data_dark"):
+            if key not in ex:
+                sys.exit(f"/exchange/{key} missing from {path}")
+        nrow = ex["data"].shape[1]
+        if sino.stop is not None and sino.stop > nrow:
+            sys.exit(f"--sino {sino.start}:{sino.stop} is outside the {nrow} "
+                     f"detector rows of {path.name}")
+        rows, mine = split_rows(sino, nrow, *part)
+        tomo = ex["data"][proj, mine, :]
+        flat = ex["data_white"][:, mine, :]
+        dark = ex["data_dark"][:, mine, :]
+        theta = ex["theta"][proj] if "theta" in ex else None
     if tomo.size == 0:
-        sys.exit(f"prep.sino={p['sino']} selects no rows; check the detector "
-                 f"height of {raw.name}")
-    print(f"read {tomo.shape} in {time.time() - t_start:.1f}s")
+        sys.exit(f"--sino/--proj select nothing from {path.name}")
+    return tomo, flat, dark, theta, rows
 
+
+def preprocess(tomo, flat, dark, theta, clip_min, do_stripe):
+    """Normalize, clip, take -log, remove stripes. Returns float32 tomo and
+    radian theta."""
     if theta is None:
         theta = np.linspace(0.0, 180.0, tomo.shape[0], dtype=np.float32)
     theta = np.asarray(theta, dtype=np.float32)
-
-    # these files store degrees; the reconstruction takes the angles in radians
+    # these files store degrees; the reconstruction takes radians
     if theta.max() > 2.0 * np.pi:
         theta = np.deg2rad(theta)
 
-    t0 = time.time()
     tomo = tomo.astype(np.float32)
     tomo = tomopy.normalize(tomo, flat, dark, out=tomo)
     np.nan_to_num(tomo, copy=False, nan=clip_min, posinf=clip_min,
@@ -174,182 +152,284 @@ def prep(cfg, json_file):
     tomo = tomopy.minus_log(tomo)
     if do_stripe:
         tomo = tomopy.remove_stripe_fw(tomo)
-    tomo = np.ascontiguousarray(tomo, dtype=np.float32)
-    print(f"preprocessing {time.time() - t0:.1f}s")
+    return np.ascontiguousarray(tomo, dtype=np.float32), theta
 
-    # h5::Reader::read_sinogram slices dim 1, so keep projection order
-    outfile.parent.mkdir(parents=True, exist_ok=True)
-    with h5py.File(outfile, "w") as h:
-        d = h.create_dataset(sino_name, data=tomo)
-        d.attrs["source_file"] = str(raw)
-        d.attrs["source_rows"] = np.asarray(p["sino"][:2], dtype=np.int64)
-        d.attrs["clip_min"] = clip_min
-        d.attrs["remove_stripe"] = do_stripe
-        a = h.create_dataset(angs_name, data=theta)
+
+def save_prep_file(path, tomo, theta, attrs):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with h5py.File(path, "w") as h:
+        d = h.create_dataset(PREP_DATASET, data=tomo)
+        for k, v in attrs.items():
+            d.attrs[k] = v
+        a = h.create_dataset(PREP_ANGLES, data=theta)
         a.attrs["units"] = "radians"
-    nproj, nrow, ncol = tomo.shape
-    print(f"wrote {outfile} {tomo.shape} float32, {nproj} angles")
-    print(f'set "slices": [0, {nrow}] to reconstruct all of it; '
-          f"prep took {time.time() - t_start:.1f}s")
+    print(f"wrote prepped data {path} {tomo.shape} float32")
 
 
-def read_sinogram(cfg, dataset, angles):
-    """Read the slice range named by `slices` in sinogram order.
-
-    The file holds (nproj, nrow, ncol); tomocam wants (nslice, nproj, ncol),
-    which is the transpose h5::Reader::read_sinogram does on the C++ side.
-    """
-    filename = Path(cfg["filename"])
-    if not filename.exists():
-        raise FileNotFoundError(
-            f"File {filename} not found -- run the prep step, or point "
-            f"'filename' at an existing prepped file")
-
-    with h5py.File(filename, "r") as h:
-        if dataset not in h:
-            sys.exit(f"dataset '{dataset}' not in {filename}")
-        if angles not in h:
-            sys.exit(f"dataset '{angles}' not in {filename}")
-        dset = h[dataset]
+def load_prep(path, sino, part=(0, 1)):
+    """Read this rank's share of a file written by save_prep, optionally a
+    subset of its rows. Also returns the row numbers of all ranks together."""
+    if not path.exists():
+        raise FileNotFoundError(f"File {path} not found")
+    with h5py.File(path, "r") as h:
+        for key in (PREP_DATASET, PREP_ANGLES):
+            if key not in h:
+                sys.exit(f"dataset '{key}' not in {path} -- was it written "
+                         f"with --save-prep?")
+        dset = h[PREP_DATASET]
         if dset.ndim != 3:
-            sys.exit(f"'{dataset}' must be 3-D, got {dset.ndim}-D")
-
+            sys.exit(f"'{PREP_DATASET}' must be 3-D, got {dset.ndim}-D")
         nrow = dset.shape[1]
-        ibeg, iend = 0, nrow
-        if "slices" in cfg:
-            slcs = as_slice(cfg["slices"], "slices")
-            ibeg, iend = slcs.start, slcs.stop
-            if slcs.step != 1:
-                print(f"warning: 'slices' step {slcs.step} ignored, "
-                      f"mbir_recon reads a contiguous range")
-            if iend > nrow:
-                sys.exit(f"slices={cfg['slices']} is outside the {nrow} rows "
-                         f"of '{dataset}' in {filename}")
-
-        tomo = dset[:, ibeg:iend, :]
-        theta = h[angles][:]
-
-    if tomo.dtype != np.float32:
-        # the C++ reader throws "Data type mismatch" here rather than convert
-        print(f"warning: '{dataset}' is {tomo.dtype}, not float32 -- "
-              f"mbir_recon would reject this file")
-    tomo = np.ascontiguousarray(tomo, dtype=np.float32)
-    theta = np.ascontiguousarray(theta, dtype=np.float32).ravel()
-
+        if sino.stop is not None and sino.stop > nrow:
+            sys.exit(f"--sino {sino.start}:{sino.stop} is outside the {nrow} "
+                     f"rows of {path.name}")
+        rows, mine = split_rows(sino, nrow, *part)
+        # name slices by their detector row in the raw file, when recorded
+        src = dset.attrs.get("source_rows")
+        if src is not None and len(src) == nrow:
+            rows = np.asarray(src)[rows]
+        tomo = dset[:, mine, :]
+        theta = h[PREP_ANGLES][:]
+    theta = np.asarray(theta, dtype=np.float32).ravel()
     if theta.size != tomo.shape[0]:
-        sys.exit(f"'{angles}' has {theta.size} entries but '{dataset}' has "
-                 f"{tomo.shape[0]} projections")
+        sys.exit(f"'{PREP_ANGLES}' has {theta.size} entries but "
+                 f"'{PREP_DATASET}' has {tomo.shape[0]} projections")
     if theta.max() > 2.0 * np.pi:
         print("warning: angles look like degrees, converting to radians")
         theta = np.deg2rad(theta)
+    return np.ascontiguousarray(tomo, dtype=np.float32), theta, rows
 
-    # mbir_recon drops the last column of an even-width sinogram and leaves the
-    # center where it is; do the same so both paths reconstruct the same volume
+
+def to_sinogram_order(tomo):
+    """(nproj, nrow, ncol) -> (nslice, nproj, ncol), as tomocam.recon wants.
+
+    An even-width sinogram loses its last column, matching mbir_recon, so the
+    center of rotation keeps its meaning across the python and C++ drivers.
+    """
     if tomo.shape[2] % 2 == 0:
         tomo = tomo[:, :, :-1]
-
-    # (nproj, nslice, ncol) -> (nslice, nproj, ncol)
-    return np.ascontiguousarray(np.transpose(tomo, (1, 0, 2))), theta, ibeg
+    return np.ascontiguousarray(np.transpose(tomo, (1, 0, 2)))
 
 
-def write_recon(rec, outfile, fmt):
-    """Write the volume as one HDF5 'recon' dataset, or one TIFF per slice."""
-    outfile.parent.mkdir(parents=True, exist_ok=True)
+def write_recon(rec, rows, out_dir, stem, fmt):
+    """One multi-page TIFF (a page per slice), or one HDF5 'recon' dataset."""
+    out_dir.mkdir(parents=True, exist_ok=True)
     if fmt == "hdf5":
+        outfile = out_dir / f"{stem}.h5"
         with h5py.File(outfile, "w") as h:
-            h.create_dataset("recon", data=rec)
+            d = h.create_dataset("recon", data=rec)
+            d.attrs["rows"] = rows
         print(f"wrote {outfile} {rec.shape} float32")
     else:
-        stem = outfile.parent / outfile.stem
-        for i, image in enumerate(rec):
-            tifffile.imwrite(f"{stem}_{i:05d}.tiff",
-                             np.asarray(image, dtype=np.float32))
-        print(f"wrote {rec.shape[0]} slices to {stem}_*.tiff")
+        outfile = out_dir / f"{stem}.tiff"
+        # one IFD per slice so every viewer sees a real multi-page file
+        tifffile.imwrite(outfile, rec.astype('f'))
+        print(f"wrote {outfile} {rec.shape} float32, one page per slice")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="MBIR reconstruction from an mbir_recon JSON config")
-    parser.add_argument("json_file", help="input JSON file")
-    parser.add_argument("--skip-prep", action="store_true",
-                        help="reconstruct from an existing prep file without "
-                             "regenerating it")
-    parser.add_argument("--preview", action="store_true",
-                        help="also write a PNG of the middle slice")
-    parser.add_argument("--show", action="store_true",
-                        help="display the preview interactively")
-    args = parser.parse_args()
+def load_config(ctx, param, value):
+    """Eager --config callback: a flat JSON object becomes the option defaults."""
+    if value is None:
+        return None
+    try:
+        with open(value) as f:
+            cfg = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise click.BadParameter(f"cannot read {value}: {e}")
+    if not isinstance(cfg, dict):
+        raise click.BadParameter("must hold a flat JSON object")
+    cfg = {CONFIG_ALIAS.get(k, k).replace("-", "_"): v for k, v in cfg.items()}
+    known = {p.name for p in ctx.command.params} - {"config"}
+    unknown = sorted(set(cfg) - known)
+    if unknown:
+        click.echo(f"warning: ignoring unknown --config keys {unknown}",
+                   err=True)
+    ctx.default_map = {k: v for k, v in cfg.items() if k in known}
+    return value
 
-    with open(args.json_file, "r") as f:
-        cfg = json.load(f)
 
-    for key in ("filename", "dataset", "angles", "axis"):
-        if key not in cfg:
-            sys.exit(f"'{key}' missing from {args.json_file}")
+def write_template(ctx, param, value):
+    """Eager --write-template callback: dump every option's default as JSON."""
+    if value is None:
+        return None
+    to_key = {v: k for k, v in CONFIG_ALIAS.items()}
+    tmpl = {}
+    for p in ctx.command.params:
+        if p.name in NOT_IN_TEMPLATE:
+            continue
+        val = TEMPLATE_EXAMPLES.get(p.name, p.default)
+        if isinstance(val, Path):
+            val = str(val)
+        elif getattr(p, "is_flag", False):
+            val = False
+        elif not isinstance(val, (bool, int, float, str)):
+            val = None  # no default (click may hand back a sentinel here)
+        tmpl[to_key.get(p.name, p.name)] = val
+    text = json.dumps(tmpl, indent=4) + "\n"
+    if str(value) == "-":
+        click.echo(text, nl=False)
+    else:
+        if value.exists():
+            raise click.BadParameter(f"{value} exists, not overwriting")
+        value.parent.mkdir(parents=True, exist_ok=True)
+        value.write_text(text)
+        click.echo(f"wrote config template {value}")
+    ctx.exit()
 
-    dataset = cfg["dataset"]
-    angles = cfg["angles"]
-    params = load_recon_params(cfg)
-    outfile, fmt = load_output_params(cfg)
 
-    # tomocam.recon is the mbir2 path; the split-Bregman keys belong to
-    # build/mbir_bregman_recon, which reads this same JSON
-    bregman_keys = sorted(set(cfg.get("MBIR", {})) & {"inner_iters", "mu", "lambda"})
-    if bregman_keys:
-        print(f"note: MBIR {bregman_keys} apply to build/mbir_bregman_recon; "
-              f"this script runs the mbir2 path and ignores them")
+@click.command(context_settings={"show_default": True},
+               help=__doc__.split("\n\n", 1)[0])
+@click.argument("input_file", metavar="[INPUT]", required=False,
+                type=click.Path(path_type=Path))
+@click.option("--config", type=click.Path(dir_okay=False), is_eager=True,
+              expose_value=False, callback=load_config,
+              help="Flat JSON of option defaults; flags override it.")
+@click.option("--write-template", type=click.Path(dir_okay=False, path_type=Path),
+              is_eager=True, expose_value=False, callback=write_template,
+              metavar="PATH.json",
+              help="Write a JSON config template with every option and exit "
+                   "('-' for stdout).")
+@click.option("--sino", type=SLICE, metavar="START:STOP[:STEP]",
+              help="Detector rows to use [default: all rows].")
+@click.option("--proj", type=SLICE, metavar="START:STOP[:STEP]",
+              help="Projections to use [default: all].")
+@click.option("--axis", type=float,
+              help="Center of rotation, in pixels of the raw detector.")
+@click.option("--clip-min", type=float, default=0.01,
+              help="Floor applied before minus_log.")
+@click.option("--no-stripe", is_flag=True,
+              help="Skip Fourier-wavelet stripe removal.")
+@click.option("--save-prep", type=click.Path(dir_okay=False, path_type=Path),
+              metavar="PATH.h5",
+              help="Save the preprocessed sinograms and angles here.")
+@click.option("--from-prep", is_flag=True,
+              help="INPUT is a prepped file; skip preprocessing.")
+@click.option("--prep-only", is_flag=True,
+              help="Stop after --save-prep; do not reconstruct.")
+@click.option("--iters", type=click.IntRange(min=1), default=100,
+              help="Max MBIR iterations.")
+@click.option("--sigma", type=click.FloatRange(min=0, min_open=True),
+              default=1000.0, help="qGGMRF sigma.")
+@click.option("--tol", type=float, default=1e-4, help="Cost tolerance.")
+@click.option("--xtol", type=float, default=1e-4, help="Update tolerance.")
+@click.option("--out-dir", type=click.Path(file_okay=False, path_type=Path),
+              help="Output directory [default: ./<input stem>_recon].")
+@click.option("--format", "fmt", type=click.Choice(["tiff", "hdf5"]),
+              default="tiff",
+              help="tiff: multi-page <out-dir>/<stem>.tiff; hdf5: <out-dir>/<stem>.h5.")
+@click.option("--preview", is_flag=True,
+              help="Also write a PNG of the middle slice.")
+@click.option("--show", is_flag=True,
+              help="Display the preview interactively.")
+def main(input_file, sino, proj, axis, clip_min, no_stripe, save_prep,
+         from_prep, prep_only, iters, sigma, tol, xtol, out_dir, fmt,
+         preview, show):
+    if input_file is None:
+        raise click.UsageError("INPUT file required (argument or in --config)")
+    if axis is None:
+        raise click.UsageError("--axis is required")
+    if SIZE > 1 and save_prep:
+        raise click.UsageError("--save-prep/--prep-only are single-process; "
+                               "run them without MPI")
+    if from_prep and save_prep:
+        raise click.UsageError("--save-prep has no effect with --from-prep")
+    if prep_only and not save_prep:
+        raise click.UsageError("--prep-only needs --save-prep")
+    sino = sino or slice(None)
+    proj = proj or slice(None)
 
+    def say(msg):
+        if RANK == 0:
+            click.echo(msg)
+
+    part = (RANK, SIZE)
+    stem = input_file.stem
     t_start = time.time()
-    if "prep" in cfg and not args.skip_prep:
-        prep(cfg, args.json_file)
 
-    tomo, theta, ibeg = read_sinogram(cfg, dataset, angles)
+    if from_prep:
+        say("reading prepped data ...")
+        tomo, theta, rows = load_prep(input_file, sino, part)
+    else:
+        say("== prep")
+        say(f"raw file:    {input_file}")
+        say(f"sino / proj: {sino} / {proj}   ranks: {SIZE}")
+        t0 = time.time()
+        tomo, flat, dark, theta, rows = load_raw(input_file, sino, proj, part)
+        say(f"read {tomo.shape} in {time.time() - t0:.1f}s (rank 0's slab)")
+        t0 = time.time()
+        tomo, theta = preprocess(tomo, flat, dark, theta,
+                                 clip_min, not no_stripe)
+        say(f"preprocessing {time.time() - t0:.1f}s")
+        if save_prep:
+            save_prep_file(save_prep, tomo, theta, {
+                "source_file": str(input_file),
+                "source_rows": rows,
+                "clip_min": clip_min,
+                "remove_stripe": not no_stripe,
+            })
+        if prep_only:
+            say(f"total {time.time() - t_start:.1f}s")
+            return
 
+    tomo = to_sinogram_order(tomo)
     ncol = tomo.shape[2]
-    axis = float(cfg["axis"])
     if not 0.0 <= axis < ncol:
-        sys.exit(f"axis={axis} is outside the detector width ({ncol} px)")
+        raise click.UsageError(
+            f"axis={axis} is outside the detector width ({ncol} px)")
 
-    print("== recon")
-    print("data file:  ", cfg["filename"])
-    print("sinogram:   ", tomo.shape, f"(rows {ibeg}..{ibeg + tomo.shape[0]})")
-    print("axis:       ", axis)
-    print("max_iters:  ", params["max_iters"])
-    print("sigma:      ", params["sigma"])
-    print("tol:        ", params["tol"])
-    print("xtol:       ", params["xtol"])
-    print("output:     ", outfile, f"({fmt})")
+    out_dir = out_dir or Path.cwd() / f"{stem}_recon"
+
+    say("== recon")
+    say(f"sinogram:  {tomo.shape} per rank, {rows.size} slices "
+        f"(rows {rows[0]}..{rows[-1]}) on {SIZE} rank(s)")
+    say(f"axis:      {axis}")
+    say(f"iters:     {iters}")
+    say(f"sigma:     {sigma}")
+    say(f"tol/xtol:  {tol} {xtol}")
+    say(f"output:    {out_dir} ({fmt})")
 
     t0 = time.time()
-    # tomocam.recon takes smoothness = 1/sigma, mbir_recon takes sigma directly
-    rec = tomocam.recon(tomo, theta, axis,
-                        num_iters=params["max_iters"],
-                        smoothness=1.0 / params["sigma"],
-                        tol=params["tol"], xtol=params["xtol"])
-    rec = tomopy.circ_mask(rec, axis=0, ratio=1.0)
-    print(f"MBIR {time.time() - t0:.1f}s")
+    # tomocam.recon takes smoothness = 1/sigma
+    rec = tomocam.recon_mpi(tomo, theta, axis, num_iters=iters,
+                        smoothness=1.0 / sigma, tol=tol, xtol=xtol)
+    say(f"MBIR {time.time() - t0:.1f}s")
 
-    write_recon(rec, outfile, fmt)
+    # the gathered volume lives on rank 0 only; the others hold an empty array.
+    # Rank 0 tells the rest whether the gather worked, so a failure exits every
+    # rank instead of leaving them waiting at the barrier below.
+    ok = RANK != 0 or rec.shape[0] == rows.size
+    if SIZE > 1:
+        ok = MPI.COMM_WORLD.bcast(ok, root=0)
+    if not ok:
+        sys.exit(f"gathered {rec.shape[0]} slices, expected {rows.size} -- was "
+                 f"tomocam built with MULTI_PROC?" if RANK == 0 else 1)
 
-    if args.preview or args.show:
-        import matplotlib
-        if not args.show:
-            matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+    if RANK == 0:
+        rec = tomopy.circ_mask(rec, axis=0, ratio=0.99)
 
-        mid = rec[rec.shape[0] // 2]
-        lo, hi = np.percentile(mid, [1, 99])
-        plt.imshow(mid, cmap="Greys_r", vmin=lo, vmax=hi)
-        plt.title(f"{outfile.stem}  slice {ibeg + rec.shape[0] // 2}  "
-                  f"axis={axis}")
-        plt.colorbar()
-        preview = outfile.parent / f"{outfile.stem}_preview.png"
-        plt.savefig(preview, dpi=150, bbox_inches="tight")
-        print(f"wrote {preview}")
-        if args.show:
-            plt.show()
+        write_recon(rec, rows, out_dir, stem, fmt)
 
-    print(f"total {time.time() - t_start:.1f}s")
+        if preview or show:
+            import matplotlib
+            if not show:
+                matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            mid = rec[rec.shape[0] // 2]
+            lo, hi = np.percentile(mid, [1, 99])
+            plt.imshow(mid, cmap="Greys_r", vmin=lo, vmax=hi)
+            plt.title(f"{stem}  slice {rows[rec.shape[0] // 2]}  axis={axis}")
+            plt.colorbar()
+            png = out_dir / f"{stem}_preview.png"
+            plt.savefig(png, dpi=150, bbox_inches="tight")
+            click.echo(f"wrote {png}")
+            if show:
+                plt.show()
+
+        click.echo(f"total {time.time() - t_start:.1f}s")
+
+    if SIZE > 1:
+        MPI.COMM_WORLD.Barrier()
 
 
 if __name__ == '__main__':

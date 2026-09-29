@@ -7,7 +7,7 @@ skbuild_setup(
     include_package_data=True,
     cmake_args=[
         "-GNinja",
-        "-DMULTI_PROC=OFF",
+        "-DMULTI_PROC=ON",
         "-DENABLE_PYTHON=ON",
         "-DENABLE_TESTS=OFF",
         "-DCMAKE_CXX_COMPILER=g++",
