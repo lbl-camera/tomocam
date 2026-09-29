@@ -41,9 +41,12 @@
         {
             "name": "multiproc-debug",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Multiproc/debug",
+            "binaryDir": "${sourceDir}/mpi-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_CUDA_HOST_COMPILER": "g++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -61,9 +64,12 @@
         {
             "name": "multiproc-release",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/Multiproc/build",
+            "binaryDir": "${sourceDir}/mpi-build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_CUDA_HOST_COMPILER": "g++",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "OFF"
