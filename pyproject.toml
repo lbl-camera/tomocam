@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tomocam"
-version = "3.0.1"
+version = "3.0.0"
 description = "tomocam: Model Based Iterative Reconstruction (MBIR) of synchrotron tomography data using NUFFT on GPUs."
 readme = "README.md"
 authors = [ {name = "Dinesh Kumar", email = "dkumar@lbl.gov"} ]
