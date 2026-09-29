@@ -72,31 +72,33 @@ namespace tomocam {
         auto recon = mbir2(x0, sino, angles, center, params);
 
 #ifdef MULTIPROC
-        int nrows = sino.nrows();
-        int ncols = sino.ncols();
+        // Gather buffers hold reconstructed slices, not sinogram rows (angles).
+        int nrows = recon.nrows();
+        int ncols = recon.ncols();
         int local_nslcs = recon.nslices();
 
         std::vector<int> all_nslcs(nprocs);
         multiproc::mp.Gather(&local_nslcs, 1, all_nslcs.data(), 1, 0);
 
+        // counts and displacements are in slices (nrows * ncols elements);
+        // element offsets overflow int for large reconstructions
         int total_nslcs = 0;
         std::vector<int> displs(nprocs, 0);
-        std::vector<int> recvcounts(nprocs, 0);
 
         if (myrank == 0) {
             for (int i = 0; i < nprocs; i++) {
                 total_nslcs += all_nslcs[i];
-                recvcounts[i] = all_nslcs[i] * nrows * ncols;
-                if (i > 0) { displs[i] = displs[i - 1] + recvcounts[i - 1]; }
+                if (i > 0) { displs[i] = displs[i - 1] + all_nslcs[i - 1]; }
             }
         }
 
         DArray<T> combined_recon({0, 0, 0});
         if (myrank == 0) { combined_recon = DArray<T>({total_nslcs, nrows, ncols}); }
 
-        multiproc::mp.Gatherv(recon.begin(), recon.size(),
-                              myrank == 0 ? combined_recon.begin() : nullptr,
-                              recvcounts.data(), displs.data(), 0);
+        multiproc::mp.GathervBlocks(recon.begin(), local_nslcs,
+                                    myrank == 0 ? combined_recon.begin() : nullptr,
+                                    all_nslcs.data(), displs.data(),
+                                    nrows * ncols, 0);
 
         if (file_write && myrank == 0 && !output_file.empty()) {
             h5::Writer writer(output_file.c_str());
