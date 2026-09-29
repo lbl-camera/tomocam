@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     libc++-dev \
     libc++abi-dev \
     libpmix-dev \
+    nlohmann-json3-dev \
     python3-numpy \
     python3-skbuild \
     python3-pyfftw \
