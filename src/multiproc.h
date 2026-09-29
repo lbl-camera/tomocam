@@ -152,6 +152,21 @@ namespace tomocam {
             MPI_CHECK(MPI_Gatherv(sendbuf, sendcount, MPItype<T>(),
                 recvbuf, recvcounts, displs, MPItype<T>(), root, MPI_COMM_WORLD));
         }
+
+        // Gatherv in units of contiguous blocks of `blocksize` elements, so
+        // counts and displacements stay small even when the total element
+        // count exceeds INT_MAX
+        template <typename T>
+        void GathervBlocks(const T *sendbuf, int sendblocks, T *recvbuf,
+                           const int *recvblocks, const int *displs,
+                           int blocksize, int root) {
+            MPI_Datatype block_t;
+            MPI_CHECK(MPI_Type_contiguous(blocksize, MPItype<T>(), &block_t));
+            MPI_CHECK(MPI_Type_commit(&block_t));
+            MPI_CHECK(MPI_Gatherv(sendbuf, sendblocks, block_t,
+                recvbuf, recvblocks, displs, block_t, root, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Type_free(&block_t));
+        }
     };
 
     namespace multiproc {
